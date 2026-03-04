@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CareerForge – Architecture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      color: #e6edf3;
+      padding: 32px 24px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: #58a6ff;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #8b949e;
+      margin-bottom: 36px;
+    }
+
+    /* ── PHASE LANE ── */
+    .phase {
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      padding: 16px 20px 20px;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .phase-label {
+      position: absolute;
+      top: -11px;
+      left: 16px;
+      background: #0d1117;
+      padding: 0 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .ph-auth    { border-color: #388bfd44; } .ph-auth    .phase-label { color: #388bfd; }
+    .ph-ingest  { border-color: #3fb95044; } .ph-ingest  .phase-label { color: #3fb950; }
+    .ph-resume  { border-color: #a371f744; } .ph-resume  .phase-label { color: #a371f7; }
+    .ph-gap     { border-color: #f7853644; } .ph-gap     .phase-label { color: #f78536; }
+    .ph-learn   { border-color: #39d35344; } .ph-learn   .phase-label { color: #39d353; }
+    .ph-jobs    { border-color: #ffa65744; } .ph-jobs    .phase-label { color: #ffa657; }
+    .ph-apply   { border-color: #f8514944; } .ph-apply   .phase-label { color: #f85149; }
+    .ph-infra   { border-color: #30363d;  } .ph-infra   .phase-label { color: #8b949e; }
+
+    /* ── CARDS ── */
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      align-items: stretch;
+    }
+    .card {
+      border-radius: 8px;
+      padding: 12px 14px;
+      min-width: 130px;
+      max-width: 200px;
+      flex: 1;
+      text-align: center;
+      border: 1px solid transparent;
+    }
+    .card .icon  { font-size: 22px; margin-bottom: 6px; }
+    .card .title { font-size: 12px; font-weight: 600; line-height: 1.3; }
+    .card .sub   { font-size: 10px; color: #8b949e; margin-top: 4px; line-height: 1.4; }
+    .aws  { font-size: 9px; color: #ffa657; background: #2b2214; border: 1px solid #ffa65733; border-radius: 3px; padding: 1px 4px; margin-top: 4px; display: inline-block; }
+    .badge{ display:inline-block; font-size:9px; font-weight:700; border-radius:4px; padding:1px 5px; margin-top:4px; letter-spacing:.5px; }
+    .b-purple { background:#a371f7; color:#0d1117; }
+    .b-green  { background:#3fb950; color:#0d1117; }
+    .b-orange { background:#f78536; color:#0d1117; }
+
+    /* card themes */
+    .c-blue   { background: #1c2a3a; border-color: #388bfd55; }
+    .c-green  { background: #1a2b1e; border-color: #3fb95055; }
+    .c-purple { background: #231e30; border-color: #a371f755; }
+    .c-orange { background: #2b1f14; border-color: #f7853655; }
+    .c-yellow { background: #2b2214; border-color: #ffa65755; }
+    .c-teal   { background: #142626; border-color: #39d35355; }
+    .c-red    { background: #2b1a1a; border-color: #f8514955; }
+    .c-gray   { background: #161b22; border-color: #30363d; }
+
+    /* ── ARROWS ── */
+    .arrow {
+      text-align: center;
+      font-size: 18px;
+      color: #30363d;
+      margin: 2px 0;
+      line-height: 1;
+    }
+    .arrow span {
+      font-size: 10px;
+      color: #8b949e;
+      display: block;
+      margin-top: 1px;
+    }
+
+    /* ── PARALLEL FORK ── */
+    .fork {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .fork > .phase { flex: 1; margin-bottom: 0; }
+
+    /* ── PIPELINE STRIP ── */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .pip-card {
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+      border: 1px solid #30363d;
+      background: #161b22;
+      min-width: 110px;
+      flex: 1;
+    }
+    .pip-card .pip-icon  { font-size: 18px; display: block; margin-bottom: 4px; }
+    .pip-card .pip-title { font-size: 11px; font-weight: 600; }
+    .pip-card .pip-sub   { font-size: 9px; color: #8b949e; margin-top: 3px; }
+    .pip-arrow { font-size: 16px; color: #30363d; padding: 0 6px; flex-shrink: 0; }
+
+    /* ── LEGEND ── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid #21262d;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8b949e; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ── PHASE NUMBER ── */
+    .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+      margin-right: 4px;
+    }
+
+  </style>
+</head>
+<body>
+
+  <h1>CareerForge — AI Career Accelerator</h1>
+  <p class="subtitle">GitHub → Resume → Skill Gap → Learning Path → Job Hunt &amp; Apply</p>
+
+  <!-- PHASE 1: AUTH -->
+  <div class="phase ph-auth">
+    <div class="phase-label">Phase 1 · Auth &amp; Consent</div>
+    <div class="row">
+      <div class="card c-blue">
+        <div class="icon">🐙</div>
+        <div class="title">GitHub OAuth 2.0</div>
+        <div class="sub">User logs in, grants repo read access via GitHub OAuth scope</div>
+        <div class="aws">Amazon Cognito</div>
+      </div>
+      <div class="card c-blue">
+        <div class="icon">✅</div>
+        <div class="title">Consent Screen</div>
+        <div class="sub">Explicit permission for repo &amp; profile data access</div>
+      </div>
+      <div class="card c-blue">
+        <div class="icon">👤</div>
+        <div class="title">User Profile</div>
+        <div class="sub">GitHub username, avatar, public profile — stored in DynamoDB</div>
+        <div class="aws">DynamoDB</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">⬇︎<span>Access token stored securely → repo fetch begins</span></div>
+
+  <!-- PHASE 2: REPO INGEST -->
+  <div class="phase ph-ingest">
+    <div class="phase-label">Phase 2 · Repo Ingestion &amp; Analysis</div>
+    <div class="pipeline">
+      <div class="pip-card">
+        <span class="pip-icon">📦</span>
+        <div class="pip-title">Fetch Repos</div>
+        <div class="pip-sub">GitHub API → list all public + consented private repos</div>
+      </div>
+      <div class="pip-arrow">→</div>
+      <div class="pip-card">
+        <span class="pip-icon">🌳</span>
+        <div class="pip-title">Parse Code</div>
+        <div class="pip-sub">Language detection, file tree, README extraction</div>
+      </div>
+      <div class="pip-arrow">→</div>
+      <div class="pip-card">
+        <span class="pip-icon">🤖</span>
+        <div class="pip-title">LLM Summariser</div>
+        <div class="pip-sub">Bedrock Claude summarises each repo into skill signals</div>
+      </div>
+      <div class="pip-arrow">→</div>
+      <div class="pip-card">
+        <span class="pip-icon">🏷️</span>
+        <div class="pip-title">Skill Extractor</div>
+        <div class="pip-sub">Maps repos → tech skills, frameworks, domains, complexity level</div>
+      </div>
+      <div class="pip-arrow">→</div>
+      <div class="pip-card">
+        <span class="pip-icon">🔢</span>
+        <div class="pip-title">Vector Embed</div>
+        <div class="pip-sub">Skill profile embedded &amp; stored for retrieval</div>
+      </div>
+    </div>
+    <div style="font-size:10px; color:#8b949e; margin-top:10px; text-align:center;">
+      <span class="aws">AWS Lambda (orchestration)</span>&nbsp;&nbsp;
+      <span class="aws">Amazon Bedrock Claude</span>&nbsp;&nbsp;
+      <span class="aws">OpenSearch Serverless (vector store)</span>&nbsp;&nbsp;
+      <span class="aws">S3 (raw repo snapshots)</span>
+    </div>
+  </div>
+
+  <div class="arrow">⬇︎<span>Skill profile ready — parallel tracks begin</span></div>
+
+  <!-- PHASE 3: PARALLEL — Resume + Role Selection -->
+  <div class="fork">
+
+    <div class="phase ph-resume">
+      <div class="phase-label">Phase 3A · LaTeX Resume Generator</div>
+      <div class="row" style="flex-direction:column; gap:8px;">
+        <div class="card c-purple" style="max-width:100%;">
+          <div class="icon">📝</div>
+          <div class="title">Latex-Agent</div>
+          <div class="sub">Bedrock agent generates a structured resume draft using Jake's Resume LaTeX template, populated from GitHub skills + project descriptions</div>
+          <div class="aws">Bedrock + Lambda</div>
+        </div>
+        <div class="card c-purple" style="max-width:100%;">
+          <div class="icon">⚙️</div>
+          <div class="title">LaTeX Compiler</div>
+          <div class="sub">Lambda runs pdflatex or Tectonic to compile .tex → downloadable PDF</div>
+          <div class="aws">Lambda (Docker layer)</div>
+        </div>
+        <div class="card c-purple" style="max-width:100%;">
+          <div class="icon">📄</div>
+          <div class="title">Base Resume PDF</div>
+          <div class="sub">Stored in S3, versioned per analysis run</div>
+          <div class="badge b-purple">BASE RESUME</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase ph-gap">
+      <div class="phase-label">Phase 3B · Role Selection</div>
+      <div class="row" style="flex-direction:column; gap:8px;">
+        <div class="card c-orange" style="max-width:100%;">
+          <div class="icon">🎯</div>
+          <div class="title">Career Role Picker</div>
+          <div class="sub">UI presents roles: Frontend, Backend, ML Engineer, DevOps, Data Science etc. — user selects 1–3 targets</div>
+        </div>
+        <div class="card c-orange" style="max-width:100%;">
+          <div class="icon">📊</div>
+          <div class="title">Skill Gap Analysis</div>
+          <div class="sub">OpenSearch vector similarity — user's skill vector vs. role's required skill vector — produces gap score per skill</div>
+          <div class="aws">Bedrock + OpenSearch</div>
+        </div>
+        <div class="card c-orange" style="max-width:100%;">
+          <div class="icon">📉</div>
+          <div class="title">Gap Report</div>
+          <div class="sub">Visual radar chart: "You have 70% of Backend SDE skills. Missing: System Design, SQL, Docker"</div>
+          <div class="badge b-orange">SKILL GAP</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="arrow">⬇︎<span>Gap report feeds into learning path</span></div>
+
+  <!-- PHASE 4: LEARN WEAVE -->
+  <div class="phase ph-learn">
+    <div class="phase-label">Phase 4 · LearnWeave — Project-Based Roadmap</div>
+    <div class="row">
+      <div class="card c-teal">
+        <div class="icon">🗺️</div>
+        <div class="title">Roadmap Generator</div>
+        <div class="sub">Bedrock agent creates a personalised 4–8 week project-based learning plan targeting the exact skill gaps</div>
+        <div class="aws">Bedrock Claude</div>
+      </div>
+      <div class="card c-teal">
+        <div class="icon">🏁</div>
+        <div class="title">Milestones</div>
+        <div class="sub">Each milestone = 1 mini-project to build. Includes title, stack, estimated hours</div>
+      </div>
+      <div class="card c-teal">
+        <div class="icon">🔗</div>
+        <div class="title">Curated References</div>
+        <div class="sub">Docs, GitHub repos, YouTube playlists, papers — sourced &amp; ranked per topic</div>
+      </div>
+      <div class="card c-teal">
+        <div class="icon">📈</div>
+        <div class="title">Progress Tracker</div>
+        <div class="sub">User marks milestones complete → roadmap updates dynamically</div>
+        <div class="aws">DynamoDB</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">⬇︎<span>Concurrently: Job Scout scrapes live openings</span></div>
+
+  <!-- PHASE 5: JOB SCOUT -->
+  <div class="phase ph-jobs">
+    <div class="phase-label">Phase 5 · Job Scout — Scrape &amp; Match</div>
+    <div class="row">
+      <div class="card c-yellow">
+        <div class="icon">🕷️</div>
+        <div class="title">Job Scraper</div>
+        <div class="sub">Lambda scrapes LinkedIn, Naukri, Internshala, Wellfound for roles matching selected career targets</div>
+        <div class="aws">Lambda + EventBridge</div>
+      </div>
+      <div class="card c-yellow">
+        <div class="icon">🔍</div>
+        <div class="title">JD Analyser</div>
+        <div class="sub">Extracts required skills, keywords, ATS signals from each job description</div>
+        <div class="aws">Bedrock Claude</div>
+      </div>
+      <div class="card c-yellow">
+        <div class="icon">🎯</div>
+        <div class="title">Match Scorer</div>
+        <div class="sub">Vector similarity between user skill profile &amp; JD — ranks jobs by fit %</div>
+        <div class="aws">OpenSearch</div>
+      </div>
+      <div class="card c-yellow">
+        <div class="icon">📋</div>
+        <div class="title">Job Board UI</div>
+        <div class="sub">Shows ranked list with match %, missing skills, apply button</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">⬇︎<span>Per-job tailored resume generated on demand</span></div>
+
+  <!-- PHASE 6: APPLY -->
+  <div class="phase ph-apply">
+    <div class="phase-label">Phase 6 · Tailored Resumes &amp; Apply</div>
+    <div class="row">
+      <div class="card c-red">
+        <div class="icon">✍️</div>
+        <div class="title">Resume Tailor Agent</div>
+        <div class="sub">For each job: rewrites base resume — reorders skills, tweaks project descriptions to match JD keywords &amp; ATS</div>
+        <div class="aws">Bedrock Claude</div>
+      </div>
+      <div class="card c-red">
+        <div class="icon">📄</div>
+        <div class="title">Per-Job PDF</div>
+        <div class="sub">Unique .tex → PDF compiled for each application. Stored in S3 with job reference</div>
+        <div class="aws">Lambda + S3</div>
+      </div>
+      <div class="card c-red">
+        <div class="icon">🚀</div>
+        <div class="title">One-Click Apply</div>
+        <div class="sub">Pre-fills application form on portal with tailored resume + profile data. User reviews &amp; submits</div>
+      </div>
+      <div class="card c-red">
+        <div class="icon">📬</div>
+        <div class="title">Application Tracker</div>
+        <div class="sub">Tracks Applied / Viewed / Interview stages per job across all portals</div>
+        <div class="aws">DynamoDB + SNS</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">⬇︎</div>
+
+  <!-- INFRA LAYER -->
+  <div class="phase ph-infra">
+    <div class="phase-label">Infra &amp; AWS Services</div>
+    <div class="row">
+      <div class="card c-gray">
+        <div class="icon">🧠</div>
+        <div class="title">Amazon Bedrock</div>
+        <div class="sub">Claude 3 Sonnet — all LLM tasks (summarise, generate, tailor)</div>
+      </div>
+      <div class="card c-gray">
+        <div class="icon">🔍</div>
+        <div class="title">OpenSearch Serverless</div>
+        <div class="sub">Vector store for skill profiles, JD embeddings, role benchmarks</div>
+      </div>
+      <div class="card c-gray">
+        <div class="icon">⚡</div>
+        <div class="title">AWS Lambda</div>
+        <div class="sub">All compute — repo fetch, LaTeX compile, job scrape, embeddings</div>
+      </div>
+      <div class="card c-gray">
+        <div class="icon">🪣</div>
+        <div class="title">Amazon S3</div>
+        <div class="sub">Resume PDFs, .tex files, raw repo snapshots, JD cache</div>
+      </div>
+      <div class="card c-gray">
+        <div class="icon">🗄️</div>
+        <div class="title">DynamoDB</div>
+        <div class="sub">User profiles, skill vectors, roadmap state, application tracking</div>
+      </div>
+      <div class="card c-gray">
+        <div class="icon">🔐</div>
+        <div class="title">Cognito + API GW</div>
+        <div class="sub">Auth, JWT tokens, secure API routing</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#388bfd;"></div> Auth</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3fb950;"></div> Repo Ingestion</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#a371f7;"></div> Resume Gen (Latex-Agent)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f78536;"></div> Skill Gap Analysis</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#39d353;"></div> LearnWeave Roadmap</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ffa657;"></div> Job Scout</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f85149;"></div> Apply + Tracker</div>
+  </div>
+
+</body>
+</html>

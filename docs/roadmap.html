@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CareerForge – 5-Day War Plan</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      color: #e6edf3;
+      padding: 28px 20px 48px;
+    }
+
+    h1 { text-align: center; font-size: 22px; font-weight: 700; color: #58a6ff; margin-bottom: 4px; }
+    .subtitle { text-align: center; font-size: 12px; color: #8b949e; margin-bottom: 8px; }
+
+    /* ── PROGRESS BAR ── */
+    .progress-strip {
+      display: flex;
+      gap: 4px;
+      margin: 16px 0 28px;
+      justify-content: center;
+    }
+    .prog-day {
+      flex: 1;
+      max-width: 140px;
+      border-radius: 6px;
+      padding: 8px 10px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1.5px solid transparent;
+      cursor: default;
+    }
+    .prog-day .pd-date { font-size: 13px; font-weight: 800; display: block; }
+    .prog-day .pd-label { font-size: 9px; margin-top: 2px; display: block; letter-spacing: 0.5px; }
+
+    .pd-prep1  { background:#1c2a3a; border-color:#388bfd; color:#58a6ff; }
+    .pd-prep2  { background:#1a2519; border-color:#3fb950; color:#3fb950; }
+    .pd-prep3  { background:#231b2c; border-color:#a371f7; color:#a371f7; }
+    .pd-hack1  { background:#2b1f10; border-color:#f78536; color:#f78536; }
+    .pd-hack2  { background:#2b1515; border-color:#f85149; color:#f85149; }
+
+    /* ── TODAY BADGE ── */
+    .today-tag {
+      display: inline-block;
+      background: #388bfd;
+      color: #0d1117;
+      font-size: 9px;
+      font-weight: 800;
+      border-radius: 3px;
+      padding: 1px 5px;
+      margin-left: 6px;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+    }
+
+    /* ── DAY BLOCK ── */
+    .day-block {
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .day-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px;
+      border-bottom: 1px solid #21262d;
+    }
+    .day-badge {
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+    }
+    .day-title { font-size: 14px; font-weight: 700; }
+    .day-subtitle { font-size: 11px; color: #8b949e; margin-top: 1px; }
+
+    .dh-blue   { background:#1c2a3a; color:#58a6ff; border:1px solid #388bfd55; }
+    .dh-green  { background:#1a2519; color:#3fb950; border:1px solid #3fb95055; }
+    .dh-purple { background:#231b2c; color:#a371f7; border:1px solid #a371f755; }
+    .dh-orange { background:#2b1f10; color:#f78536; border:1px solid #f7853655; }
+    .dh-red    { background:#2b1515; color:#f85149; border:1px solid #f8514955; }
+
+    .day-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── TASK ── */
+    .task {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #21262d;
+      background: #161b22;
+    }
+    .task-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .task-content { flex: 1; }
+    .task-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+    .task-steps { list-style: none; padding: 0; }
+    .task-steps li {
+      font-size: 11px;
+      color: #c9d1d9;
+      line-height: 1.6;
+      padding-left: 14px;
+      position: relative;
+    }
+    .task-steps li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: #8b949e;
+      font-weight: 700;
+    }
+    .task-steps li code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px;
+      background: #21262d;
+      color: #79c0ff;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    .task-steps li .chip {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      border-radius: 3px;
+      padding: 1px 5px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+    .chip-aws    { background:#f78536; color:#0d1117; }
+    .chip-new    { background:#3fb950; color:#0d1117; }
+    .chip-port   { background:#a371f7; color:#0d1117; }
+    .chip-done   { background:#388bfd; color:#0d1117; }
+    .chip-test   { background:#ffa657; color:#0d1117; }
+    .chip-demo   { background:#f85149; color:#fff; }
+    .chip-ui     { background:#39d353; color:#0d1117; }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #8b949e;
+      padding: 0 2px 4px;
+      border-bottom: 1px solid #21262d;
+      margin-bottom: 2px;
+    }
+
+    /* ── ROW OF TASKS ── */
+    .task-row { display: flex; gap: 10px; }
+    .task-row .task { flex: 1; }
+
+    /* ── AWS STACK BOX ── */
+    .aws-box {
+      border: 1px solid #f7853644;
+      background: #1a1208;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .aws-box .aws-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #f78536;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .aws-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .aws-item {
+      background: #21262d;
+      border-radius: 5px;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    .aws-item .ai { font-size: 15px; display: block; margin-bottom: 2px; }
+    .aws-item .an { font-size: 10px; font-weight: 600; color: #ffa657; }
+    .aws-item .au { font-size: 9px; color: #8b949e; margin-top: 1px; }
+
+    /* ── MIGRATION TABLE ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+    th {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #8b949e;
+      text-transform: uppercase;
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid #21262d;
+    }
+    td {
+      font-size: 11px;
+      color: #c9d1d9;
+      padding: 6px 8px;
+      border-bottom: 1px solid #161b22;
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    td code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 10px;
+      background: #21262d;
+      color: #79c0ff;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    td.from { color: #f85149; }
+    td.to   { color: #3fb950; }
+
+    /* ── CHECKLIST ── */
+    .checklist {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      background: #161b22;
+      border-radius: 6px;
+      padding: 7px 10px;
+      border: 1px solid #21262d;
+    }
+    .check-item .ci { font-size: 14px; }
+
+    /* ── TIMELINE BAR ── */
+    .timeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 4px 0;
+      overflow-x: auto;
+    }
+    .tl-item {
+      flex: 1;
+      text-align: center;
+      position: relative;
+    }
+    .tl-item::before {
+      content: '';
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      right: -50%;
+      height: 2px;
+      background: #21262d;
+      z-index: 0;
+    }
+    .tl-item:last-child::before { display: none; }
+    .tl-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      position: relative;
+      z-index: 1;
+      margin-bottom: 4px;
+    }
+    .tl-label { font-size: 9px; color: #8b949e; line-height: 1.3; }
+
+    /* ── DANGER BOX ── */
+    .danger-box {
+      border: 1px solid #f8514944;
+      background: #1a0909;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: #ffa198;
+      line-height: 1.7;
+    }
+    .danger-box strong { color: #f85149; }
+
+    /* ── WIN BOX ── */
+    .win-box {
+      border: 1px solid #3fb95044;
+      background: #0d1f12;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: #7ee787;
+      line-height: 1.7;
+    }
+    .win-box strong { color: #3fb950; }
+
+  </style>
+</head>
+<body>
+
+  <h1>CareerForge — 5-Day War Plan</h1>
+  <p class="subtitle">March 4–6 · Prep &nbsp;|&nbsp; March 7–8 · Hackathon Day</p>
+
+  <!-- PROGRESS STRIP -->
+  <div class="progress-strip">
+    <div class="prog-day pd-prep1">
+      <span class="pd-date">Mar 4</span>
+      <span class="pd-label">⚙️ AWS SETUP</span>
+    </div>
+    <div class="prog-day pd-prep2">
+      <span class="pd-date">Mar 5</span>
+      <span class="pd-label">🔄 MIGRATE</span>
+    </div>
+    <div class="prog-day pd-prep3">
+      <span class="pd-date">Mar 6</span>
+      <span class="pd-label">✨ NEW FEATURES</span>
+    </div>
+    <div class="prog-day pd-hack1">
+      <span class="pd-date">Mar 7</span>
+      <span class="pd-label">🚀 DEPLOY</span>
+    </div>
+    <div class="prog-day pd-hack2">
+      <span class="pd-date">Mar 8</span>
+      <span class="pd-label">🏆 POLISH + SUBMIT</span>
+    </div>
+  </div>
+
+  <!-- ═══ MIGRATION TABLE (context) ═══ -->
+  <div class="day-block">
+    <div class="day-header">
+      <div class="day-badge dh-orange">📦 WHAT EXISTS → WHAT CHANGES</div>
+      <div>
+        <div class="day-title">GCP → AWS Migration Map</div>
+        <div class="day-subtitle">latex-agent + job-scrapper already built — just swap providers</div>
+      </div>
+    </div>
+    <div class="day-body">
+      <table>
+        <tr>
+          <th>Component</th>
+          <th>Current (GCP/local)</th>
+          <th>→ AWS Replacement</th>
+          <th>Effort</th>
+        </tr>
+        <tr>
+          <td><strong>LLM</strong></td>
+          <td class="from"><code>gemini_client.py</code> Gemini 2.0 Flash</td>
+          <td class="to">Amazon Bedrock <strong>Claude 3 Haiku</strong> (fast + cheap)</td>
+          <td>~2 hrs</td>
+        </tr>
+        <tr>
+          <td><strong>Embeddings</strong></td>
+          <td class="from">Gemini <code>text-embedding-004</code></td>
+          <td class="to">Bedrock <strong>Titan Text Embeddings v2</strong></td>
+          <td>~1 hr</td>
+        </tr>
+        <tr>
+          <td><strong>Vector DB</strong></td>
+          <td class="from">ChromaDB (local)</td>
+          <td class="to"><strong>Keep ChromaDB</strong> — wrap in Lambda layer OR use <strong>OpenSearch Serverless</strong> if available</td>
+          <td>~1 hr</td>
+        </tr>
+        <tr>
+          <td><strong>Relational DB</strong></td>
+          <td class="from">SQLite (local)</td>
+          <td class="to"><strong>Amazon DynamoDB</strong> — user profiles, resumes, jobs, applications</td>
+          <td>~3 hrs</td>
+        </tr>
+        <tr>
+          <td><strong>File Storage</strong></td>
+          <td class="from">Local filesystem</td>
+          <td class="to"><strong>Amazon S3</strong> — PDF resumes, uploaded docs</td>
+          <td>~1 hr</td>
+        </tr>
+        <tr>
+          <td><strong>LaTeX Compilation</strong></td>
+          <td class="from">latex.ytotech.com (cloud API)</td>
+          <td class="to"><strong>Keep ytotech</strong> + store output PDF in S3</td>
+          <td>30 min</td>
+        </tr>
+        <tr>
+          <td><strong>Backend Hosting</strong></td>
+          <td class="from">Local FastAPI</td>
+          <td class="to"><strong>EC2 t3.micro</strong> (free tier) + Nginx reverse proxy</td>
+          <td>~2 hrs</td>
+        </tr>
+        <tr>
+          <td><strong>Frontend Hosting</strong></td>
+          <td class="from">Local Next.js dev server</td>
+          <td class="to"><strong>AWS Amplify</strong> (GitHub deploy, auto-build)</td>
+          <td>~1 hr</td>
+        </tr>
+        <tr>
+          <td><strong>Auth</strong></td>
+          <td class="from">Custom JWT + GitHub OAuth</td>
+          <td class="to"><strong>Keep custom JWT</strong> — already works, saves time</td>
+          <td>0</td>
+        </tr>
+        <tr>
+          <td><strong>Job Scraper</strong></td>
+          <td class="from">jobspy (local Python)</td>
+          <td class="to"><strong>AWS Lambda</strong> scheduled scrape → store in DynamoDB</td>
+          <td>~2 hrs</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ DAY 1: MAR 4 ═══ -->
+  <div class="day-block">
+    <div class="day-header" style="background:#0e1623; border-bottom-color:#388bfd33;">
+      <div class="day-badge dh-blue">MAR 4</div>
+      <div>
+        <div class="day-title">AWS Setup + Audit <span class="today-tag">TODAY</span></div>
+        <div class="day-subtitle">Goal: AWS account ready, Bedrock confirmed working, full codebase audit done</div>
+      </div>
+    </div>
+    <div class="day-body">
+
+      <div class="task">
+        <div class="task-icon">☁️</div>
+        <div class="task-content">
+          <div class="task-title">AWS Account Setup <span class="chip chip-aws">AWS</span></div>
+          <ul class="task-steps">
+            <li>Create new personal AWS account at aws.amazon.com/free — use a new email</li>
+            <li>Enable billing alerts at $10, $30, $45 — so you never exceed budget</li>
+            <li>Go to IAM → create admin user <code>careerforge-dev</code> with programmatic access</li>
+            <li>Download <code>credentials.csv</code> — store safely, configure <code>aws configure</code> locally</li>
+            <li>Region: <strong>us-east-1</strong> — Bedrock has the most models here</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">🧠</div>
+        <div class="task-content">
+          <div class="task-title">Verify Bedrock Access <span class="chip chip-aws">AWS</span> <span class="chip chip-test">CRITICAL</span></div>
+          <ul class="task-steps">
+            <li>Go to <strong>Amazon Bedrock</strong> console → Model Access → Request access to:</li>
+            <li><code>anthropic.claude-3-haiku-20240307-v1:0</code> (fast, cheap — primary model)</li>
+            <li><code>amazon.titan-embed-text-v2:0</code> (embeddings)</li>
+            <li>Request access takes 1–5 mins. <strong>Do this first — it can delay everything.</strong></li>
+            <li>Run quick test: <code>boto3</code> call to Bedrock invoke_model → confirm non-error response</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task-row">
+        <div class="task">
+          <div class="task-icon">📋</div>
+          <div class="task-content">
+            <div class="task-title">Codebase Audit</div>
+            <ul class="task-steps">
+              <li>Map every <code>gemini_client</code> import across <code>latex-agent/</code></li>
+              <li>List all Firestore / GCP calls in <code>job-scrapper/</code></li>
+              <li>Confirm <code>latex.ytotech.com</code> API still responding</li>
+              <li>Test <code>jobspy</code> scrape locally — confirm LinkedIn data comes through</li>
+            </ul>
+          </div>
+        </div>
+        <div class="task">
+          <div class="task-icon">🗂️</div>
+          <div class="task-content">
+            <div class="task-title">New Repo: <code>careerforge-aws</code></div>
+            <ul class="task-steps">
+              <li>Create new GitHub repo — don't pollute existing repos</li>
+              <li>Copy <code>latex-agent/backend</code> as starting point</li>
+              <li>Copy <code>latex-agent/frontend</code> as starting point</li>
+              <li>Add <code>.env.aws.example</code> with all new keys listed</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="aws-box">
+        <div class="aws-title">☁️ AWS Services to Enable Today</div>
+        <div class="aws-grid">
+          <div class="aws-item"><span class="ai">🧠</span><div class="an">Bedrock</div><div class="au">Claude 3 Haiku + Titan Embed</div></div>
+          <div class="aws-item"><span class="ai">🪣</span><div class="an">S3</div><div class="au">Create bucket: careerforge-pdfs</div></div>
+          <div class="aws-item"><span class="ai">🗄️</span><div class="an">DynamoDB</div><div class="au">Create tables: Users, Resumes, Jobs, Applications</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ DAY 2: MAR 5 ═══ -->
+  <div class="day-block">
+    <div class="day-header" style="background:#0c1a0c; border-bottom-color:#3fb95033;">
+      <div class="day-badge dh-green">MAR 5</div>
+      <div>
+        <div class="day-title">Core AWS Migration</div>
+        <div class="day-subtitle">Goal: Full end-to-end flow working on AWS — GitHub login → resume PDF in S3</div>
+      </div>
+    </div>
+    <div class="day-body">
+
+      <div class="task">
+        <div class="task-icon">🔄</div>
+        <div class="task-content">
+          <div class="task-title">Swap Gemini → Bedrock Claude <span class="chip chip-port">PORT</span></div>
+          <ul class="task-steps">
+            <li>Create <code>app/services/bedrock_client.py</code> — mirrors <code>gemini_client.py</code> interface exactly</li>
+            <li>Use <code>boto3.client('bedrock-runtime')</code> with <code>invoke_model()</code> for Claude 3 Haiku</li>
+            <li>Wrap as <code>async def generate(prompt) → str</code> — same signature as Gemini client</li>
+            <li>Replace all <code>from app.services.gemini_client import gemini_client</code> → <code>bedrock_client</code></li>
+            <li>Test: <code>resume_agent.py</code> generate call → confirm LaTeX output contains proper structure</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">🔢</div>
+        <div class="task-content">
+          <div class="task-title">Swap Gemini Embeddings → Titan Embeddings <span class="chip chip-port">PORT</span></div>
+          <ul class="task-steps">
+            <li>Update <code>embedding_service.py</code> — replace Gemini embed call with Bedrock Titan v2</li>
+            <li>Model ID: <code>amazon.titan-embed-text-v2:0</code>, output dim: 1024</li>
+            <li>Re-generate embeddings for existing project descriptions in ChromaDB</li>
+            <li>Test: vector similarity search still returns relevant results</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task-row">
+        <div class="task">
+          <div class="task-icon">🗄️</div>
+          <div class="task-content">
+            <div class="task-title">SQLite → DynamoDB <span class="chip chip-port">PORT</span></div>
+            <ul class="task-steps">
+              <li>Tables: <code>Users</code>, <code>Projects</code>, <code>Resumes</code>, <code>JobDescriptions</code>, <code>Applications</code></li>
+              <li>Partition key strategy: <code>userId</code> as PK on all tables</li>
+              <li>Replace SQLAlchemy async session with <code>boto3 DynamoDB resource</code></li>
+              <li>Keep SQLite as local fallback with env flag <code>USE_DYNAMO=true</code></li>
+            </ul>
+          </div>
+        </div>
+        <div class="task">
+          <div class="task-icon">🪣</div>
+          <div class="task-content">
+            <div class="task-title">Local Storage → S3 <span class="chip chip-aws">AWS</span></div>
+            <ul class="task-steps">
+              <li>Update <code>latex_service.py</code> — after PDF compiled, upload to S3</li>
+              <li>Return presigned S3 URL (valid 1 hr) for frontend download</li>
+              <li>Bucket: <code>careerforge-pdfs/{userId}/{resumeId}.pdf</code></li>
+              <li>Test: generate resume → PDF appears in S3 console</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">🧪</div>
+        <div class="task-content">
+          <div class="task-title">End-to-End Test <span class="chip chip-test">TEST</span></div>
+          <ul class="task-steps">
+            <li><strong>Flow to verify:</strong> GitHub OAuth login → repos fetched → skills extracted → job description pasted → resume LaTeX generated → compiled → PDF stored in S3 → presigned URL returned to frontend → PDF opens in browser</li>
+            <li>This is the core demo. If this works on March 5 night, you're in great shape.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ DAY 3: MAR 6 ═══ -->
+  <div class="day-block">
+    <div class="day-header" style="background:#130e1e; border-bottom-color:#a371f733;">
+      <div class="day-badge dh-purple">MAR 6</div>
+      <div>
+        <div class="day-title">New Features + Deploy</div>
+        <div class="day-subtitle">Goal: Skill gap UI, LearnWeave roadmap, job scout — all working + deployed</div>
+      </div>
+    </div>
+    <div class="day-body">
+
+      <div class="task">
+        <div class="task-icon">📊</div>
+        <div class="task-content">
+          <div class="task-title">Skill Gap Radar Chart <span class="chip chip-new">NEW</span> <span class="chip chip-ui">UI</span></div>
+          <ul class="task-steps">
+            <li>Use <code>recharts</code> RadarChart (already in Next.js ecosystem) — 30 min</li>
+            <li>Backend: <code>/api/gap-analysis</code> endpoint — takes user skill vector + chosen role → returns gap scores per skill domain</li>
+            <li>Claude prompt: <em>"Given these GitHub skills [X], compare to a [Backend SDE] role. Score each of these 8 skill domains 0–100 and list what's missing."</em></li>
+            <li>Frontend: Radar chart + "Missing skills" list with priority badges (High/Medium/Low)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">🗺️</div>
+        <div class="task-content">
+          <div class="task-title">LearnWeave — Project Roadmap <span class="chip chip-new">NEW</span></div>
+          <ul class="task-steps">
+            <li>Single Claude call: <em>"Based on these missing skills, create a 4-week project-based learning plan. For each week: 1 project to build, stack, estimated hours, 3 resource links."</em></li>
+            <li>Render as a vertical timeline with week cards — each card has project name, stack chips, resource links</li>
+            <li>Add "Mark complete" checkboxes — state saved to DynamoDB</li>
+            <li>This is a pure UI week — backend is one API call</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">🕷️</div>
+        <div class="task-content">
+          <div class="task-title">Job Scout → Lambda Scheduled Scraper <span class="chip chip-new">NEW</span> <span class="chip chip-aws">AWS</span></div>
+          <ul class="task-steps">
+            <li>Copy <code>job-scrapper/backend/scraper.py</code> → <code>lambda/job-scout/handler.py</code></li>
+            <li>Remove GCP/Firestore calls, replace with DynamoDB writes</li>
+            <li>Deploy as Lambda — trigger with EventBridge rule every 6 hours</li>
+            <li>Each scraped job: match score computed against user profile → stored with score</li>
+            <li>Frontend: Job board showing match %, company, role, JD preview, "Generate Resume" button</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">📬</div>
+        <div class="task-content">
+          <div class="task-title">Application Tracker Dashboard <span class="chip chip-new">NEW</span> <span class="chip chip-ui">UI</span></div>
+          <ul class="task-steps">
+            <li>Table: columns — Company, Role, Applied Date, Status (Applied/Viewed/Interview/Rejected), Resume Used</li>
+            <li>Each "Generate Resume" click → triggers tailored resume generation → saves as new DynamoDB record in Applications table</li>
+            <li>Status is manually updated by user (no portal scraping — keep it reliable)</li>
+            <li>Add a simple Kanban view (4 columns) as the "wow UI" for judges</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">🚀</div>
+        <div class="task-content">
+          <div class="task-title">Deploy to EC2 + Amplify <span class="chip chip-aws">AWS</span></div>
+          <ul class="task-steps">
+            <li><strong>Backend:</strong> Launch EC2 <code>t3.micro</code> (free tier) in us-east-1, install Python 3.11, clone repo, run FastAPI with <code>uvicorn</code> + <code>pm2</code> for persistence</li>
+            <li>Configure security group: open port 8000 (API), set IAM role on EC2 with Bedrock + S3 + DynamoDB access — <strong>no hardcoded keys</strong></li>
+            <li><strong>Frontend:</strong> Connect GitHub repo to <strong>AWS Amplify</strong> → auto-deploy on push → sets NEXT_PUBLIC_API_URL to EC2 public IP</li>
+            <li>Test full deployed flow before midnight March 6</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ DAY 4: MAR 7 ═══ -->
+  <div class="day-block">
+    <div class="day-header" style="background:#1a1008; border-bottom-color:#f7853633;">
+      <div class="day-badge dh-orange">MAR 7 · HACKATHON DAY 1</div>
+      <div>
+        <div class="day-title">Deploy, Stress-Test + Fix</div>
+        <div class="day-subtitle">Goal: Running flawlessly on AWS, all AWS services visible in architecture, demo rehearsed</div>
+      </div>
+    </div>
+    <div class="day-body">
+
+      <div class="checklist">
+        <div class="check-item"><div class="ci">🔐</div><div>GitHub OAuth working on deployed URL</div></div>
+        <div class="check-item"><div class="ci">🧠</div><div>Bedrock Claude generating resumes live</div></div>
+        <div class="check-item"><div class="ci">🪣</div><div>PDFs uploading + downloading from S3</div></div>
+        <div class="check-item"><div class="ci">🗄️</div><div>DynamoDB storing user/resume/job data</div></div>
+        <div class="check-item"><div class="ci">🕷️</div><div>Lambda job scraper returning jobs</div></div>
+        <div class="check-item"><div class="ci">📊</div><div>Skill gap radar chart rendering correctly</div></div>
+        <div class="check-item"><div class="ci">🗺️</div><div>LearnWeave roadmap generating</div></div>
+        <div class="check-item"><div class="ci">📄</div><div>Per-job tailored resume compiling to PDF</div></div>
+        <div class="check-item"><div class="ci">🌐</div><div>Amplify frontend loading fast</div></div>
+        <div class="check-item"><div class="ci">📬</div><div>Application tracker updating correctly</div></div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">🎥</div>
+        <div class="task-content">
+          <div class="task-title">Rehearse the 3-Minute Demo Script <span class="chip chip-demo">DEMO</span></div>
+          <ul class="task-steps">
+            <li><strong>0:00–0:20</strong> — Open app, log in with GitHub, show "Connecting to your repos…"</li>
+            <li><strong>0:20–0:50</strong> — Skill profile appears — tech stack extracted from real repos</li>
+            <li><strong>0:50–1:20</strong> — Choose role "Backend SDE" — radar chart animates, gap report shows</li>
+            <li><strong>1:20–1:50</strong> — Base LaTeX resume compiles live → PDF opens → judges see Jake's template auto-filled</li>
+            <li><strong>1:50–2:20</strong> — Job Scout tab → ranked jobs appear → click a job → tailored resume generates & differs from base</li>
+            <li><strong>2:20–2:50</strong> — LearnWeave roadmap — 4-week plan with project ideas → application tracker Kanban</li>
+            <li><strong>2:50–3:00</strong> — Show AWS console: Bedrock logs, S3 bucket with PDFs, DynamoDB tables, Lambda</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ DAY 5: MAR 8 ═══ -->
+  <div class="day-block">
+    <div class="day-header" style="background:#1a0909; border-bottom-color:#f8514933;">
+      <div class="day-badge dh-red">MAR 8 · HACKATHON DAY 2</div>
+      <div>
+        <div class="day-title">Polish + Submit</div>
+        <div class="day-subtitle">Goal: First impression is perfect — UI polished, demo rehearsed, submission ready</div>
+      </div>
+    </div>
+    <div class="day-body">
+
+      <div class="task">
+        <div class="task-icon">✨</div>
+        <div class="task-content">
+          <div class="task-title">UI Polish <span class="chip chip-ui">UI</span></div>
+          <ul class="task-steps">
+            <li>Loading skeletons for all AI-generated content (Bedrock calls take 3–8s)</li>
+            <li>Error states that don't crash the demo (fallback messages, not blank screens)</li>
+            <li>Add "Powered by Amazon Bedrock" badge on resume generator — judges notice</li>
+            <li>Mobile responsive check — judges may use their phones</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">📊</div>
+        <div class="task-content">
+          <div class="task-title">Architecture Slide / Diagram <span class="chip chip-demo">DEMO</span></div>
+          <ul class="task-steps">
+            <li>Use the <code>career-architecture.html</code> diagram — screenshots for presentation</li>
+            <li>Annotate which AWS service handles each step</li>
+            <li>Show AWS cost estimate: Bedrock (~$2), DynamoDB (~$0), S3 (~$0.01), EC2 (~$0 free tier) = well under $50</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="task">
+        <div class="task-icon">📝</div>
+        <div class="task-content">
+          <div class="task-title">Submission Prep <span class="chip chip-demo">DEMO</span></div>
+          <ul class="task-steps">
+            <li>File format: <code>TeamName – UniversityName</code> as per PS rules</li>
+            <li>Required: Working demo URL (Amplify link), GitHub repo, architecture diagram, 3-min demo video</li>
+            <li>Elevator pitch: <em>"CareerForge turns any student's GitHub profile into a job-ready career engine — it generates tailored resumes, maps skill gaps, creates a learning roadmap, and applies to jobs — all powered by Amazon Bedrock."</em></li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RISK + WIN BOXES -->
+  <div style="display:flex; gap:10px; margin-top:4px;">
+    <div class="danger-box" style="flex:1;">
+      <strong>⚠️ Top 3 Risks to Mitigate</strong><br/><br/>
+      <strong>1. Bedrock latency</strong> — Claude 3 Haiku is fast (~1–2s), but add loading states so demo doesn't look frozen.<br/><br/>
+      <strong>2. ytotech LaTeX API</strong> — It's a free public service. Test it daily. Have a local pdflatex Docker backup ready.<br/><br/>
+      <strong>3. jobspy rate limiting</strong> — Run the scraper on March 6 to pre-populate DynamoDB with jobs. Don't scrape live during demo.
+    </div>
+    <div class="win-box" style="flex:1;">
+      <strong>🏆 Why This Wins</strong><br/><br/>
+      <strong>Theme fit:</strong> Education &amp; Employability — exact match. Judges can't argue it's off-theme.<br/><br/>
+      <strong>AWS depth:</strong> Bedrock + DynamoDB + S3 + Lambda + EC2 + Amplify = 6 services, all justified.<br/><br/>
+      <strong>75% already built</strong> — Competitors build from zero. You polish and port in 3 days.
+    </div>
+  </div>
+
+</body>
+</html>
