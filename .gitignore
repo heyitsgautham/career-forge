@@ -2,5 +2,5 @@ ref-repos/
 env
 venv
 .venv
-.vscode/tasks/
+.vscode
 tasks/
