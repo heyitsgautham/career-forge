@@ -1,37 +1,69 @@
 # M2 — LaTeX Resume Generator
 
-> **Dependencies:** M1 (Bedrock client + S3 + DynamoDB working) + M1.5 (Frontend shell with Resume tab already built)
+> **Dependencies:** M1 (Bedrock client + S3 + DynamoDB working) + M1.5 (Frontend shell with Resume tab already built) + **M1.6 (GitHub repos ingested into DynamoDB — resume generator needs real project data)**
 > **Unlocks:** M5 (Tailored Resumes & Apply)
 > **Parallel with:** M3 (Skill Gap), M4 (Job Scout)
-> **Estimated effort:** 3–4 hours (frontend now ~1 hr — shell already exists)
+> **Estimated effort:** 2–3 hours (frontend now ~1 hr — shell already exists)
 > **Target:** March 5 – March 6
 
 ---
 
 ## Goal
 
-Port the latex-agent resume generation pipeline to AWS. A user can log in, have their GitHub repos analysed, and receive a downloadable one-page LaTeX resume PDF — grounded entirely to their real projects.
+Port the latex-agent resume generation pipeline to AWS. A user can log in, have their GitHub repos analysed, and receive a downloadable one-page LaTeX resume PDF — grounded entirely to their real projects. The resume agent follows the **`new-resume.prompt.md`** pattern: it reads all per-repo summary `.md` files from S3, passes them with the JD to Claude, which autonomously does Step 0 analysis (gap check → JD keyword extraction → project ranking table → anchor validation) and then generates the full LaTeX resume in one call. No semantic search, no Titan embeddings, no vector store.
 
 ---
 
 ## Tasks
 
-### 2.1 — Resume Agent Prompts (port from Gemini to Bedrock)
+### 2.1 — Resume Agent: S3 Summary Retrieval + Prompt Pipeline
 
-- [ ] Port `app/services/resume_agent.py` — swap all `gemini_client` calls to `bedrock_client`
-- [ ] Verify Claude 3 Haiku generates valid LaTeX with Jake's Resume template structure
-- [ ] Tune system prompt for Bedrock Claude format (system message as separate param, not in conversation)
-- [ ] Ensure anti-hallucination constraint is in system prompt:
-  > "Only use data from the provided project descriptions. Never fabricate experience, skills, or metrics."
-- [ ] Test: pass 3 project descriptions → receive valid `.tex` string
+**Pipeline: Read all `{userId}/*-summary.md` from S3 → pass to Claude with `new-resume.prompt.md` system prompt → LaTeX output**
 
-### 2.2 — Project Ranking & Selection
+- [ ] Add `app/services/resume_agent.py`:
+  1. `list_project_summaries(user_id: str) -> List[str]` — lists all `{userId}/*-summary.md` keys from S3 and downloads their content; returns a list of raw `.md` strings
+  2. `generate_resume_latex(user_id: str, jd: Optional[str]) -> str` — assembles the prompt and calls Bedrock Claude:
+     ```python
+     async def generate_resume_latex(self, user_id: str, jd: Optional[str] = None) -> str:
+         summaries = await self.list_project_summaries(user_id)
+         if not summaries:
+             raise ValueError("No project summaries found. Run GitHub ingestion first.")
+         
+         # Build context block — all project .md files concatenated with separators
+         projects_context = "\n\n---\n\n".join(summaries)
+         
+         user_message = f"""## Project Summaries (from proj-summary/)\n{projects_context}
+     
+     ## Job Description\n{jd or 'No JD provided — generate a strong base resume ranking by complexity and recency.'}
+     
+     Perform Step 0 analysis first (gap check → JD keyword extraction → project ranking table → anchor validation), then generate the complete LaTeX resume."""
+         
+         response = await bedrock_client.generate_text(
+             system=RESUME_SYSTEM_PROMPT,   # contents of new-resume.prompt.md adapted for API
+             messages=[{"role": "user", "content": user_message}],
+             model="anthropic.claude-3-haiku-20240307-v1:0",
+             max_tokens=8192,
+             temperature=0.3,
+         )
+         return response
+     ```
+- [ ] Store `RESUME_SYSTEM_PROMPT` as a constant in `app/services/resume_agent.py` — this is the `new-resume.prompt.md` content adapted for Bedrock's system parameter (strip the YAML front-matter, keep Step 0 through Output Requirements intact)
+- [ ] **Anti-hallucination constraint** must be in the system prompt:
+  > "Only use data from the provided project summaries. Never fabricate metrics, experience, or skills not present in the summaries."
+- [ ] **Step 0 must execute before LaTeX output** — system prompt must explicitly instruct Claude to output the ranking table and analysis in a `<analysis>` block before the `<latex>` block so the API response can be parsed in two parts
+- [ ] Parse response: extract `<analysis>` block (log it for debugging) and `<latex>` block (pass to 2.3 compilation)
+- [ ] Test: pass 5 summary `.md` files + a sample JD → receive valid `.tex` string with projects ranked and selected correctly
 
-- [ ] Port `app/services/matching_engine.py` — project-to-JD relevance ranking
-- [ ] Use Bedrock Titan embeddings for similarity computation
-- [ ] Given N projects and optional JD keywords → rank projects → select top 3–4
-- [ ] If no JD provided (base resume), rank by complexity/recency instead
-- [ ] Test: 10 projects + JD → top 3 returned are the most relevant
+### 2.2 — Project Context Assembly (replaces matching_engine)
+
+> **No cosine similarity. No Titan embeddings. No `matching_engine.py`.** Project ranking happens inside Claude's Step 0 prompt analysis — it scores every project on Unique JD Requirements, Problem-Type Match, Tech Stack Match, Role Type Match, and Impact Relevance, which is strictly more accurate than vector similarity. Cosine similarity can't detect that a PII detection JD and a generic LMS project share the same tech stack but solve completely different types of problems.
+
+- [ ] `list_project_summaries()` (implemented in 2.1) is the only assembly step needed:
+  - List all `{userId}/*-summary.md` keys via `s3_service.list_objects(prefix=f"{user_id}/")`
+  - Download each `.md` and return the full list — Claude receives everything and decides what's relevant
+- [ ] No pre-filtering, no ranking code — pass all summaries and let the Step 0 prompt do the work
+- [ ] If `user_id` has zero summaries in S3, surface a clear API error: `"No projects found. Please run GitHub ingestion first."`
+- [ ] Test: call `list_project_summaries(user_id)` for a user with 10 ingested repos → 10 `.md` strings returned, each matching the `academia-sync.md` structure
 
 ### 2.3 — LaTeX Compilation Pipeline
 
@@ -49,8 +81,8 @@ Port the latex-agent resume generation pipeline to AWS. A user can log in, have 
 ### 2.4 — Resume API Endpoints
 
 - [ ] `POST /api/resumes/generate` — trigger base resume generation
-  - Input: `{ userId }` (uses stored profile + projects)
-  - Output: `{ resumeId, pdfUrl, texUrl }`
+  - Input: `{ userId, jd?: string }` (optional JD; no JD = base resume ranked by complexity/recency)
+  - Output: `{ resumeId, pdfUrl, texUrl, analysis: string }` (analysis = Step 0 output block, useful for debugging)
 - [ ] `GET /api/resumes/{resumeId}` — fetch resume metadata + download URL
 - [ ] `GET /api/resumes/user/{userId}` — list all resumes for a user
 - [ ] `DELETE /api/resumes/{resumeId}` — delete resume + S3 files
@@ -85,6 +117,9 @@ Port the latex-agent resume generation pipeline to AWS. A user can log in, have 
 ## Notes
 
 - This is the **hero feature** for the demo. Invest in making it bulletproof.
-- Claude 3 Haiku is faster than Gemini for LaTeX generation — expect 2–4 sec for the LLM call.
+- **No vector store needed.** Claude's Step 0 does project selection better than cosine similarity — it catches problem-type matching that embeddings miss (e.g., a PII detection JD + a generic LMS project share tech overlap but solve different problems; Claude catches this, cosine similarity doesn't).
+- The `RESUME_SYSTEM_PROMPT` in `resume_agent.py` is the distilled version of `new-resume.prompt.md`. Strip the YAML front-matter and any file-path references (`proj-summary/` folder) since we're injecting summaries directly as context. Keep Step 0 through Output Requirements verbatim.
+- Claude 3 Haiku is faster than Gemini for LaTeX generation — expect 3–6 sec for the LLM call with 10+ project summaries in context.
 - ytotech is a free service with no SLA. Pre-generate a demo resume and cache it as backup.
-- Jake's Resume template must be hardcoded in the prompt — don't let the LLM improvise the structure.
+- Jake's Resume template must be hardcoded in the system prompt — don't let the LLM improvise the structure.
+- **Token budget:** 10 project summaries × ~600 tokens each = ~6,000 tokens input. Well within Haiku's 200K context window. Cost ≈ $0.002 per resume generation.

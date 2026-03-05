@@ -112,6 +112,48 @@ async def get_optional_user(
         return None
 
 
+async def get_current_user_dynamo(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
+    """
+    Get current authenticated user as a raw DynamoDB dict.
+    Used by M1.6+ routes that need direct dict access (no DynamoUser wrapper).
+    """
+    token = credentials.credentials
+    payload = decode_access_token(token)
+    
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+    
+    from app.services.dynamo_service import dynamo_service
+    
+    user = await dynamo_service.get_item("Users", {"userId": user_id})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    
+    if not user.get("isActive", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is disabled",
+        )
+    
+    return user
+
+
 class DynamoUser:
     """
     Wrapper around DynamoDB user dict to provide attribute-style access.

@@ -64,7 +64,13 @@ class Settings(BaseSettings):
     GEMINI_TEMPERATURE: float = 0.2
     GEMINI_MAX_TOKENS: int = 8192
     
-    # GitHub OAuth
+    # GitHub App (replaces OAuth App — see M1.6)
+    GITHUB_APP_ID: Optional[str] = None
+    GITHUB_APP_SLUG: str = "careerforge"
+    GITHUB_APP_CLIENT_ID: Optional[str] = None
+    GITHUB_APP_CLIENT_SECRET: Optional[str] = None
+    GITHUB_APP_PRIVATE_KEY_SECRET: str = "careerforge/github-app-private-key"
+    # Legacy OAuth (kept for backward-compat during migration)
     GITHUB_CLIENT_ID: Optional[str] = None
     GITHUB_CLIENT_SECRET: Optional[str] = None
     GITHUB_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/github"

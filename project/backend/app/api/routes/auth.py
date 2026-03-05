@@ -122,6 +122,7 @@ class UserProfileUpdate(BaseModel):
 
 class GitHubCallbackRequest(BaseModel):
     code: str
+    installation_id: Optional[int] = None
 
 
 # Routes
@@ -261,18 +262,25 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 @router.get("/github/authorize")
 async def github_authorize():
-    """Get GitHub OAuth authorization URL."""
-    if not settings.GITHUB_CLIENT_ID:
+    """Get GitHub App installation URL (handles both repo selection and OAuth identity)."""
+    # Prefer GitHub App install URL (shows repo-selection screen)
+    if settings.GITHUB_APP_SLUG:
+        install_url = f"https://github.com/apps/{settings.GITHUB_APP_SLUG}/installations/new"
+        return {"authorization_url": install_url}
+    
+    # Fallback to legacy OAuth App
+    client_id = settings.GITHUB_APP_CLIENT_ID or settings.GITHUB_CLIENT_ID
+    if not client_id:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GitHub OAuth not configured",
         )
     
     params = {
-        "client_id": settings.GITHUB_CLIENT_ID,
+        "client_id": client_id,
         "redirect_uri": settings.GITHUB_CALLBACK_URL,
-        "scope": "read:user user:email repo",
-        "state": "random_state_string",  # Should be random + stored
+        "scope": "read:user user:email",
+        "state": "random_state_string",
     }
     
     url = "https://github.com/login/oauth/authorize?" + "&".join(
@@ -287,8 +295,11 @@ async def github_callback(
     callback_data: GitHubCallbackRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Handle GitHub OAuth callback."""
-    if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
+    """Handle GitHub OAuth callback (supports both GitHub App and legacy OAuth App)."""
+    # Use GitHub App credentials if available, else legacy OAuth
+    client_id = settings.GITHUB_APP_CLIENT_ID or settings.GITHUB_CLIENT_ID
+    client_secret = settings.GITHUB_APP_CLIENT_SECRET or settings.GITHUB_CLIENT_SECRET
+    if not client_id or not client_secret:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GitHub OAuth not configured",
@@ -299,8 +310,8 @@ async def github_callback(
         token_response = await client.post(
             "https://github.com/login/oauth/access_token",
             data={
-                "client_id": settings.GITHUB_CLIENT_ID,
-                "client_secret": settings.GITHUB_CLIENT_SECRET,
+                "client_id": client_id,
+                "client_secret": client_secret,
                 "code": callback_data.code,
             },
             headers={"Accept": "application/json"},
@@ -344,18 +355,25 @@ async def github_callback(
         from app.services.dynamo_service import dynamo_service
         from boto3.dynamodb.conditions import Attr
 
+        is_new_user = False
+        encrypted_token = token_encryptor.encrypt(github_token)
+        installation_id = callback_data.installation_id
+        
         # Check if user already linked to this GitHub account
         existing = await dynamo_service.scan(
             "Users", filter_expression=Attr("githubUserId").eq(str(github_user["id"]))
         )
         if existing:
             user_id = existing[0]["userId"]
-            await dynamo_service.update_item("Users", {"userId": user_id}, {
-                "githubToken": token_encryptor.encrypt(github_token),
+            update_fields = {
+                "githubToken": encrypted_token,
                 "githubUsername": github_user["login"],
                 "githubAvatarUrl": github_user.get("avatar_url"),
                 "updatedAt": dynamo_service.now_iso(),
-            })
+            }
+            if installation_id:
+                update_fields["githubInstallationId"] = installation_id
+            await dynamo_service.update_item("Users", {"userId": user_id}, update_fields)
         else:
             # Look up by email
             email_users = await dynamo_service.scan(
@@ -365,26 +383,45 @@ async def github_callback(
                 user_id = email_users[0]["userId"]
             else:
                 # Create new user
+                is_new_user = True
                 user_id = dynamo_service.generate_id()
                 now = dynamo_service.now_iso()
-                await dynamo_service.put_item("Users", {
+                new_user_item = {
                     "userId": user_id,
                     "email": primary_email,
                     "name": github_user.get("name") or github_user["login"],
                     "avatarUrl": github_user.get("avatar_url"),
                     "isActive": True,
                     "isVerified": True,
+                    "ingestionStatus": "pending",
                     "createdAt": now,
                     "updatedAt": now,
-                })
+                }
+                await dynamo_service.put_item("Users", new_user_item)
             # Store GitHub connection info on user record
-            await dynamo_service.update_item("Users", {"userId": user_id}, {
+            update_fields = {
                 "githubUserId": str(github_user["id"]),
                 "githubUsername": github_user["login"],
                 "githubAvatarUrl": github_user.get("avatar_url"),
-                "githubToken": token_encryptor.encrypt(github_token),
+                "githubToken": encrypted_token,
                 "updatedAt": dynamo_service.now_iso(),
-            })
+            }
+            if installation_id:
+                update_fields["githubInstallationId"] = installation_id
+            await dynamo_service.update_item("Users", {"userId": user_id}, update_fields)
+
+        # Auto-trigger ingestion for new users (background task — don't await)
+        if is_new_user:
+            import asyncio
+            from app.api.routes.github import run_ingestion
+            asyncio.create_task(
+                run_ingestion(
+                    user_id=user_id,
+                    github_token=encrypted_token,
+                    installation_id=installation_id,
+                )
+            )
+            logger.info("Auto-triggered initial ingestion for new user", user_id=user_id)
 
         access_token = create_access_token(
             data={"sub": user_id},
