@@ -131,7 +131,36 @@ async def register(
     db: AsyncSession = Depends(get_db),
 ):
     """Register a new user with email and password."""
-    # Check if user exists
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        from boto3.dynamodb.conditions import Attr
+        existing = await dynamo_service.scan(
+            "Users", filter_expression=Attr("email").eq(user_data.email)
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+        user_id = dynamo_service.generate_id()
+        now = dynamo_service.now_iso()
+        await dynamo_service.put_item("Users", {
+            "userId": user_id,
+            "email": user_data.email,
+            "name": user_data.get_name(),
+            "hashedPassword": get_password_hash(user_data.password),
+            "isActive": True,
+            "isVerified": False,
+            "createdAt": now,
+            "updatedAt": now,
+        })
+        access_token = create_access_token(
+            data={"sub": user_id},
+            expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        return TokenResponse(access_token=access_token)
+
+    # SQLite path
     result = await db.execute(
         select(User).where(User.email == user_data.email)
     )
@@ -141,7 +170,6 @@ async def register(
             detail="Email already registered",
         )
     
-    # Create user
     user = User(
         email=user_data.email,
         name=user_data.get_name(),
@@ -151,7 +179,6 @@ async def register(
     await db.commit()
     await db.refresh(user)
     
-    # Generate token
     access_token = create_access_token(
         data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -166,6 +193,35 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     """Login with email and password."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        from boto3.dynamodb.conditions import Attr
+        results = await dynamo_service.scan(
+            "Users", filter_expression=Attr("email").eq(credentials.email)
+        )
+        if not results:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
+        user_data = results[0]
+        if not user_data.get("hashedPassword"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
+        if not verify_password(credentials.password, user_data["hashedPassword"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
+        access_token = create_access_token(
+            data={"sub": user_data["userId"]},
+            expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        return TokenResponse(access_token=access_token)
+
+    # SQLite path
     result = await db.execute(
         select(User).where(User.email == credentials.email)
     )
@@ -284,6 +340,59 @@ async def github_callback(
             detail="Could not get email from GitHub",
         )
     
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        from boto3.dynamodb.conditions import Attr
+
+        # Check if user already linked to this GitHub account
+        existing = await dynamo_service.scan(
+            "Users", filter_expression=Attr("githubUserId").eq(str(github_user["id"]))
+        )
+        if existing:
+            user_id = existing[0]["userId"]
+            await dynamo_service.update_item("Users", {"userId": user_id}, {
+                "githubToken": token_encryptor.encrypt(github_token),
+                "githubUsername": github_user["login"],
+                "githubAvatarUrl": github_user.get("avatar_url"),
+                "updatedAt": dynamo_service.now_iso(),
+            })
+        else:
+            # Look up by email
+            email_users = await dynamo_service.scan(
+                "Users", filter_expression=Attr("email").eq(primary_email)
+            )
+            if email_users:
+                user_id = email_users[0]["userId"]
+            else:
+                # Create new user
+                user_id = dynamo_service.generate_id()
+                now = dynamo_service.now_iso()
+                await dynamo_service.put_item("Users", {
+                    "userId": user_id,
+                    "email": primary_email,
+                    "name": github_user.get("name") or github_user["login"],
+                    "avatarUrl": github_user.get("avatar_url"),
+                    "isActive": True,
+                    "isVerified": True,
+                    "createdAt": now,
+                    "updatedAt": now,
+                })
+            # Store GitHub connection info on user record
+            await dynamo_service.update_item("Users", {"userId": user_id}, {
+                "githubUserId": str(github_user["id"]),
+                "githubUsername": github_user["login"],
+                "githubAvatarUrl": github_user.get("avatar_url"),
+                "githubToken": token_encryptor.encrypt(github_token),
+                "updatedAt": dynamo_service.now_iso(),
+            })
+
+        access_token = create_access_token(
+            data={"sub": user_id},
+            expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        return TokenResponse(access_token=access_token)
+
+    # SQLite path
     # Check if GitHub connection exists
     result = await db.execute(
         select(GithubConnection).where(
@@ -480,25 +589,44 @@ Extract only information clearly present. For experience and education, extract 
             )
         
         # Update user profile with extracted data (only non-null values)
+        _FIELD_MAP = {
+            "linkedin_url": "linkedinUrl",
+            "address_line1": "addressLine1",
+            "address_line2": "addressLine2",
+            "zip_code": "zipCode",
+            "field_of_study": "fieldOfStudy",
+            "graduation_year": "graduationYear",
+        }
+        _KNOWN_FIELDS = {
+            "name", "email", "phone", "location", "city", "state", "country",
+            "headline", "summary", "institution", "degree", "field_of_study",
+            "graduation_year", "linkedin_url", "website", "skills", "experience",
+            "education", "address_line1", "address_line2", "zip_code",
+        }
         update_values = {}
         for field, value in extracted_data.items():
-            if value is not None and value != "" and hasattr(User, field):
-                # Don't overwrite email if already set
-                if field == "email" and current_user.email:
-                    continue
-                # Don't overwrite name if already set and extracted name is generic
-                if field == "name" and current_user.name and value.lower() in ["user", "name"]:
-                    continue
-                update_values[field] = value
-        
+            if value is None or value == "" or field not in _KNOWN_FIELDS:
+                continue
+            if field == "email" and current_user.email:
+                continue
+            if field == "name" and current_user.name and value.lower() in ["user", "name"]:
+                continue
+            update_values[field] = value
+
         if update_values:
-            await db.execute(
-                update(User)
-                .where(User.id == current_user.id)
-                .values(**update_values)
-            )
-            await db.commit()
-            await db.refresh(current_user)
+            if settings.USE_DYNAMO:
+                from app.services.dynamo_service import dynamo_service
+                dynamo_updates = {_FIELD_MAP.get(k, k): v for k, v in update_values.items()}
+                dynamo_updates["updatedAt"] = dynamo_service.now_iso()
+                await dynamo_service.update_item("Users", {"userId": str(current_user.id)}, dynamo_updates)
+            else:
+                await db.execute(
+                    update(User)
+                    .where(User.id == current_user.id)
+                    .values(**update_values)
+                )
+                await db.commit()
+                await db.refresh(current_user)
         
         logger.info(f"Updated {len(update_values)} profile fields for user {current_user.id}")
         
@@ -525,9 +653,16 @@ async def get_profile(
     db: AsyncSession = Depends(get_db),
 ):
     """Get the current user's complete profile."""
-    # Refresh from database to get latest data
-    await db.refresh(current_user)
-    
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        # Re-fetch fresh data from DynamoDB
+        user_data = await dynamo_service.get_item("Users", {"userId": str(current_user.id)})
+        if user_data:
+            from app.api.deps import DynamoUser
+            current_user = DynamoUser(user_data)
+    else:
+        await db.refresh(current_user)
+
     return UserProfileResponse(
         id=str(current_user.id),
         email=current_user.email,
@@ -567,17 +702,39 @@ async def update_profile(
     for field, value in profile_data.model_dump(exclude_unset=True).items():
         if value is not None:
             update_values[field] = value
-    
-    if update_values:
-        await db.execute(
-            update(User)
-            .where(User.id == current_user.id)
-            .values(**update_values)
-        )
-        await db.commit()
-        await db.refresh(current_user)
-    
-    logger.info(f"Updated {len(update_values)} profile fields for user {current_user.id}")
+
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        from app.api.deps import DynamoUser
+        # Map snake_case SQLAlchemy field names to DynamoDB camelCase attribute names
+        _FIELD_MAP = {
+            "linkedin_url": "linkedinUrl",
+            "address_line1": "addressLine1",
+            "address_line2": "addressLine2",
+            "zip_code": "zipCode",
+            "field_of_study": "fieldOfStudy",
+            "graduation_year": "graduationYear",
+            "avatar_url": "avatarUrl",
+        }
+        dynamo_updates = {_FIELD_MAP.get(k, k): v for k, v in update_values.items()}
+        if dynamo_updates:
+            dynamo_updates["updatedAt"] = dynamo_service.now_iso()
+            await dynamo_service.update_item("Users", {"userId": str(current_user.id)}, dynamo_updates)
+        # Re-fetch fresh data
+        user_data = await dynamo_service.get_item("Users", {"userId": str(current_user.id)})
+        if user_data:
+            current_user = DynamoUser(user_data)
+        logger.info(f"Updated {len(dynamo_updates)} profile fields for user {current_user.id}")
+    else:
+        if update_values:
+            await db.execute(
+                update(User)
+                .where(User.id == current_user.id)
+                .values(**update_values)
+            )
+            await db.commit()
+            await db.refresh(current_user)
+        logger.info(f"Updated {len(update_values)} profile fields for user {current_user.id}")
     
     return UserProfileResponse(
         id=str(current_user.id),
@@ -612,6 +769,19 @@ async def get_github_status(
     db: AsyncSession = Depends(get_db),
 ):
     """Get GitHub connection status for the current user."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        user_data = await dynamo_service.get_item("Users", {"userId": str(current_user.id)})
+        if user_data and user_data.get("githubUserId"):
+            return {
+                "connected": True,
+                "username": user_data.get("githubUsername"),
+                "avatar_url": user_data.get("githubAvatarUrl"),
+                "connected_at": user_data.get("updatedAt"),
+            }
+        return {"connected": False}
+
+    # SQLite path
     result = await db.execute(
         select(GithubConnection).where(
             GithubConnection.user_id == current_user.id,
@@ -639,6 +809,18 @@ async def get_linkedin_status(
     db: AsyncSession = Depends(get_db),
 ):
     """Get LinkedIn connection status for the current user."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        user_data = await dynamo_service.get_item("Users", {"userId": str(current_user.id)})
+        if user_data and user_data.get("linkedinUserId"):
+            return {
+                "connected": True,
+                "email": user_data.get("linkedinEmail"),
+                "connected_at": user_data.get("updatedAt"),
+            }
+        return {"connected": False}
+
+    # SQLite path
     result = await db.execute(
         select(LinkedInConnection).where(
             LinkedInConnection.user_id == current_user.id,
@@ -727,8 +909,18 @@ async def linkedin_callback(
     
     linkedin_user_id = profile_data["sub"]
     linkedin_email = profile_data.get("email")
-    
-    # Check if LinkedIn connection exists
+
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        await dynamo_service.update_item("Users", {"userId": str(current_user.id)}, {
+            "linkedinUserId": linkedin_user_id,
+            "linkedinEmail": linkedin_email,
+            "linkedinToken": token_encryptor.encrypt(access_token),
+            "updatedAt": dynamo_service.now_iso(),
+        })
+        return {"message": "LinkedIn connected successfully"}
+
+    # SQLite path
     result = await db.execute(
         select(LinkedInConnection).where(
             LinkedInConnection.user_id == current_user.id
@@ -807,19 +999,25 @@ async def scrape_linkedin_certifications_endpoint(
         
         logger.info(f"Adding {len(new_certs)} new certifications (filtered from {len(certifications)})")
         
-        # Update user certifications using direct SQL update for reliability
+        # Update user certifications using direct SQL/DynamoDB update for reliability
         updated_certs = existing_certs + new_certs
-        await db.execute(
-            update(User)
-            .where(User.id == current_user.id)
-            .values(certifications=updated_certs)
-        )
-        await db.commit()
-        
-        # Refresh user to get updated data
-        await db.refresh(current_user)
-        
-        logger.info(f"Successfully saved certifications. Total: {len(current_user.certifications or [])}")
+        if settings.USE_DYNAMO:
+            from app.services.dynamo_service import dynamo_service
+            await dynamo_service.update_item("Users", {"userId": str(current_user.id)}, {
+                "certifications": updated_certs,
+                "updatedAt": dynamo_service.now_iso(),
+            })
+        else:
+            await db.execute(
+                update(User)
+                .where(User.id == current_user.id)
+                .values(certifications=updated_certs)
+            )
+            await db.commit()
+            # Refresh user to get updated data
+            await db.refresh(current_user)
+
+        logger.info(f"Successfully saved certifications. Total: {len(updated_certs)}")
         
         return {
             "success": True,
