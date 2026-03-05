@@ -1,9 +1,9 @@
 # M3 — Skill Gap Analysis + LearnWeave Roadmap
 
-> **Dependencies:** M1 (Bedrock client + embeddings + DynamoDB working)
+> **Dependencies:** M1 (Bedrock client + embeddings + DynamoDB working) + M1.5 (Frontend shell with Skill Gap tab already built)
 > **Unlocks:** M5 (Tailored Apply — gap data enriches job matching)
 > **Parallel with:** M2 (Resume Generator), M4 (Job Scout)
-> **Estimated effort:** 5–6 hours
+> **Estimated effort:** 4–5 hours (frontend now ~1.5 hrs — shell + SVG placeholder already exist)
 > **Target:** March 5 – March 6
 
 ---
@@ -68,19 +68,21 @@ Users select target career roles and receive a visual skill gap analysis (radar 
 - [ ] `GET /api/gap-analysis/{userId}` — fetch cached gap results
 - [ ] Cache results in DynamoDB — don't re-compute on every page load
 
-### 3.4 — Frontend: Radar Chart + Gap Report
+### 3.4 — Frontend: Wire Skill Gap Tab (Shell + static SVG built in M1.5)
 
-- [ ] Role selection UI — card grid or dropdown with role icons
-- [ ] Radar chart using `recharts` RadarChart component:
-  - Overlay: user scores (blue) vs. role benchmark (orange dashed)
-  - Animate on render
-- [ ] Gap table below chart:
+> The Skill Gap tab, static SVG radar placeholder, and skeleton exist from M1.5. This section replaces them with real data and a live Recharts chart.
+
+- [ ] Enable "Analyse a Job Description" button (remove `disabled` stub)
+- [ ] Add role/JD input: textarea or role-picker dropdown (card grid with role icons)
+- [ ] Wire `POST /api/skill-gap/analyse` → on success: replace static SVG with live Recharts `RadarChart`
+  - Overlay: user scores (blue fill) vs. role benchmark (orange dashed line)
+  - `animate-on-render` via Recharts animation props
+  - `aria-label="Skill gap radar chart"` preserved from shell
+- [ ] Replace skeleton gap rows with real gap table:
   | Domain | Your Score | Required | Gap | Priority |
   |--------|-----------|----------|-----|----------|
-  | System Design | 30 | 75 | 45 | 🔴 High |
-  | Databases | 55 | 85 | 30 | 🟡 Medium |
-- [ ] Overall fit percentage displayed prominently ("72% match for Backend SDE")
-- [ ] "Missing skills" summary badges
+- [ ] Overall fit percentage displayed prominently: `font-variant-numeric: tabular-nums`
+- [ ] "Missing skills" badges: use existing match-score color system from M1.5 (green/amber/red)
 
 ### 3.5 — LearnWeave Roadmap Generator
 
@@ -100,18 +102,18 @@ Users select target career roles and receive a visual skill gap analysis (radar 
   - Updates `completedAt` timestamp in DynamoDB
 - [ ] `GET /api/roadmap/user/{userId}` — list all roadmaps for user
 
-### 3.7 — Frontend: LearnWeave Roadmap UI
+### 3.7 — Frontend: LearnWeave Roadmap UI (new section in Skill Gap tab)
 
-- [ ] Vertical timeline layout — one card per week
-- [ ] Each card shows:
-  - Week number + project title
-  - Tech stack as chips/badges
-  - Estimated hours
-  - 3 resource links (clickable)
-  - "Mark Complete" checkbox
-- [ ] Progress bar at top (e.g., "2 of 4 weeks completed — 50%")
-- [ ] Completed milestones get green checkmark + strikethrough style
-- [ ] State persisted to DynamoDB — survives page reload
+> Add a collapsible "Learning Roadmap" section below the gap report within the existing Skill Gap tab.
+
+- [ ] "Generate Learning Roadmap" button below gap report (only enabled once a gap report exists)
+- [ ] Wire `POST /api/roadmap/generate` → vertical timeline layout, one card per week
+- [ ] Each card: week number + project title, tech stack chips, estimated hours, 3 resource `<a>` links
+  - Resource links: `rel="noopener noreferrer"` + `target="_blank"` + descriptive `aria-label`
+- [ ] Progress bar at top: "2 of 4 weeks completed — 50%" with `font-variant-numeric: tabular-nums`
+- [ ] "Mark Complete" checkbox: wire `PATCH /api/roadmap/{roadmapId}/milestone/{week}` on change
+- [ ] Completed weeks: green checkmark + `line-through` text style
+- [ ] Roadmap state persists across sessions (DynamoDB-backed, reloads on mount)
 
 ---
 

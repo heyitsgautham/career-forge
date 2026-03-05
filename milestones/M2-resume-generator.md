@@ -1,9 +1,9 @@
 # M2 — LaTeX Resume Generator
 
-> **Dependencies:** M1 (Bedrock client + S3 + DynamoDB working)
+> **Dependencies:** M1 (Bedrock client + S3 + DynamoDB working) + M1.5 (Frontend shell with Resume tab already built)
 > **Unlocks:** M5 (Tailored Resumes & Apply)
 > **Parallel with:** M3 (Skill Gap), M4 (Job Scout)
-> **Estimated effort:** 4–5 hours
+> **Estimated effort:** 3–4 hours (frontend now ~1 hr — shell already exists)
 > **Target:** March 5 – March 6
 
 ---
@@ -56,14 +56,17 @@ Port the latex-agent resume generation pipeline to AWS. A user can log in, have 
 - [ ] `DELETE /api/resumes/{resumeId}` — delete resume + S3 files
 - [ ] All endpoints use DynamoDB for metadata, S3 for files
 
-### 2.5 — Frontend: Resume Generation UI
+### 2.5 — Frontend: Wire Resume Tab (Shell built in M1.5)
 
-- [ ] "Generate Resume" button on dashboard (post-login)
-- [ ] Loading state with skeleton while Bedrock + ytotech process (~5–10 sec)
-- [ ] PDF preview (embed or iframe) once generated
-- [ ] Download button (presigned S3 URL)
-- [ ] Resume history list — show all previously generated resumes
-- [ ] Error state: friendly message if compilation fails
+> The Resume Generator tab, loading skeleton, and empty state already exist from M1.5. This section only wires real data.
+
+- [ ] Enable the "Generate Resume" button (remove `disabled` + tooltip stub)
+- [ ] Wire `POST /api/resumes/generate` — on click: show skeleton → on success: replace with real PDF iframe
+- [ ] Wire `GET /api/resumes/user/{userId}` — replace placeholder list with real resume history
+- [ ] PDF preview: `<iframe src={pdfUrl} title="Generated resume preview" />` with `aria-label`
+- [ ] Download button: presigned S3 URL, `<a download>` with filename `resume-{date}.pdf`
+- [ ] Error state: inline error message below button (not toast), includes fix hint: "Try re-importing your repos first"
+- [ ] `aria-live="polite"` on result area so screen readers announce PDF ready
 
 ---
 

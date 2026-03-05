@@ -1,9 +1,9 @@
 # M4 — Job Scout (Scrape & Match)
 
-> **Dependencies:** M1 (Bedrock client + DynamoDB working)
+> **Dependencies:** M1 (Bedrock client + DynamoDB working) + M1.5 (Frontend shell with Job Scout tab already built)
 > **Unlocks:** M5 (Tailored Resumes & Apply)
 > **Parallel with:** M2 (Resume Generator), M3 (Skill Gap + LearnWeave)
-> **Estimated effort:** 4–5 hours
+> **Estimated effort:** 3–4 hours (frontend now ~1 hr — shell + skeleton cards already exist)
 > **Target:** March 5 – March 6
 
 ---
@@ -81,20 +81,20 @@ A scheduled job scraper that fetches live openings from job portals, analyses ea
 - [ ] `GET /api/jobs/stats` — summary stats (total jobs, avg match, top categories)
 - [ ] `DELETE /api/jobs/{jobId}` — admin cleanup
 
-### 4.6 — Frontend: Job Board UI
+### 4.6 — Frontend: Wire Job Scout Tab (Shell + skeleton cards built in M1.5)
 
-- [ ] Job list view — cards or table rows:
-  - Company name + logo (if available)
-  - Role title
-  - Match percentage (colour-coded: green >70%, yellow 50–70%, red <50%)
-  - Key required skills as chips
-  - Missing skills highlighted in red
-  - "View Details" → expanded JD
-  - "Generate Tailored Resume" button (→ M5)
-- [ ] Filters: by role category, minimum match %, date posted
-- [ ] Sort: by match score (default), date, company
-- [ ] Loading skeleton while jobs load
-- [ ] Empty state if no jobs match criteria
+> The Job Scout tab, 5 skeleton cards, filter bar skeleton, and empty state exist from M1.5. This section replaces them with real data.
+
+- [ ] Enable "Scan for Jobs" button (remove `disabled` stub)
+- [ ] Wire `GET /api/jobs/matches` → replace skeleton cards with real `<article>` job cards
+  - Company name + logo (`<img alt="{company} logo" width="32" height="32" loading="lazy" />`)
+  - Role title, match score badge (colour system inherited from M1.5 shell)
+  - Skill chips: required skills, missing skills in red/amber
+  - "View Details" accordion → full JD text
+  - "Generate Tailored Resume" button → passes `jobId` to Apply tab (M5 wires the actual call)
+- [ ] Wire filter bar: role category, minimum match %, date posted — update URL via `searchParams`
+- [ ] Wire sort: match score (default), date, company — also URL-synced
+- [ ] Replace skeleton with real loading state (keep same skeleton component, just conditionally rendered)
 
 ---
 

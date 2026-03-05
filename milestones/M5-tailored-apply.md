@@ -1,9 +1,9 @@
 # M5 — Tailored Resumes & Application Tracker
 
-> **Dependencies:** M2 (Resume Generator working) + M4 (Job Scout with JD data)
+> **Dependencies:** M2 (Resume Generator working) + M4 (Job Scout with JD data) + M1.5 (Apply & Track tab with Kanban columns + tailored resume panel already built)
 > **Unlocks:** M6 (Deploy & Polish)
 > **Cannot parallelize:** Requires both the base resume pipeline AND job data to exist
-> **Estimated effort:** 4–5 hours
+> **Estimated effort:** 3–4 hours (frontend now ~1.5 hrs — Apply shell, Kanban columns, modal, and DnD scaffold already exist)
 > **Target:** March 6
 
 ---
@@ -79,21 +79,28 @@ For each specific job, generate a unique, JD-tailored resume that differs from t
 - [ ] `DELETE /api/applications/{applicationId}` — remove application
 - [ ] `GET /api/applications/stats/{userId}` — summary counts per status
 
-### 5.6 — Frontend: Tailored Resume Flow
+### 5.6 — Frontend: Wire Tailored Resume Flow (Panel built in M1.5)
 
-- [ ] On Job Board (from M4), each job card has "Generate Tailored Resume" button
-- [ ] Click → loading state → new PDF generated → preview shown
-- [ ] Side-by-side comparison: base resume vs. tailored resume (optional, if time permits)
-- [ ] "Apply" button → creates application record → moves to tracker
-- [ ] Download tailored PDF
+> The Apply tab's two-panel layout and tailored resume textarea exist from M1.5. This section wires the real API call.
 
-### 5.7 — Frontend: Application Tracker (Kanban)
+- [ ] Enable "Generate Tailored Resume" button (remove `disabled` stub)
+- [ ] Wire `POST /api/resumes/tailor` with `{ jobId, userId }` — show loading state "Tailoring resume…"
+- [ ] On success: replace textarea panel with PDF iframe preview (same component as M2)
+- [ ] "Apply" button below preview → calls `POST /api/applications` → creates application record → triggers Kanban card creation
+- [ ] Download tailored PDF: `<a download>` with filename `resume-{company}-{date}.pdf`
+- [ ] Optional (time permitting): side-by-side base vs. tailored diff view
 
-- [ ] Kanban board with columns: Saved | Applied | Interviewing | Offered | Rejected
-- [ ] Each card shows: company, role, applied date, resume used (clickable to PDF)
-- [ ] Drag-and-drop between columns to update status (or dropdown for simplicity)
-- [ ] Stats bar at top: "12 Applied · 3 Interviewing · 1 Offered"
-- [ ] Empty state: "No applications yet. Find jobs in Job Scout!"
+### 5.7 — Frontend: Wire Application Tracker Kanban (Columns + modal built in M1.5)
+
+> Kanban columns (Applied, Interviewing, Offer, Rejected), the Add Application modal, and DnD data-attributes exist from M1.5. This section adds real data + drag-and-drop behaviour.
+
+- [ ] Wire `GET /api/applications/user/{userId}` → populate cards into correct columns on mount
+- [ ] Wire `@hello-pangea/dnd` (already installed in M1.5) — enable drag between columns
+- [ ] On drop: call `PATCH /api/applications/{id}` with new status — optimistic update, rollback on error
+- [ ] Each card: company, role, applied date, resume link (clickable to PDF in S3)
+- [ ] Stats bar: "12 Applied · 3 Interviewing · 1 Offer" — derived from card counts, `font-variant-numeric: tabular-nums`
+- [ ] Wire "Add Application" modal (built in M1.5) → `POST /api/applications` on submit
+- [ ] Warn before closing modal with dirty fields (`beforeunload` or router guard)
 
 ---
 
