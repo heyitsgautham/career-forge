@@ -28,6 +28,13 @@ async def health_check():
 @router.get("/health/db")
 async def database_health(db: AsyncSession = Depends(get_db)):
     """Database connectivity check."""
+    if settings.USE_DYNAMO:
+        try:
+            from app.services.dynamo_service import dynamo_service
+            dynamo_service._get_client()
+            return {"status": "healthy", "database": "dynamodb"}
+        except Exception as e:
+            return {"status": "unhealthy", "database": "dynamodb", "error": str(e)}
     try:
         await db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}

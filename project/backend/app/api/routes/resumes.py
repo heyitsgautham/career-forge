@@ -15,6 +15,7 @@ from datetime import datetime
 import structlog
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models.user import User
 from app.models.project import Project
 from app.models.template import Template
@@ -55,6 +56,22 @@ async def _rank_projects_by_relevance(projects, job_description):
     scored_projects.sort(key=lambda x: x[0], reverse=True)
     
     return [project for score, project in scored_projects]
+
+
+def _resume_from_dynamo(r: dict) -> dict:
+    return {
+        "id": r.get("resumeId", ""),
+        "name": r.get("name", ""),
+        "template_id": r.get("templateId"),
+        "job_description_id": r.get("jobDescriptionId"),
+        "selected_project_ids": r.get("selectedProjectIds") or [],
+        "status": r.get("status", "draft"),
+        "latex_content": r.get("latexContent"),
+        "pdf_path": r.get("pdfS3Key"),
+        "error_message": r.get("errorMessage"),
+        "created_at": r.get("createdAt", ""),
+        "updated_at": r.get("updatedAt", ""),
+    }
 
 
 # Pydantic models
@@ -104,6 +121,11 @@ async def list_resumes(
     db: AsyncSession = Depends(get_db),
 ):
     """List all resumes for the current user."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        items = await dynamo_service.query("Resumes", "userId", str(current_user.id))
+        return [ResumeResponse(**_resume_from_dynamo(r)) for r in items]
+
     result = await db.execute(
         select(Resume)
         .where(Resume.user_id == current_user.id)
@@ -136,6 +158,24 @@ async def create_resume(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new resume draft."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        resume_id = dynamo_service.generate_id()
+        now = dynamo_service.now_iso()
+        item = {
+            "userId": str(current_user.id),
+            "resumeId": resume_id,
+            "name": resume_data.name,
+            "templateId": resume_data.template_id,
+            "jobDescriptionId": resume_data.job_description_id,
+            "selectedProjectIds": resume_data.project_ids or [],
+            "status": "draft",
+            "createdAt": now,
+            "updatedAt": now,
+        }
+        await dynamo_service.put_item("Resumes", item)
+        return ResumeResponse(**_resume_from_dynamo(item))
+
     template_uuid = None
     project_uuids = []
     
@@ -197,6 +237,13 @@ async def get_resume(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a specific resume."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        return ResumeResponse(**_resume_from_dynamo(item))
+
     result = await db.execute(
         select(Resume).where(
             Resume.id == uuid.UUID(resume_id),
@@ -234,7 +281,56 @@ async def generate_resume(
     # Handle empty body
     if generate_data is None:
         generate_data = ResumeGenerateRequest()
-    
+
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        import os
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "generating", "updatedAt": dynamo_service.now_iso()})
+        try:
+            template_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates", "base_resume_template.tex")
+            if not os.path.exists(template_path):
+                raise HTTPException(status_code=404, detail="No template file found")
+            with open(template_path, "r") as f:
+                template_latex = f.read()
+            jd_context = None
+            if item.get("jobDescriptionId") and generate_data.tailor_to_jd:
+                jd = await dynamo_service.get_item("Jobs", {"jobId": item["jobDescriptionId"]})
+                if jd:
+                    jd_context = {"title": jd.get("title"), "company": jd.get("company"), "required_skills": jd.get("requiredSkills") or []}
+            project_ids = item.get("selectedProjectIds") or []
+            if project_ids:
+                projects = [p for p in [await dynamo_service.get_item("Projects", {"userId": str(current_user.id), "projectId": pid}) for pid in project_ids] if p]
+            else:
+                projects = await dynamo_service.query("Projects", "userId", str(current_user.id))
+            projects = projects[:3]
+            def _get(attr, default=""):
+                v = getattr(current_user, attr, None)
+                return v if v is not None else default
+            import json
+            def _parse(v):
+                if not v: return []
+                return json.loads(v) if isinstance(v, str) else v
+            personal = generate_data.personal or {"name": _get("name") or _get("email", "").split("@")[0], "email": _get("email"), "phone": _get("phone"), "location": _get("location"), "linkedin_url": _get("linkedin_url"), "website": _get("website")}
+            user_data = {
+                "personal": personal,
+                "skills": generate_data.skills or _parse(_get("skills", None)),
+                "projects": [{"title": p.get("title","") if isinstance(p,dict) else p.title, "description": p.get("description","") if isinstance(p,dict) else p.description, "technologies": (p.get("technologies") or []) if isinstance(p,dict) else (p.technologies or []), "highlights": (p.get("highlights") or []) if isinstance(p,dict) else (p.highlights if isinstance(p.highlights,list) else []), "url": p.get("url") if isinstance(p,dict) else p.url} for p in projects],
+                "experience": generate_data.experience or _parse(_get("experience", None)),
+                "education": generate_data.education or _parse(_get("education", None)),
+                "certifications": _parse(_get("certifications", None)),
+            }
+            generation_result = await resume_agent.generate_resume(template_latex=template_latex, user_data=user_data, jd_context=jd_context)
+            updates = {"latexContent": generation_result.latex_content, "status": "generated", "updatedAt": dynamo_service.now_iso()}
+            await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, updates)
+            item.update(updates)
+        except Exception as e:
+            await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "error", "errorMessage": str(e), "updatedAt": dynamo_service.now_iso()})
+            raise HTTPException(status_code=500, detail=str(e))
+        return ResumeResponse(**_resume_from_dynamo(item))
+
     # Get resume
     result = await db.execute(
         select(Resume).where(
@@ -431,6 +527,37 @@ async def compile_resume(
     db: AsyncSession = Depends(get_db),
 ):
     """Compile resume LaTeX to PDF."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        if not item.get("latexContent"):
+            raise HTTPException(status_code=400, detail="No LaTeX content to compile. Generate first.")
+        await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "compiling", "updatedAt": dynamo_service.now_iso()})
+        try:
+            is_safe, issues = latex_service.validate_latex_safety(item["latexContent"])
+            if not is_safe:
+                raise HTTPException(status_code=400, detail=f"Unsafe LaTeX: {', '.join(issues)}")
+            try:
+                compilation_result = await latex_service.compile_latex(latex_content=item["latexContent"], output_filename=f"resume_{resume_id[:8]}", use_docker=False)
+            except FileNotFoundError:
+                await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "generated", "updatedAt": dynamo_service.now_iso()})
+                return CompilationResponse(success=False, pdf_url=None, errors=[{"line": 0, "message": "LaTeX compiler not available.", "suggestion": "Use Overleaf or install TeX Live."}], warnings=["No compiler available"])
+            except Exception as e:
+                await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "error", "errorMessage": str(e), "updatedAt": dynamo_service.now_iso()})
+                return CompilationResponse(success=False, pdf_url=None, errors=[{"line": 0, "message": str(e), "suggestion": "Check LaTeX syntax"}], warnings=[])
+            if compilation_result.success:
+                await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "compiled", "pdfS3Key": compilation_result.pdf_path, "updatedAt": dynamo_service.now_iso()})
+            else:
+                await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "error", "errorMessage": "; ".join(e.message for e in compilation_result.errors), "updatedAt": dynamo_service.now_iso()})
+            return CompilationResponse(success=compilation_result.success, pdf_url=f"/uploads/pdfs/{resume_id[:8]}.pdf" if compilation_result.success else None, errors=[{"line": e.line, "message": e.message, "suggestion": e.suggestion} for e in compilation_result.errors], warnings=compilation_result.warnings)
+        except HTTPException:
+            raise
+        except Exception as e:
+            await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "error", "errorMessage": str(e), "updatedAt": dynamo_service.now_iso()})
+            raise HTTPException(status_code=500, detail=str(e))
+
     # Get resume
     result = await db.execute(
         select(Resume).where(
@@ -540,6 +667,15 @@ async def download_pdf(
     db: AsyncSession = Depends(get_db),
 ):
     """Download compiled PDF."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        if not item.get("pdfS3Key"):
+            raise HTTPException(status_code=400, detail="PDF not available. Compile first.")
+        return FileResponse(path=item["pdfS3Key"], filename=f"{item.get('name','resume').replace(' ','_')}.pdf", media_type="application/pdf")
+
     result = await db.execute(
         select(Resume).where(
             Resume.id == uuid.UUID(resume_id),
@@ -569,6 +705,14 @@ async def update_latex(
     db: AsyncSession = Depends(get_db),
 ):
     """Update resume LaTeX content directly."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"latexContent": latex_content, "status": "generated", "pdfS3Key": None, "updatedAt": dynamo_service.now_iso()})
+        return {"message": "LaTeX updated"}
+
     result = await db.execute(
         select(Resume).where(
             Resume.id == uuid.UUID(resume_id),
@@ -596,6 +740,14 @@ async def delete_resume(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a resume."""
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        await dynamo_service.delete_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        return {"message": "Resume deleted"}
+
     result = await db.execute(
         select(Resume).where(
             Resume.id == uuid.UUID(resume_id),
