@@ -1,124 +1,126 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  FileText, 
-  FolderGit2, 
-  Briefcase, 
+import { Badge } from '@/components/ui/badge';
+import {
+  FileText,
+  FolderGit2,
+  Briefcase,
   LayoutTemplate,
-  Plus,
+  Target,
+  Search,
+  Send,
   Github,
   LogOut,
   Settings,
   Menu,
-  User
+  User,
+  Zap,
+  Upload,
+  X,
 } from 'lucide-react';
 import { ProjectsList } from '@/components/dashboard/projects-list';
 import { JobsList } from '@/components/dashboard/jobs-list';
 import { ResumesList } from '@/components/dashboard/resumes-list';
 import { TemplatesList } from '@/components/dashboard/templates-list';
 import { ProfileView } from '@/components/dashboard/profile-view';
+import { SkillGapShell } from '@/components/dashboard/skill-gap-shell';
+import { JobScoutShell } from '@/components/dashboard/job-scout-shell';
+import { ApplyTrackShell } from '@/components/dashboard/apply-shell';
 import { useToast } from '@/hooks/use-toast';
+import { userApi, authApi } from '@/lib/api';
+import type { User as UserType } from '@/lib/api';
 
-export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState('resumes');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [githubStatus, setGithubStatus] = useState<any>(null);
-  const [linkedinStatus, setLinkedinStatus] = useState<any>(null);
+/* ─── Tab definitions ────────────────────────────────────────────────────── */
+const TABS = [
+  { key: 'resumes', label: 'Resumes', icon: FileText },
+  { key: 'projects', label: 'Projects', icon: FolderGit2 },
+  { key: 'jobs', label: 'Job Descriptions', icon: Briefcase },
+  { key: 'templates', label: 'Templates', icon: LayoutTemplate },
+  { key: 'skill-gap', label: 'Skill Gap', icon: Target },
+  { key: 'job-scout', label: 'Job Scout', icon: Search },
+  { key: 'apply', label: 'Apply & Track', icon: Send },
+] as const;
+
+type TabKey = (typeof TABS)[number]['key'] | 'profile';
+
+/* ─── Dashboard inner (needs Suspense for useSearchParams) ───────────────── */
+function DashboardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  // Handle OAuth callback params
+  /* Derive initial tab from URL ?tab= or default to resumes */
+  const initialTab = (searchParams.get('tab') as TabKey) || 'resumes';
+
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [githubUsername, setGithubUsername] = useState('');
+
+  /* URL-sync: update ?tab= when activeTab changes */
+  const switchTab = useCallback(
+    (tab: TabKey) => {
+      setActiveTab(tab);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      window.history.replaceState(null, '', url.toString());
+    },
+    []
+  );
+
+  /* Handle OAuth callback query params */
   useEffect(() => {
     const github = searchParams.get('github');
-    const linkedin = searchParams.get('linkedin');
     const token = searchParams.get('token');
     const error = searchParams.get('error');
 
     if (github === 'connected') {
-      if (token) {
-        localStorage.setItem('token', token);
-        toast({ title: 'GitHub connected!', description: 'Your account is now linked.' });
-      } else {
-        toast({ title: 'GitHub connected!', description: 'Authorization successful.' });
-      }
+      if (token) localStorage.setItem('token', token);
+      toast({ title: 'GitHub connected!', description: 'Your account is now linked.' });
       router.replace('/dashboard');
     }
-
-    if (linkedin === 'connected') {
-      toast({ 
-        title: 'LinkedIn connected!', 
-        description: 'You can now import certifications from LinkedIn.' 
-      });
-      // Reload statuses
-      window.location.reload();
-    }
-
     if (error) {
-      toast({ 
-        title: 'Connection failed', 
+      toast({
+        title: 'Connection failed',
         description: `Error: ${error.replace(/_/g, ' ')}`,
-        variant: 'destructive'
+        variant: 'destructive',
       });
       router.replace('/dashboard');
     }
   }, [searchParams, router, toast]);
 
-  // Load current user info
+  /* Load user + github status */
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          router.push('/login');
-          return;
-        }
+    const load = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        
-        const response = await fetch(`${apiUrl}/api/auth/profile`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          setCurrentUser(userData);
-          
-          // Load GitHub connection status
-          const githubResponse = await fetch(`${apiUrl}/api/auth/github/status`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (githubResponse.ok) {
-            const githubData = await githubResponse.json();
-            setGithubStatus(githubData);
-          }
-          
-          // Load LinkedIn connection status
-          const linkedinResponse = await fetch(`${apiUrl}/api/auth/linkedin/status`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (linkedinResponse.ok) {
-            const linkedinData = await linkedinResponse.json();
-            setLinkedinStatus(linkedinData);
-          }
-        } else if (response.status === 401) {
-          localStorage.removeItem('token');
-          router.push('/login');
+      try {
+        const [profileRes, ghRes] = await Promise.all([
+          userApi.getProfile(),
+          userApi.getGithubStatus(),
+        ]);
+        setCurrentUser(profileRes.data);
+        if (ghRes.data?.connected) {
+          setGithubConnected(true);
+          setGithubUsername(ghRes.data.username || '');
         }
-      } catch (error) {
-        console.error('Failed to load user:', error);
+      } catch {
+        /* 401 is handled by interceptor */
       }
     };
-    
-    loadUser();
+
+    load();
   }, [router]);
 
   const handleLogout = () => {
@@ -127,153 +129,136 @@ export default function DashboardPage() {
     router.push('/login');
   };
 
-  const handleGithubConnect = () => {
-    const clientId = 'Ov23li7PyDbHv0U1oqbZ';
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const redirectUri = encodeURIComponent(`${appUrl}/api/auth/callback/github`);
-    const scope = encodeURIComponent('read:user user:email repo');
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
-    console.log('Redirecting to GitHub OAuth:', authUrl);
-    window.location.href = authUrl;
-  };
-
-  const handleLinkedInConnect = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/auth/linkedin/authorize`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      if (data.authorization_url) {
-        window.location.href = data.authorization_url;
-      } else {
-        toast({
-          title: 'Configuration Error',
-          description: data.detail || 'LinkedIn OAuth not configured. Please set LINKEDIN_CLIENT_ID in backend/.env',
-          variant: 'destructive'
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to initiate LinkedIn connection',
-        variant: 'destructive'
-      });
-    }
+  /* Tab → Content mapping */
+  const tabDescription: Record<TabKey, string> = {
+    resumes: 'Generate and manage your LaTeX resumes',
+    projects: 'Your imported projects and repositories',
+    jobs: 'Job descriptions to tailor resumes to',
+    templates: 'LaTeX templates for your resumes',
+    'skill-gap': 'AI-powered gap analysis against target roles',
+    'job-scout': 'Matched jobs ranked by fit',
+    apply: 'Generate tailored resumes and track applications',
+    profile: 'View and edit your profile information',
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-950 dark:to-purple-950 flex">
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} border-r bg-gradient-to-b from-white to-blue-50 dark:from-gray-900 dark:to-gray-800 transition-all duration-200 relative shadow-lg`}>
-        <div className="p-4 border-b flex items-center justify-between">
+    <div className="flex min-h-screen">
+      {/* ─── Sidebar ─────────────────────────────────────────────────────── */}
+      <aside
+        className={`${sidebarOpen ? 'w-64' : 'w-16'
+          } shrink-0 border-r bg-card/50 backdrop-blur-sm transition-[width] duration-200 relative flex flex-col`}
+      >
+        {/* Brand */}
+        <div className="flex h-14 items-center gap-2 border-b px-3">
           {sidebarOpen && (
-            <div className="flex items-center gap-2">
-              <FileText className="h-6 w-6" />
-              <span className="font-bold">Resume Agent</span>
-            </div>
+            <Link
+              href="/"
+              className="group flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+                <Zap className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span className="font-bold text-sm tracking-tight">CareerForge</span>
+            </Link>
           )}
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto shrink-0"
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
-        
-        <nav className="p-2 space-y-1">
-          <SidebarItem 
-            icon={<FileText className="h-5 w-5" />} 
-            label="Resumes" 
-            active={activeTab === 'resumes'}
-            onClick={() => setActiveTab('resumes')}
-            collapsed={!sidebarOpen}
-          />
-          <SidebarItem 
-            icon={<FolderGit2 className="h-5 w-5" />} 
-            label="Projects" 
-            active={activeTab === 'projects'}
-            onClick={() => setActiveTab('projects')}
-            collapsed={!sidebarOpen}
-          />
-          <SidebarItem 
-            icon={<Briefcase className="h-5 w-5" />} 
-            label="Job Descriptions" 
-            active={activeTab === 'jobs'}
-            onClick={() => setActiveTab('jobs')}
-            collapsed={!sidebarOpen}
-          />
-          <SidebarItem 
-            icon={<LayoutTemplate className="h-5 w-5" />} 
-            label="Templates" 
-            active={activeTab === 'templates'}
-            onClick={() => setActiveTab('templates')}
-            collapsed={!sidebarOpen}
-          />
+
+        {/* Nav items */}
+        <nav className="flex-1 overflow-y-auto p-2 space-y-0.5" aria-label="Dashboard navigation">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <SidebarItem
+              key={key}
+              icon={<Icon className="h-4 w-4" aria-hidden="true" />}
+              label={label}
+              active={activeTab === key}
+              onClick={() => switchTab(key)}
+              collapsed={!sidebarOpen}
+            />
+          ))}
         </nav>
 
-{/* <script src="https://platform.linkedin.com/badges/js/profile.js" async defer type="text/javascript"></script>
-        <div class="badge-base LI-profile-badge" data-locale="en_US" data-size="medium" data-theme="dark" data-type="VERTICAL" data-vanity="hiruthik-sudhakar" data-version="v1"><a class="badge-base__link LI-simple-link" href="https://in.linkedin.com/in/hiruthik-sudhakar?trk=profile-badge">Hiruthik Sudhakar</a></div>
-               */}
-        
-        <div className="absolute bottom-0 left-0 right-0 p-2 border-t bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700">
-          <SidebarItem 
-            icon={<User className="h-5 w-5" />} 
-            label="Profile" 
+        {/* Bottom actions */}
+        <div className="border-t p-2 space-y-0.5">
+          <SidebarItem
+            icon={<User className="h-4 w-4" aria-hidden="true" />}
+            label="Profile"
             active={activeTab === 'profile'}
-            onClick={() => setActiveTab('profile')}
+            onClick={() => switchTab('profile')}
             collapsed={!sidebarOpen}
           />
-          <SidebarItem 
-            icon={<Settings className="h-5 w-5" />} 
-            label="Settings" 
+          <SidebarItem
+            icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+            label="Settings"
             onClick={() => setShowSettings(true)}
             collapsed={!sidebarOpen}
           />
-          <SidebarItem 
-            icon={<LogOut className="h-5 w-5" />} 
-            label="Logout" 
+          <SidebarItem
+            icon={<LogOut className="h-4 w-4" aria-hidden="true" />}
+            label="Logout"
             onClick={handleLogout}
             collapsed={!sidebarOpen}
           />
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-white/50 dark:bg-gray-900/50">
-        {/* Header */}
-        <header className="border-b bg-gradient-to-r from-white via-blue-50 to-purple-50 dark:from-gray-900 dark:via-blue-950 dark:to-purple-950 p-4 flex justify-between items-center shadow-sm">
-          <div>
-            <h1 className="text-2xl font-bold capitalize">{activeTab}</h1>
-            <p className="text-muted-foreground">
-              {activeTab === 'resumes' && 'Manage and generate your resumes'}
-              {activeTab === 'projects' && 'Your imported projects and repositories'}
-              {activeTab === 'jobs' && 'Job descriptions to tailor resumes to'}
-              {activeTab === 'templates' && 'LaTeX templates for your resumes'}
-              {activeTab === 'profile' && 'View and edit your profile information'}
+      {/* ─── Main ────────────────────────────────────────────────────────── */}
+      <main className="flex-1 flex flex-col min-w-0" id="main-content">
+        {/* Header bar */}
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/80 backdrop-blur-sm px-6">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold capitalize truncate">
+              {activeTab === 'skill-gap'
+                ? 'Skill Gap'
+                : activeTab === 'job-scout'
+                  ? 'Job Scout'
+                  : activeTab === 'apply'
+                    ? 'Apply & Track'
+                    : activeTab}
+            </h1>
+            <p className="text-xs text-muted-foreground truncate hidden sm:block">
+              {tabDescription[activeTab]}
             </p>
           </div>
-          <div className="flex gap-3 items-center">
+
+          <div className="flex items-center gap-3 shrink-0">
             {currentUser && (
-              <div className="text-sm text-right mr-2">
-                <p className="font-medium">{currentUser.name || currentUser.email}</p>
-                <p className="text-xs text-muted-foreground">{currentUser.email}</p>
+              <div className="text-right hidden md:block">
+                <p className="text-sm font-medium truncate max-w-[160px]">
+                  {currentUser.name || currentUser.email}
+                </p>
+                {currentUser.email && (
+                  <p className="text-xs text-muted-foreground truncate max-w-[160px]">
+                    {currentUser.email}
+                  </p>
+                )}
               </div>
             )}
-            {githubStatus?.connected ? (
-              <Button variant="outline" className="gap-2 border-green-300 dark:border-green-700 bg-gradient-to-r from-green-50 to-emerald-100 dark:from-green-950 dark:to-emerald-950 shadow-md" onClick={handleGithubConnect}>
-                <Github className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <div className="flex flex-col items-start">
-                  <span className="text-xs text-green-900 dark:text-green-100">GitHub Connected</span>
-                  <span className="text-xs text-green-700 dark:text-green-300">@{githubStatus.username}</span>
-                </div>
-              </Button>
+
+            {githubConnected ? (
+              <Badge
+                variant="outline"
+                className="gap-1.5 border-success/30 bg-success/5 text-success cursor-default"
+              >
+                <Github className="h-3 w-3" aria-hidden="true" />
+                @{githubUsername}
+              </Badge>
             ) : (
-              <Button variant="outline" className="gap-2" onClick={handleGithubConnect}>
-                <Github className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => authApi.githubLogin()}
+              >
+                <Github className="h-3.5 w-3.5" aria-hidden="true" />
                 Connect GitHub
               </Button>
             )}
@@ -281,27 +266,54 @@ export default function DashboardPage() {
         </header>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'resumes' && <ResumesList />}
           {activeTab === 'projects' && <ProjectsList />}
           {activeTab === 'jobs' && <JobsList />}
           {activeTab === 'templates' && <TemplatesList />}
+          {activeTab === 'skill-gap' && <SkillGapShell />}
+          {activeTab === 'job-scout' && <JobScoutShell />}
+          {activeTab === 'apply' && <ApplyTrackShell />}
           {activeTab === 'profile' && <ProfileView />}
         </div>
       </main>
 
-      {/* Settings Modal */}
+      {/* ─── Settings Modal ──────────────────────────────────────────────── */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowSettings(false)}>
-          <Card className="w-full max-w-md border-2 border-purple-200 dark:border-purple-800 shadow-2xl shadow-purple-500/20" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle>Profile Settings</CardTitle>
-              <CardDescription>Manage your account settings and upload resume for auto-fill</CardDescription>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowSettings(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Settings"
+        >
+          <Card
+            className="w-full max-w-md shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle>Settings</CardTitle>
+                <CardDescription>
+                  Manage integrations and upload your resume
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSettings(false)}
+                aria-label="Close settings"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Resume upload */}
               <div className="space-y-2">
                 <p className="text-sm font-medium">Upload Resume</p>
-                <p className="text-xs text-muted-foreground">Upload your existing resume to auto-fill profile fields</p>
+                <p className="text-xs text-muted-foreground">
+                  Upload an existing resume to auto-fill profile fields
+                </p>
                 <input
                   type="file"
                   id="resume-upload"
@@ -315,88 +327,60 @@ export default function DashboardPage() {
                     formData.append('file', file);
 
                     try {
-                      const token = localStorage.getItem('token');
-                      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                      const response = await fetch(`${apiUrl}/api/auth/upload-resume`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData,
+                      const res = await userApi.uploadResume(formData);
+                      toast({
+                        title: 'Resume uploaded!',
+                        description: `Extracted ${res.data.fields_updated} profile fields.`,
                       });
-
-                      const data = await response.json();
-                      if (response.ok) {
-                        toast({ 
-                          title: 'Resume uploaded!', 
-                          description: `Successfully extracted ${data.fields_updated} profile fields. Check the Profile tab!` 
-                        });
-                        // Reload user data to show updated name
-                        const userResponse = await fetch(`${apiUrl}/api/auth/profile`, {
-                          headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (userResponse.ok) {
-                          const userData = await userResponse.json();
-                          setCurrentUser(userData);
-                        }
-                        setShowSettings(false);
-                      } else {
-                        toast({ 
-                          title: 'Upload failed', 
-                          description: data.detail || 'Could not process resume',
-                          variant: 'destructive'
-                        });
-                      }
-                    } catch (error) {
-                      toast({ 
-                        title: 'Upload error', 
-                        description: 'Failed to upload resume',
-                        variant: 'destructive'
+                      // Refresh user
+                      const profileRes = await userApi.getProfile();
+                      setCurrentUser(profileRes.data);
+                      setShowSettings(false);
+                    } catch {
+                      toast({
+                        title: 'Upload failed',
+                        description: 'Could not process resume',
+                        variant: 'destructive',
                       });
                     }
                     e.target.value = '';
                   }}
                 />
-                <Button 
-                  variant="outline" 
-                  className="w-full gap-2" 
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
                   onClick={() => document.getElementById('resume-upload')?.click()}
                 >
-                  <FileText className="h-4 w-4" />
-                  Upload Resume (PDF/DOCX/TXT)
+                  <Upload className="h-4 w-4" aria-hidden="true" />
+                  Upload Resume (PDF / DOCX / TXT)
                 </Button>
               </div>
-              
-              <div className="space-y-2 pt-2 border-t">
+
+              {/* GitHub */}
+              <div className="space-y-2 border-t pt-4">
                 <p className="text-sm font-medium">GitHub Integration</p>
-                {githubStatus?.connected ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-                      <Github className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-green-900 dark:text-green-100">Connected</p>
-                        <p className="text-xs text-green-700 dark:text-green-300">@{githubStatus.username}</p>
-                      </div>
+                {githubConnected ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-success/20 bg-success/5 p-3">
+                    <Github className="h-4 w-4 text-success" aria-hidden="true" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">Connected</p>
+                      <p className="text-xs text-muted-foreground truncate">@{githubUsername}</p>
                     </div>
-                    <Button variant="outline" className="w-full gap-2" onClick={handleGithubConnect}>
-                      <Github className="h-4 w-4" />
-                      Reconnect GitHub
-                    </Button>
                   </div>
                 ) : (
-                  <Button variant="outline" className="w-full gap-2" onClick={handleGithubConnect}>
-                    <Github className="h-4 w-4" />
-                    Connect GitHub Account
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => authApi.githubLogin()}
+                  >
+                    <Github className="h-4 w-4" aria-hidden="true" />
+                    Connect GitHub
                   </Button>
                 )}
               </div>
-              
-              <div className="space-y-2 pt-2 border-t">
-                <p className="text-sm font-medium">LinkedIn Certifications</p>
-                <p className="text-xs text-muted-foreground">
-                  Add your LinkedIn URL in the Profile tab to import certifications automatically.
-                </p>
-              </div>
-              
-              <div className="pt-4 border-t">
+
+              {/* Logout */}
+              <div className="border-t pt-4">
                 <Button variant="destructive" className="w-full" onClick={handleLogout}>
                   Logout
                 </Button>
@@ -409,6 +393,7 @@ export default function DashboardPage() {
   );
 }
 
+/* ─── Sidebar Item ───────────────────────────────────────────────────────── */
 function SidebarItem({
   icon,
   label,
@@ -425,14 +410,29 @@ function SidebarItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
-        active 
-          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/50' 
-          : 'hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-950 dark:hover:to-purple-950 text-muted-foreground hover:text-foreground'
-      }`}
+      className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${active
+          ? 'bg-primary/10 text-primary font-medium'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+        }`}
+      aria-current={active ? 'page' : undefined}
     >
       {icon}
-      {!collapsed && <span>{label}</span>}
+      {!collapsed && <span className="truncate">{label}</span>}
     </button>
+  );
+}
+
+/* ─── Page wrapper with Suspense for searchParams ────────────────────────── */
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      }
+    >
+      <DashboardInner />
+    </Suspense>
   );
 }

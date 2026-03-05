@@ -54,10 +54,10 @@ export function JobsList() {
       toast({ title: 'Job description analyzed' });
     },
     onError: (error: any) => {
-      toast({ 
-        title: 'Analysis failed', 
+      toast({
+        title: 'Analysis failed',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     },
   });
@@ -113,10 +113,10 @@ export function JobsList() {
           Add Job Description
         </Button>
       </div>
-      
+
       <div className="grid gap-4 md:grid-cols-2">
         {jobs.map((job) => (
-          <Card key={job.id} className="hover:shadow-lg hover:shadow-orange-200 dark:hover:shadow-orange-900 transition-all hover:scale-105 cursor-pointer border-l-4 border-l-orange-400" onClick={() => setSelectedJob(job)}>
+          <Card key={job.id} className="hover:shadow-lg transition-shadow duration-200 cursor-pointer border-l-4 border-l-warning" onClick={() => setSelectedJob(job)}>
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -159,7 +159,7 @@ export function JobsList() {
                     </div>
                   </div>
                 )}
-                
+
                 <p className="text-sm text-muted-foreground line-clamp-2">
                   {job.raw_text.substring(0, 150)}...
                 </p>
@@ -167,9 +167,9 @@ export function JobsList() {
                 <div className="flex justify-between items-center pt-2">
                   <div className="flex gap-2">
                     {!job.is_analyzed ? (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
+                      <Button
+                        size="sm"
+                        variant="outline"
                         className="gap-1"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -178,7 +178,7 @@ export function JobsList() {
                         disabled={analyzeMutation.isPending}
                       >
                         <Sparkles className="h-3 w-3" />
-                        {analyzeMutation.isPending ? 'Analyzing...' : 'Analyze'}
+                        {analyzeMutation.isPending ? 'Analyzing…' : 'Analyze'}
                       </Button>
                     ) : (
                       <Badge variant="default" className="gap-1">
@@ -187,9 +187,9 @@ export function JobsList() {
                       </Badge>
                     )}
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -204,7 +204,7 @@ export function JobsList() {
           </Card>
         ))}
       </div>
-      
+
       {selectedJob && <JobDetailsModal job={selectedJob} onClose={() => setSelectedJob(null)} />}
       {showAddModal && <AddJobModal onClose={() => setShowAddModal(false)} />}
     </>
@@ -227,7 +227,7 @@ function JobDetailsModal({ job, onClose }: { job: JobDescription; onClose: () =>
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           {/* Job Description */}
           <div>
@@ -236,7 +236,7 @@ function JobDetailsModal({ job, onClose }: { job: JobDescription; onClose: () =>
               {job.raw_text}
             </div>
           </div>
-          
+
           {/* Required Skills */}
           {job.required_skills && job.required_skills.length > 0 && (
             <div>
@@ -250,7 +250,7 @@ function JobDetailsModal({ job, onClose }: { job: JobDescription; onClose: () =>
               </div>
             </div>
           )}
-          
+
           {/* Preferred Skills */}
           {job.preferred_skills && job.preferred_skills.length > 0 && (
             <div>
@@ -264,7 +264,7 @@ function JobDetailsModal({ job, onClose }: { job: JobDescription; onClose: () =>
               </div>
             </div>
           )}
-          
+
           {/* Keywords */}
           {job.keywords && job.keywords.length > 0 && (
             <div>
@@ -278,14 +278,14 @@ function JobDetailsModal({ job, onClose }: { job: JobDescription; onClose: () =>
               </div>
             </div>
           )}
-          
+
           {/* Source URL */}
           {job.source_url && (
             <div>
               <h3 className="font-semibold text-sm text-muted-foreground mb-1">Source URL</h3>
-              <a 
-                href={job.source_url} 
-                target="_blank" 
+              <a
+                href={job.source_url}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-primary hover:underline flex items-center gap-1"
               >
@@ -294,7 +294,7 @@ function JobDetailsModal({ job, onClose }: { job: JobDescription; onClose: () =>
               </a>
             </div>
           )}
-          
+
           <div className="flex justify-end pt-4">
             <Button onClick={onClose}>Close</Button>
           </div>
@@ -325,10 +325,10 @@ function AddJobModal({ onClose }: { onClose: () => void }) {
       onClose();
     },
     onError: (error: any) => {
-      toast({ 
-        title: 'Failed to add job description', 
+      toast({
+        title: 'Failed to add job description',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     },
   });
@@ -342,56 +342,56 @@ function AddJobModal({ onClose }: { onClose: () => void }) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <Label htmlFor="title">Job Title *</Label>
-            <Input 
-              id="title" 
-              value={title} 
+            <Input
+              id="title"
+              value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Senior Software Engineer"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="company">Company</Label>
-            <Input 
-              id="company" 
-              value={company} 
+            <Input
+              id="company"
+              value={company}
               onChange={(e) => setCompany(e.target.value)}
               placeholder="Google, Microsoft, etc."
             />
           </div>
-          
+
           <div>
             <Label htmlFor="rawText">Job Description *</Label>
-            <Textarea 
-              id="rawText" 
-              value={rawText} 
+            <Textarea
+              id="rawText"
+              value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               placeholder="Paste the full job description here..."
               rows={10}
             />
           </div>
-          
+
           <div>
             <Label htmlFor="url">Job URL (optional)</Label>
-            <Input 
-              id="url" 
-              value={url} 
+            <Input
+              id="url"
+              value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://careers.company.com/..."
             />
           </div>
-          
+
           <div className="flex gap-2 justify-end pt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button 
+            <Button
               onClick={() => createMutation.mutate()}
               disabled={!title || !rawText || createMutation.isPending}
             >
-              {createMutation.isPending ? 'Adding...' : 'Add Job Description'}
+              {createMutation.isPending ? 'Adding…' : 'Add Job Description'}
             </Button>
           </div>
         </div>

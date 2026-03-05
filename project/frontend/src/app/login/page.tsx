@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/lib/api';
@@ -10,36 +10,42 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, Github, Loader2 } from 'lucide-react';
+import { Github, Loader2, ChevronDown, Zap } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  
+
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [registerData, setRegisterData] = useState({ 
-    email: '', 
-    password: '', 
+  const [registerData, setRegisterData] = useState({
+    email: '',
+    password: '',
     confirmPassword: '',
-    fullName: '' 
+    fullName: '',
   });
+
+  /* Redirect if already authenticated */
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) router.replace('/dashboard');
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       const res = await authApi.login(loginData.email, loginData.password);
       localStorage.setItem('token', res.data.access_token);
       toast({ title: 'Welcome back!' });
       router.push('/dashboard');
-    } catch (error: any) {
-      toast({ 
-        title: 'Login failed', 
-        description: error.response?.data?.detail || 'Invalid credentials',
-        variant: 'destructive'
-      });
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail || 'Invalid credentials';
+      toast({ title: 'Login failed', description: msg, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -47,182 +53,214 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (registerData.password !== registerData.confirmPassword) {
-      toast({ 
-        title: 'Error', 
+      toast({
+        title: 'Error',
         description: 'Passwords do not match',
-        variant: 'destructive'
+        variant: 'destructive',
       });
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       const res = await authApi.register(
-        registerData.email, 
-        registerData.password, 
+        registerData.email,
+        registerData.password,
         registerData.fullName
       );
       localStorage.setItem('token', res.data.access_token);
       toast({ title: 'Account created!' });
       router.push('/dashboard');
-    } catch (error: any) {
-      toast({ 
-        title: 'Registration failed', 
-        description: error.response?.data?.detail || 'Could not create account',
-        variant: 'destructive'
-      });
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail || 'Could not create account';
+      toast({ title: 'Registration failed', description: msg, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGithubLogin = () => {
-    // Redirect to GitHub OAuth
-    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || 'Ov23li7PyDbHv0U1oqbZ';
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
-    const redirectUri = encodeURIComponent(`${appUrl}/api/auth/callback/github`);
-    const scope = encodeURIComponent('read:user user:email repo');
-    
-    console.log('Redirecting to GitHub OAuth...');
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-950 dark:to-purple-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+      {/* Ambient background */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[600px] w-[800px] rounded-full bg-primary/5 blur-[120px]" />
+        <div className="absolute right-0 bottom-0 h-[400px] w-[400px] rounded-full bg-primary/3 blur-[100px]" />
+      </div>
+
+      <div className="w-full max-w-md space-y-6">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <FileText className="h-8 w-8 text-blue-600" />
-            <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">LaTeX Resume Agent</span>
+        <div className="text-center">
+          <Link
+            href="/"
+            className="group inline-flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+              <Zap className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="font-bold text-xl tracking-tight">CareerForge</span>
           </Link>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Turn your GitHub into a job engine
+          </p>
         </div>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle>Welcome</CardTitle>
+        <Card className="border-border/50 shadow-xl shadow-black/5">
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-lg">Get started</CardTitle>
             <CardDescription>
-              Sign in to manage your resumes and projects
+              Authenticate with GitHub to import repos &amp; build AI resumes
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {/* GitHub OAuth */}
-            <Button 
-              variant="outline" 
-              className="w-full mb-6 gap-2"
-              onClick={handleGithubLogin}
+
+          <CardContent className="space-y-4">
+            {/* Primary CTA — GitHub OAuth */}
+            <Button
+              className="w-full gap-2.5 h-12 text-base font-medium"
+              onClick={() => authApi.githubLogin()}
+              aria-label="Continue with GitHub"
             >
-              <Github className="h-5 w-5" />
+              <Github className="h-5 w-5" aria-hidden="true" />
               Continue with GitHub
             </Button>
 
-            <div className="relative mb-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or continue with email
-                </span>
-              </div>
-            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              We request <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">read:user</code>{' '}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">user:email</code>{' '}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">repo</code> scopes
+            </p>
 
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="login">Sign In</TabsTrigger>
-                <TabsTrigger value="register">Sign Up</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div>
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input 
-                      id="login-email"
-                      type="email"
-                      value={loginData.email}
-                      onChange={(e) => setLoginData(d => ({ ...d, email: e.target.value }))}
-                      placeholder="you@example.com"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="login-password">Password</Label>
-                    <Input 
-                      id="login-password"
-                      type="password"
-                      value={loginData.password}
-                      onChange={(e) => setLoginData(d => ({ ...d, password: e.target.value }))}
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Sign In
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div>
-                    <Label htmlFor="register-name">Full Name</Label>
-                    <Input 
-                      id="register-name"
-                      value={registerData.fullName}
-                      onChange={(e) => setRegisterData(d => ({ ...d, fullName: e.target.value }))}
-                      placeholder="John Doe"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="register-email">Email</Label>
-                    <Input 
-                      id="register-email"
-                      type="email"
-                      value={registerData.email}
-                      onChange={(e) => setRegisterData(d => ({ ...d, email: e.target.value }))}
-                      placeholder="you@example.com"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="register-password">Password</Label>
-                    <Input 
-                      id="register-password"
-                      type="password"
-                      value={registerData.password}
-                      onChange={(e) => setRegisterData(d => ({ ...d, password: e.target.value }))}
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="register-confirm">Confirm Password</Label>
-                    <Input 
-                      id="register-confirm"
-                      type="password"
-                      value={registerData.confirmPassword}
-                      onChange={(e) => setRegisterData(d => ({ ...d, confirmPassword: e.target.value }))}
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Create Account
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            {/* Collapsible email section */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowEmail(!showEmail)}
+                className="group flex w-full items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+                aria-expanded={showEmail}
+              >
+                <span className="h-px flex-1 bg-border" />
+                <span className="flex items-center gap-1">
+                  Or use email
+                  <ChevronDown
+                    className={`h-3 w-3 transition-transform duration-200 ${showEmail ? 'rotate-180' : ''}`}
+                    aria-hidden="true"
+                  />
+                </span>
+                <span className="h-px flex-1 bg-border" />
+              </button>
+
+              {showEmail && (
+                <div className="mt-2 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                  <Tabs defaultValue="login" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="login">Sign In</TabsTrigger>
+                      <TabsTrigger value="register">Sign Up</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="login">
+                      <form onSubmit={handleLogin} className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="login-email">Email</Label>
+                          <Input
+                            id="login-email"
+                            type="email"
+                            value={loginData.email}
+                            onChange={(e) => setLoginData((d) => ({ ...d, email: e.target.value }))}
+                            placeholder="you@example.com"
+                            autoComplete="email"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="login-password">Password</Label>
+                          <Input
+                            id="login-password"
+                            type="password"
+                            value={loginData.password}
+                            onChange={(e) => setLoginData((d) => ({ ...d, password: e.target.value }))}
+                            placeholder="••••••••"
+                            autoComplete="current-password"
+                            required
+                          />
+                        </div>
+                        <Button type="submit" variant="secondary" className="w-full" disabled={isLoading}>
+                          {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />}
+                          Sign In
+                        </Button>
+                      </form>
+                    </TabsContent>
+
+                    <TabsContent value="register">
+                      <form onSubmit={handleRegister} className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="register-name">Full Name</Label>
+                          <Input
+                            id="register-name"
+                            value={registerData.fullName}
+                            onChange={(e) => setRegisterData((d) => ({ ...d, fullName: e.target.value }))}
+                            placeholder="Jane Doe"
+                            autoComplete="name"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="register-email">Email</Label>
+                          <Input
+                            id="register-email"
+                            type="email"
+                            value={registerData.email}
+                            onChange={(e) => setRegisterData((d) => ({ ...d, email: e.target.value }))}
+                            placeholder="you@example.com"
+                            autoComplete="email"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="register-password">Password</Label>
+                          <Input
+                            id="register-password"
+                            type="password"
+                            value={registerData.password}
+                            onChange={(e) =>
+                              setRegisterData((d) => ({ ...d, password: e.target.value }))
+                            }
+                            placeholder="••••••••"
+                            autoComplete="new-password"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="register-confirm">Confirm Password</Label>
+                          <Input
+                            id="register-confirm"
+                            type="password"
+                            value={registerData.confirmPassword}
+                            onChange={(e) =>
+                              setRegisterData((d) => ({ ...d, confirmPassword: e.target.value }))
+                            }
+                            placeholder="••••••••"
+                            autoComplete="new-password"
+                            required
+                          />
+                        </div>
+                        <Button type="submit" variant="secondary" className="w-full" disabled={isLoading}>
+                          {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />}
+                          Create Account
+                        </Button>
+                      </form>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        <p className="text-center text-sm text-muted-foreground mt-4">
+        <p className="text-center text-xs text-muted-foreground">
           By continuing, you agree to our Terms of Service and Privacy Policy.
         </p>
       </div>

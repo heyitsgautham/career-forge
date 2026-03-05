@@ -74,18 +74,15 @@ export function ProfileView() {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      console.log("Loading profile from /api/auth/profile");
       const response = await api.get("/api/auth/profile");
-      console.log("Profile response:", response.data);
       setProfile(response.data);
-    } catch (error: any) {
-      console.error("Error loading profile:", error);
-      console.error("Error response:", error.response);
-      console.error("Error status:", error.response?.status);
-      console.error("Error detail:", error.response?.data?.detail);
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail || "Failed to load profile";
       toast({
         title: "Error",
-        description: error.response?.data?.detail || "Failed to load profile",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -126,11 +123,13 @@ export function ProfileView() {
         title: "Success",
         description: "Profile updated successfully",
       });
-    } catch (error: any) {
-      console.error("Error saving profile:", error);
+    } catch (error: unknown) {
+      const msg =
+        (error as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail || "Failed to save profile";
       toast({
         title: "Error",
-        description: error.response?.data?.detail || "Failed to save profile",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -167,7 +166,7 @@ export function ProfileView() {
     <div className="space-y-6">
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
 
@@ -390,7 +389,7 @@ export function ProfileView() {
                     Remove
                   </Button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Company</Label>
@@ -527,7 +526,7 @@ export function ProfileView() {
               <p className="text-sm text-muted-foreground text-center py-4">
                 No education entries added yet. Click "Add Education" to get started.
               </p>
-              
+
               {/* Legacy single education fields */}
               {(profile.institution || profile.degree || profile.field_of_study) && (
                 <div className="border rounded-lg p-4 space-y-4 bg-muted/50">
@@ -590,7 +589,7 @@ export function ProfileView() {
                     Remove
                   </Button>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label>Institution/School</Label>
                   <Input
@@ -698,20 +697,20 @@ export function ProfileView() {
                     });
                     return;
                   }
-                  
+
                   try {
                     toast({
-                      title: "Opening LinkedIn...",
+                      title: "Opening LinkedIn…",
                       description: "A browser will open. Please log in to LinkedIn if needed, then wait while we scrape your certifications.",
                     });
-                    
+
                     const response = await api.post('/api/auth/linkedin/scrape-certifications');
-                    
+
                     if (response.data.success) {
                       // Reload profile to get updated certifications
                       const updatedProfile = await api.get('/api/auth/profile');
                       setProfile(updatedProfile.data);
-                      
+
                       toast({
                         title: "Success!",
                         description: response.data.message,
@@ -729,7 +728,7 @@ export function ProfileView() {
                 className="border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
               >
                 <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                 </svg>
                 Import from LinkedIn
               </Button>
@@ -871,7 +870,7 @@ export function ProfileView() {
       {/* Save Button (bottom) */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} size="lg">
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
     </div>

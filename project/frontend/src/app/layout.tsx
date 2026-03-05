@@ -1,14 +1,23 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { DM_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/toaster';
 
-const inter = Inter({ subsets: ['latin'] });
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+});
 
 export const metadata: Metadata = {
-  title: 'LaTeX Resume Agent',
-  description: 'JD-Aware, GitHub-Grounded Resume Generation',
+  title: 'CareerForge',
+  description: 'Turn your GitHub into a job engine — resumes, skill gap analysis, learning roadmaps, and job matching powered by Amazon\u00A0Bedrock.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
 };
 
 export default function RootLayout({
@@ -17,8 +26,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
+        <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+        <link rel="preconnect" href="https://avatars.githubusercontent.com" />
+      </head>
+      <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans`}>
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-primary focus:text-primary-foreground">
+          Skip to content
+        </a>
         <Providers>
           {children}
           <Toaster />

@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  ArrowLeft, 
+import {
+  ArrowLeft,
   ArrowRight,
   Check,
   LayoutTemplate,
@@ -26,7 +26,7 @@ type Step = 'template' | 'projects' | 'job' | 'personal';
 export default function NewResumePage() {
   const router = useRouter();
   const { toast } = useToast();
-  
+
   const [step, setStep] = useState<Step>('template');
   const [resumeName, setResumeName] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -79,22 +79,22 @@ export default function NewResumePage() {
         job_description_id: selectedJobId || undefined,
         project_ids: selectedProjectIds,
       });
-      
+
       // Generate the content
       const generateRes = await resumesApi.generate(createRes.data.id, {
         personal: personalInfo,
         tailor_to_jd: !!selectedJobId,
       });
-      
+
       return generateRes.data;
     },
     onSuccess: (data) => {
-      toast({ title: 'Resume created!', description: 'Redirecting to editor...' });
+      toast({ title: 'Resume created!', description: 'Redirecting to editor…' });
       router.push(`/dashboard/resumes/${data.id}/edit`);
     },
     onError: () => {
-      toast({ 
-        title: 'Error', 
+      toast({
+        title: 'Error',
         description: 'Failed to create resume.',
         variant: 'destructive'
       });
@@ -109,7 +109,7 @@ export default function NewResumePage() {
   ];
 
   const currentStepIndex = steps.findIndex(s => s.key === step);
-  
+
   const canProceed = () => {
     switch (step) {
       case 'template':
@@ -138,9 +138,9 @@ export default function NewResumePage() {
   };
 
   const toggleProject = (id: string) => {
-    setSelectedProjectIds(prev => 
-      prev.includes(id) 
-        ? prev.filter(p => p !== id) 
+    setSelectedProjectIds(prev =>
+      prev.includes(id)
+        ? prev.filter(p => p !== id)
         : [...prev, id]
     );
   };
@@ -167,19 +167,17 @@ export default function NewResumePage() {
         <div className="container max-w-4xl mx-auto py-4">
           <div className="flex justify-between">
             {steps.map((s, i) => (
-              <div 
+              <div
                 key={s.key}
-                className={`flex items-center gap-2 ${
-                  i <= currentStepIndex ? 'text-primary' : 'text-muted-foreground'
-                }`}
+                className={`flex items-center gap-2 ${i <= currentStepIndex ? 'text-primary' : 'text-muted-foreground'
+                  }`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                  i < currentStepIndex 
-                    ? 'bg-primary border-primary text-primary-foreground' 
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${i < currentStepIndex
+                    ? 'bg-primary border-primary text-primary-foreground'
                     : i === currentStepIndex
                       ? 'border-primary'
                       : 'border-muted'
-                }`}>
+                  }`}>
                   {i < currentStepIndex ? <Check className="h-4 w-4" /> : s.icon}
                 </div>
                 <span className="text-sm font-medium hidden sm:inline">{s.title}</span>
@@ -199,13 +197,12 @@ export default function NewResumePage() {
             </p>
             <div className="grid gap-4 md:grid-cols-3">
               {templates?.map((template: any) => (
-                <Card 
+                <Card
                   key={template.id}
-                  className={`cursor-pointer transition-all ${
-                    selectedTemplateId === template.id 
-                      ? 'ring-2 ring-primary' 
+                  className={`cursor-pointer transition-all ${selectedTemplateId === template.id
+                      ? 'ring-2 ring-primary'
                       : 'hover:shadow-md'
-                  }`}
+                    }`}
                   onClick={() => setSelectedTemplateId(template.id)}
                 >
                   <div className="aspect-[8.5/11] bg-muted flex items-center justify-center">
@@ -231,13 +228,12 @@ export default function NewResumePage() {
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               {projects?.map((project: any) => (
-                <Card 
+                <Card
                   key={project.id}
-                  className={`cursor-pointer transition-all ${
-                    selectedProjectIds.includes(project.id) 
-                      ? 'ring-2 ring-primary' 
+                  className={`cursor-pointer transition-all ${selectedProjectIds.includes(project.id)
+                      ? 'ring-2 ring-primary'
                       : 'hover:shadow-md'
-                  }`}
+                    }`}
                   onClick={() => toggleProject(project.id)}
                 >
                   <CardHeader>
@@ -273,10 +269,9 @@ export default function NewResumePage() {
               Select a job description to tailor your resume, or skip this step.
             </p>
             <div className="grid gap-4 md:grid-cols-2">
-              <Card 
-                className={`cursor-pointer transition-all ${
-                  selectedJobId === null ? 'ring-2 ring-primary' : 'hover:shadow-md'
-                }`}
+              <Card
+                className={`cursor-pointer transition-all ${selectedJobId === null ? 'ring-2 ring-primary' : 'hover:shadow-md'
+                  }`}
                 onClick={() => setSelectedJobId(null)}
               >
                 <CardHeader>
@@ -287,11 +282,10 @@ export default function NewResumePage() {
                 </CardHeader>
               </Card>
               {jobs?.map((job: any) => (
-                <Card 
+                <Card
                   key={job.id}
-                  className={`cursor-pointer transition-all ${
-                    selectedJobId === job.id ? 'ring-2 ring-primary' : 'hover:shadow-md'
-                  }`}
+                  className={`cursor-pointer transition-all ${selectedJobId === job.id ? 'ring-2 ring-primary' : 'hover:shadow-md'
+                    }`}
                   onClick={() => setSelectedJobId(job.id)}
                 >
                   <CardHeader>
@@ -317,21 +311,21 @@ export default function NewResumePage() {
             <p className="text-muted-foreground mb-6">
               Enter your contact information for the resume header.
             </p>
-            
+
             <div className="space-y-4 max-w-md">
               <div>
                 <Label>Resume Name</Label>
-                <Input 
+                <Input
                   value={resumeName}
                   onChange={(e) => setResumeName(e.target.value)}
                   placeholder="e.g., Software Engineer Resume"
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Full Name *</Label>
-                  <Input 
+                  <Input
                     value={personalInfo.name}
                     onChange={(e) => setPersonalInfo(p => ({ ...p, name: e.target.value }))}
                     placeholder="John Doe"
@@ -339,7 +333,7 @@ export default function NewResumePage() {
                 </div>
                 <div>
                   <Label>Email *</Label>
-                  <Input 
+                  <Input
                     type="email"
                     value={personalInfo.email}
                     onChange={(e) => setPersonalInfo(p => ({ ...p, email: e.target.value }))}
@@ -347,11 +341,11 @@ export default function NewResumePage() {
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Phone</Label>
-                  <Input 
+                  <Input
                     value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo(p => ({ ...p, phone: e.target.value }))}
                     placeholder="+1 (555) 123-4567"
@@ -359,18 +353,18 @@ export default function NewResumePage() {
                 </div>
                 <div>
                   <Label>Location</Label>
-                  <Input 
+                  <Input
                     value={personalInfo.location}
                     onChange={(e) => setPersonalInfo(p => ({ ...p, location: e.target.value }))}
                     placeholder="San Francisco, CA"
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>LinkedIn</Label>
-                  <Input 
+                  <Input
                     value={personalInfo.linkedin}
                     onChange={(e) => setPersonalInfo(p => ({ ...p, linkedin: e.target.value }))}
                     placeholder="linkedin.com/in/johndoe"
@@ -378,17 +372,17 @@ export default function NewResumePage() {
                 </div>
                 <div>
                   <Label>GitHub</Label>
-                  <Input 
+                  <Input
                     value={personalInfo.github}
                     onChange={(e) => setPersonalInfo(p => ({ ...p, github: e.target.value }))}
                     placeholder="github.com/johndoe"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <Label>Website</Label>
-                <Input 
+                <Input
                   value={personalInfo.website}
                   onChange={(e) => setPersonalInfo(p => ({ ...p, website: e.target.value }))}
                   placeholder="johndoe.dev"
@@ -400,17 +394,17 @@ export default function NewResumePage() {
 
         {/* Navigation */}
         <div className="flex justify-between mt-8">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleBack}
             disabled={currentStepIndex === 0}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          
+
           {currentStepIndex < steps.length - 1 ? (
-            <Button 
+            <Button
               onClick={handleNext}
               disabled={!canProceed()}
             >
@@ -418,7 +412,7 @@ export default function NewResumePage() {
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button 
+            <Button
               onClick={() => createMutation.mutate()}
               disabled={!canProceed() || createMutation.isPending}
             >

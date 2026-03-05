@@ -84,10 +84,10 @@ export function TemplatesList() {
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {systemTemplates.map((template) => (
-              <TemplateCard 
-                key={template.id} 
-                template={template} 
-                isSystem 
+              <TemplateCard
+                key={template.id}
+                template={template}
+                isSystem
                 onPreview={() => setShowPreviewModal(template)}
               />
             ))}
@@ -114,8 +114,8 @@ export function TemplatesList() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {userTemplates.map((template) => (
-              <TemplateCard 
-                key={template.id} 
+              <TemplateCard
+                key={template.id}
                 template={template}
                 onPreview={() => setShowPreviewModal(template)}
                 onDelete={() => deleteMutation.mutate(template.id)}
@@ -133,13 +133,13 @@ export function TemplatesList() {
   );
 }
 
-function TemplateCard({ 
-  template, 
+function TemplateCard({
+  template,
   isSystem = false,
   onPreview,
-  onDelete 
-}: { 
-  template: Template; 
+  onDelete
+}: {
+  template: Template;
   isSystem?: boolean;
   onPreview?: () => void;
   onDelete?: () => void;
@@ -149,16 +149,16 @@ function TemplateCard({
       {/* Preview */}
       <div className="h-48 bg-gradient-to-b from-muted to-muted/50 flex items-center justify-center border-b">
         {template.preview_image ? (
-          <img 
-            src={template.preview_image} 
-            alt={template.name} 
+          <img
+            src={template.preview_image}
+            alt={template.name}
             className="w-full h-full object-cover"
           />
         ) : (
           <LayoutTemplate className="h-16 w-16 text-muted-foreground/30" />
         )}
       </div>
-      
+
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <CardTitle className="text-base">{template.name}</CardTitle>
@@ -172,7 +172,7 @@ function TemplateCard({
           {template.description}
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="pt-0">
         <div className="flex justify-between items-center">
           <span className="text-xs text-muted-foreground">
@@ -215,10 +215,10 @@ function AddTemplateModal({ onClose }: { onClose: () => void }) {
       onClose();
     },
     onError: (error: any) => {
-      toast({ 
-        title: 'Failed to create template', 
+      toast({
+        title: 'Failed to create template',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     },
   });
@@ -232,58 +232,58 @@ function AddTemplateModal({ onClose }: { onClose: () => void }) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="name">Template Name *</Label>
-              <Input 
-                id="name" 
-                value={name} 
+              <Input
+                id="name"
+                value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Resume Template"
               />
             </div>
             <div>
               <Label htmlFor="category">Category</Label>
-              <Input 
-                id="category" 
-                value={category} 
+              <Input
+                id="category"
+                value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="professional, academic, etc."
               />
             </div>
           </div>
-          
+
           <div>
             <Label htmlFor="description">Description</Label>
-            <Input 
-              id="description" 
-              value={description} 
+            <Input
+              id="description"
+              value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="A clean, professional resume template"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="latexContent">LaTeX Content *</Label>
-            <Textarea 
-              id="latexContent" 
-              value={latexContent} 
+            <Textarea
+              id="latexContent"
+              value={latexContent}
               onChange={(e) => setLatexContent(e.target.value)}
               placeholder="\\documentclass{article}..."
               rows={15}
               className="font-mono text-sm"
             />
           </div>
-          
+
           <div className="flex gap-2 justify-end pt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button 
+            <Button
               onClick={() => createMutation.mutate()}
               disabled={!name || !latexContent || createMutation.isPending}
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Template'}
+              {createMutation.isPending ? 'Creating…' : 'Create Template'}
             </Button>
           </div>
         </div>
@@ -395,12 +395,12 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
             </Button>
           </div>
         </div>
-        
+
         <p className="text-muted-foreground mb-4">{template.description || 'Resume template'}</p>
-        
+
         <div className="bg-muted p-4 rounded-lg">
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground">Loading…</div>
           ) : viewMode === 'preview' ? (
             <div className="overflow-auto max-h-[60vh]">
               {fullTemplate?.latex_content ? renderPreview(fullTemplate.latex_content) : (
@@ -413,14 +413,14 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
             </pre>
           )}
         </div>
-        
+
         <div className="flex justify-between mt-4">
           <p className="text-xs text-muted-foreground">
             💡 Create a resume using this template to generate the actual PDF
           </p>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 if (fullTemplate?.latex_content) {
                   navigator.clipboard.writeText(fullTemplate.latex_content);

@@ -114,7 +114,7 @@ export function ProjectsList() {
             </div>
           </CardContent>
         </Card>
-        
+
         {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
         {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} />}
       </>
@@ -138,10 +138,10 @@ export function ProjectsList() {
           Add Project
         </Button>
       </div>
-      
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {projects.map((project) => (
-          <Card key={project.id} className="hover:shadow-lg hover:shadow-green-200 dark:hover:shadow-green-900 transition-all hover:scale-105 border-l-4 border-l-green-400">
+          <Card key={project.id} className="hover:shadow-lg transition-shadow duration-200 border-l-4 border-l-success">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg">{project.title}</CardTitle>
@@ -162,11 +162,10 @@ export function ProjectsList() {
             <CardContent>
               <div className="flex flex-wrap gap-1 mb-4">
                 {project.technologies?.slice(0, 5).map((tech, idx) => (
-                  <Badge key={tech} variant="secondary" className={`text-xs ${
-                    idx % 3 === 0 ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                    idx % 3 === 1 ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
-                    'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200'
-                  }`}>
+                  <Badge key={tech} variant="secondary" className={`text-xs ${idx % 3 === 0 ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
+                      idx % 3 === 1 ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
+                        'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200'
+                    }`}>
                     {tech}
                   </Badge>
                 ))}
@@ -183,16 +182,16 @@ export function ProjectsList() {
                 </div>
               )}
               <div className="flex justify-between gap-2 mt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setSelectedProject(project)}
                 >
                   Show Details
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-destructive"
                   onClick={() => deleteMutation.mutate(project.id)}
                 >
@@ -203,7 +202,7 @@ export function ProjectsList() {
           </Card>
         ))}
       </div>
-      
+
       {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
       {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} />}
       {selectedProject && <ProjectDetailsModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
@@ -221,14 +220,14 @@ function ProjectDetailsModal({ project, onClose }: { project: Project; onClose: 
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           {/* Description */}
           <div>
             <h3 className="font-semibold text-sm text-muted-foreground mb-1">Description</h3>
             <p className="text-sm">{project.description}</p>
           </div>
-          
+
           {/* Technologies */}
           {project.technologies && project.technologies.length > 0 && (
             <div>
@@ -242,7 +241,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Project; onClose: 
               </div>
             </div>
           )}
-          
+
           {/* Highlights */}
           {project.highlights && project.highlights.length > 0 && (
             <div>
@@ -254,14 +253,14 @@ function ProjectDetailsModal({ project, onClose }: { project: Project; onClose: 
               </ul>
             </div>
           )}
-          
+
           {/* URL */}
           {project.url && (
             <div>
               <h3 className="font-semibold text-sm text-muted-foreground mb-1">Project URL</h3>
-              <a 
-                href={project.url} 
-                target="_blank" 
+              <a
+                href={project.url}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-primary hover:underline flex items-center gap-1"
               >
@@ -270,7 +269,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Project; onClose: 
               </a>
             </div>
           )}
-          
+
           {/* Dates */}
           {project.start_date && (
             <div>
@@ -280,7 +279,7 @@ function ProjectDetailsModal({ project, onClose }: { project: Project; onClose: 
               </p>
             </div>
           )}
-          
+
           <div className="flex justify-end pt-4">
             <Button onClick={onClose}>Close</Button>
           </div>
@@ -313,10 +312,10 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
       onClose();
     },
     onError: (error: any) => {
-      toast({ 
-        title: 'Failed to create project', 
+      toast({
+        title: 'Failed to create project',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     },
   });
@@ -330,44 +329,44 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <Label htmlFor="title">Project Title *</Label>
-            <Input 
-              id="title" 
-              value={title} 
+            <Input
+              id="title"
+              value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="My Awesome Project"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="description">Description *</Label>
-            <Textarea 
-              id="description" 
-              value={description} 
+            <Textarea
+              id="description"
+              value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What does this project do?"
               rows={3}
             />
           </div>
-          
+
           <div>
             <Label htmlFor="technologies">Technologies (comma-separated)</Label>
-            <Input 
-              id="technologies" 
-              value={technologies} 
+            <Input
+              id="technologies"
+              value={technologies}
               onChange={(e) => setTechnologies(e.target.value)}
               placeholder="Python, FastAPI, React"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="highlights">Key Highlights (optional - auto-generated if empty)</Label>
-            <Textarea 
-              id="highlights" 
-              value={highlights} 
+            <Textarea
+              id="highlights"
+              value={highlights}
               onChange={(e) => setHighlights(e.target.value)}
               placeholder="Leave empty to auto-generate 3 technical highlights using AI"
               rows={3}
@@ -376,24 +375,24 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
               💡 Leave empty and we'll generate 3 technical bullet points automatically
             </p>
           </div>
-          
+
           <div>
             <Label htmlFor="url">Project URL (optional)</Label>
-            <Input 
-              id="url" 
-              value={url} 
+            <Input
+              id="url"
+              value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://github.com/..."
             />
           </div>
-          
+
           <div className="flex gap-2 justify-end pt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button 
+            <Button
               onClick={() => createMutation.mutate()}
               disabled={!title || !description || createMutation.isPending}
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Project'}
+              {createMutation.isPending ? 'Creating…' : 'Create Project'}
             </Button>
           </div>
         </div>
@@ -446,7 +445,7 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
   const importMutation = useMutation({
     mutationFn: async () => {
       let url = importMode === 'url' ? repoUrl : selectedRepo;
-      
+
       // Parse GitHub URL
       const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
       if (!match) {
@@ -461,10 +460,10 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
       onClose();
     },
     onError: (error: any) => {
-      toast({ 
-        title: 'Failed to import repository', 
+      toast({
+        title: 'Failed to import repository',
         description: error.response?.data?.detail || error.message || 'Unknown error',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     },
   });
@@ -478,7 +477,7 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           {/* Import Mode Tabs */}
           <div className="flex gap-2 mb-4">
@@ -514,8 +513,8 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                   <p className="text-xs text-muted-foreground mb-3">
                     {(reposError as any)?.response?.data?.detail || 'No GitHub account connected or connection expired'}
                   </p>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setImportMode('url')}
                   >
@@ -537,7 +536,7 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                       {filteredRepos?.length} of {userRepos.length} repositories
                     </p>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="repoSelect">Select Repository</Label>
                     <Select
@@ -549,8 +548,8 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                       <option value="">-- Select a repository --</option>
                       {filteredRepos?.map((repo) => (
                         <option key={repo.full_name} value={repo.html_url}>
-                          {repo.full_name} 
-                          {repo.is_private && ' 🔒'} 
+                          {repo.full_name}
+                          {repo.is_private && ' 🔒'}
                           {repo.is_fork && ' 🍴'}
                           {repo.language && ` • ${repo.language}`}
                           {` • ⭐ ${repo.stars}`}
@@ -558,7 +557,7 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                       ))}
                     </Select>
                   </div>
-                  
+
                   {selectedRepo && (
                     <div className="mt-2 p-3 bg-muted rounded-lg">
                       {(() => {
@@ -579,7 +578,7 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                       })()}
                     </div>
                   )}
-                  
+
                   <p className="text-sm text-muted-foreground">
                     💡 Select a repository from your GitHub account to import. We'll analyze it to extract project details.
                   </p>
@@ -597,31 +596,31 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
             <>
               <div>
                 <Label htmlFor="repoUrl">GitHub Repository URL</Label>
-                <Input 
-                  id="repoUrl" 
-                  value={repoUrl} 
+                <Input
+                  id="repoUrl"
+                  value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
                   placeholder="https://github.com/username/repository"
                 />
               </div>
-              
+
               <p className="text-sm text-muted-foreground">
                 Enter any GitHub repository URL to import it as a project.
               </p>
             </>
           )}
-          
+
           <div className="flex gap-2 justify-end pt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button 
+            <Button
               onClick={() => importMutation.mutate()}
               disabled={
-                (importMode === 'url' && !repoUrl) || 
-                (importMode === 'dropdown' && !selectedRepo) || 
+                (importMode === 'url' && !repoUrl) ||
+                (importMode === 'dropdown' && !selectedRepo) ||
                 importMutation.isPending
               }
             >
-              {importMutation.isPending ? 'Importing...' : 'Import Repository'}
+              {importMutation.isPending ? 'Importing…' : 'Import Repository'}
             </Button>
           </div>
         </div>

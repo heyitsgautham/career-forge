@@ -138,14 +138,14 @@ export function ResumesList() {
         {resumes.map((resume) => {
           const status = statusConfig[resume.status];
           const StatusIcon = status.icon;
-          
+
           return (
-            <Card key={resume.id} className="hover:shadow-lg hover:shadow-purple-200 dark:hover:shadow-purple-900 transition-all hover:scale-105 border-l-4 border-l-purple-400">
+            <Card key={resume.id} className="hover:shadow-lg transition-shadow duration-200 border-l-4 border-l-primary">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{resume.name}</CardTitle>
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={`gap-1 ${resume.status === 'generating' || resume.status === 'compiling' ? 'animate-pulse' : ''}`}
                   >
                     <StatusIcon className={`h-3 w-3 ${resume.status === 'generating' || resume.status === 'compiling' ? 'animate-spin' : ''}`} />
@@ -162,7 +162,7 @@ export function ResumesList() {
                     {resume.error_message}
                   </p>
                 )}
-                
+
                 <div className="flex justify-between items-center">
                   <div className="flex gap-2">
                     <Link href={`/dashboard/resumes/${resume.id}/edit`}>
@@ -178,9 +178,9 @@ export function ResumesList() {
                       </Button>
                     )}
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="text-destructive"
                     onClick={() => deleteMutation.mutate(resume.id)}
                   >
@@ -232,10 +232,10 @@ function CreateResumeModal({ onClose }: { onClose: () => void }) {
       onClose();
     },
     onError: (error: any) => {
-      toast({ 
-        title: 'Failed to create resume', 
+      toast({
+        title: 'Failed to create resume',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     },
   });
@@ -259,10 +259,10 @@ function CreateResumeModal({ onClose }: { onClose: () => void }) {
       onClose();
     },
     onError: (error: any) => {
-      toast({ 
-        title: 'Failed to generate resume', 
+      toast({
+        title: 'Failed to generate resume',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     },
   });
@@ -276,21 +276,21 @@ function CreateResumeModal({ onClose }: { onClose: () => void }) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <Label htmlFor="name">Resume Name *</Label>
-            <Input 
-              id="name" 
-              value={name} 
+            <Input
+              id="name"
+              value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Software Engineer Resume"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="job">Target Job (optional)</Label>
-            <select 
+            <select
               id="job"
               className="w-full border rounded-md p-2"
               value={selectedJob}
@@ -304,10 +304,10 @@ function CreateResumeModal({ onClose }: { onClose: () => void }) {
               ))}
             </select>
           </div>
-          
+
           <div>
             <Label htmlFor="template">Template (optional)</Label>
-            <select 
+            <select
               id="template"
               className="w-full border rounded-md p-2"
               value={selectedTemplate}
@@ -321,22 +321,22 @@ function CreateResumeModal({ onClose }: { onClose: () => void }) {
               ))}
             </select>
           </div>
-          
+
           <div className="flex gap-2 justify-end pt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button 
+            <Button
               variant="outline"
               onClick={() => createMutation.mutate()}
               disabled={!name || createMutation.isPending}
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Draft'}
+              {createMutation.isPending ? 'Creating…' : 'Create Draft'}
             </Button>
-            <Button 
+            <Button
               onClick={() => generateMutation.mutate()}
               disabled={!name || !selectedJob || generateMutation.isPending}
             >
               <Sparkles className="h-4 w-4 mr-2" />
-              {generateMutation.isPending ? 'Generating...' : 'Generate with AI'}
+              {generateMutation.isPending ? 'Generating…' : 'Generate with AI'}
             </Button>
           </div>
         </div>

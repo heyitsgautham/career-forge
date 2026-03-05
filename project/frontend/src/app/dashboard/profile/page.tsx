@@ -129,7 +129,7 @@ export default function ProfilePage() {
           <p className="text-muted-foreground">View and edit your profile information</p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
 
@@ -377,7 +377,7 @@ export default function ProfilePage() {
         {/* Save Button (bottom) */}
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving} size="lg">
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? "Saving…" : "Save Changes"}
           </Button>
         </div>
       </div>
