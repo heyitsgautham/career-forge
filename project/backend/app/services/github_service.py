@@ -13,7 +13,7 @@ from github.Repository import Repository
 import httpx
 
 from app.core.security import token_encryptor
-from app.services.gemini_client import gemini_client
+from app.services.bedrock_client import bedrock_client
 from app.services.embedding_service import embedding_service
 from app.services.vector_store import vector_store, VectorStoreService
 
@@ -557,7 +557,7 @@ RULES:
 Return ONLY a JSON array like: ["Built X using Y", "Implemented Z feature"]"""
 
         try:
-            result = await gemini_client.generate_json(
+            result = await bedrock_client.generate_json(
                 prompt=prompt,
                 system_instruction="You are a technical resume writer. Generate accurate, grounded bullet points. Never invent information.",
                 temperature=0.2,

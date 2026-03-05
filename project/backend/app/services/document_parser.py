@@ -9,7 +9,7 @@ from pathlib import Path
 import hashlib
 import structlog
 
-from app.services.gemini_client import gemini_client
+from app.services.bedrock_client import bedrock_client
 
 
 logger = structlog.get_logger()
@@ -128,7 +128,7 @@ For other: summary
 Return ONLY valid JSON."""
 
         try:
-            result = await gemini_client.generate_json(
+            result = await bedrock_client.generate_json(
                 prompt=prompt,
                 system_instruction="You are a document classifier. Analyze documents and extract structured information accurately.",
                 temperature=0.1,
@@ -170,7 +170,7 @@ If no projects found, return empty array [].
 Return ONLY valid JSON array."""
 
         try:
-            result = await gemini_client.generate_json(
+            result = await bedrock_client.generate_json(
                 prompt=prompt,
                 system_instruction="You are a resume parser. Extract project information accurately. Never invent information not present in the text.",
                 temperature=0.1,
@@ -204,7 +204,7 @@ Do not include soft skills.
 Return ONLY a JSON array like: ["Python", "JavaScript", "AWS"]"""
 
         try:
-            result = await gemini_client.generate_json(
+            result = await bedrock_client.generate_json(
                 prompt=prompt,
                 temperature=0.1,
             )

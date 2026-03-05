@@ -100,14 +100,37 @@ class LaTeXCompilationService:
             else:
                 result = await self._compile_local(temp_path, output_filename)
             
-            # If successful, copy PDF to permanent location
+            # If successful, copy PDF to permanent location AND upload to S3
             if result.success:
                 pdf_file = temp_path / f"{output_filename}.pdf"
                 if pdf_file.exists():
+                    # Keep local copy
                     permanent_path = self.upload_dir / "pdfs" / f"{output_filename}.pdf"
                     permanent_path.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(pdf_file, permanent_path)
                     result.pdf_path = str(permanent_path)
+                    
+                    # Upload to S3
+                    try:
+                        from app.services.s3_service import s3_service
+                        pdf_bytes = pdf_file.read_bytes()
+                        s3_key = f"compiled/{output_filename}.pdf"
+                        await s3_service.upload_file(
+                            key=s3_key,
+                            data=pdf_bytes,
+                            content_type="application/pdf",
+                        )
+                        # Also upload .tex source
+                        tex_bytes = tex_file.read_bytes()
+                        tex_key = f"compiled/{output_filename}.tex"
+                        await s3_service.upload_file(
+                            key=tex_key,
+                            data=tex_bytes,
+                            content_type="text/plain",
+                        )
+                        logger.info("Uploaded PDF and TeX to S3", key=s3_key)
+                    except Exception as e:
+                        logger.warning(f"S3 upload failed (non-fatal): {e}")
             
             return result
     

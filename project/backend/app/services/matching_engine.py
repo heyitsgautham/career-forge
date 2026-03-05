@@ -10,7 +10,7 @@ from datetime import datetime, date
 import re
 import structlog
 
-from app.services.gemini_client import gemini_client
+from app.services.bedrock_client import bedrock_client
 from app.services.embedding_service import embedding_service
 from app.services.vector_store import vector_store, VectorStoreService
 
@@ -82,7 +82,7 @@ Extract:
 Return as JSON object."""
 
         try:
-            result = await gemini_client.generate_json(
+            result = await bedrock_client.generate_json(
                 prompt=prompt,
                 system_instruction="You are a job description analyzer. Extract accurate, structured information.",
                 temperature=0.1,

@@ -2,12 +2,13 @@
 Embedding Service
 =================
 Text embedding generation and management.
+Uses AWS Bedrock Titan v2 for embeddings (1024 dimensions).
 """
 
 from typing import List, Optional
 import structlog
 
-from app.services.gemini_client import gemini_client
+from app.services.bedrock_client import bedrock_client
 
 
 logger = structlog.get_logger()
@@ -16,11 +17,11 @@ logger = structlog.get_logger()
 class EmbeddingService:
     """
     Service for generating text embeddings.
-    Uses Gemini's text-embedding-004 model.
+    Uses Bedrock Titan v2 (amazon.titan-embed-text-v2:0) — 1024 dimensions.
     """
     
     def __init__(self):
-        self.dimension = 768  # text-embedding-004 output dimension
+        self.dimension = 1024  # Titan v2 output dimension
     
     async def embed_text(self, text: str) -> List[float]:
         """
@@ -30,7 +31,7 @@ class EmbeddingService:
             text: Text to embed
             
         Returns:
-            768-dimensional embedding vector
+            1024-dimensional embedding vector
         """
         # Truncate very long texts (embedding model limit)
         max_chars = 25000
@@ -38,7 +39,7 @@ class EmbeddingService:
             text = text[:max_chars]
             logger.warning(f"Text truncated to {max_chars} chars for embedding")
         
-        return await gemini_client.generate_embedding(text)
+        return await bedrock_client.generate_embedding(text)
     
     async def embed_texts(self, texts: List[str], batch_size: int = 10) -> List[List[float]]:
         """
@@ -51,7 +52,7 @@ class EmbeddingService:
         Returns:
             List of embedding vectors
         """
-        return await gemini_client.generate_embeddings_batch(texts, batch_size)
+        return await bedrock_client.generate_embeddings_batch(texts, batch_size)
     
     def combine_texts_for_embedding(
         self,

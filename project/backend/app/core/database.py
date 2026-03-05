@@ -64,8 +64,12 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def get_db() -> AsyncSession:
-    """Dependency to get database session."""
+async def get_db():
+    """Dependency to get database session. Returns None when using DynamoDB."""
+    if settings.USE_DYNAMO:
+        yield None
+        return
+
     async with AsyncSessionLocal() as session:
         try:
             yield session

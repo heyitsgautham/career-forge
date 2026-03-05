@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # Application
-    APP_NAME: str = "latex-resume-agent"
+    APP_NAME: str = "careerforge"
     APP_ENV: str = "development"
     DEBUG: bool = True
     SECRET_KEY: str = "change-me-in-production"
@@ -23,7 +23,23 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     
-    # Database (SQLite for local dev, PostgreSQL for production)
+    # AWS Configuration
+    AWS_REGION: str = "us-east-1"
+    
+    # AWS Bedrock
+    BEDROCK_MODEL_ID: str = "amazon.nova-lite-v1:0"
+    BEDROCK_EMBED_MODEL_ID: str = "amazon.titan-embed-text-v2:0"
+    BEDROCK_TEMPERATURE: float = 0.2
+    BEDROCK_MAX_TOKENS: int = 8192
+    
+    # AWS DynamoDB
+    USE_DYNAMO: bool = True
+    DYNAMO_TABLE_PREFIX: str = ""
+    
+    # AWS S3
+    S3_BUCKET: str = "careerforge-pdfs-602664593597"
+    
+    # Database (SQLite for local dev fallback)
     DATABASE_URL: str = "sqlite+aiosqlite:///./latex_agent.db"
     
     # Redis
@@ -34,7 +50,7 @@ class Settings(BaseSettings):
     CHROMA_PORT: int = 8001
     CHROMA_PERSIST_DIRECTORY: str = "./chroma_data"
     
-    # Gemini API Keys (rotation pool)
+    # Gemini API Keys (legacy — kept for fallback)
     GEMINI_API_KEY_1: Optional[str] = None
     GEMINI_API_KEY_2: Optional[str] = None
     GEMINI_API_KEY_3: Optional[str] = None
@@ -42,7 +58,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY_5: Optional[str] = None
     GEMINI_API_KEY_6: Optional[str] = None
     
-    # Gemini Model Configuration
+    # Gemini Model Configuration (legacy)
     GEMINI_MODEL: str = "gemini-2.0-flash-lite"
     GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
     GEMINI_TEMPERATURE: float = 0.2

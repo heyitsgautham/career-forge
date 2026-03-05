@@ -38,20 +38,20 @@ async def database_health(db: AsyncSession = Depends(get_db)):
 @router.get("/health/services")
 async def services_health():
     """Check all service dependencies."""
-    from app.services.gemini_client import gemini_client
+    from app.services.bedrock_client import bedrock_client
     from app.services.vector_store import vector_store
     
     status = {
-        "gemini": "unknown",
+        "bedrock": "unknown",
         "vector_store": "unknown",
     }
     
-    # Check Gemini
+    # Check Bedrock
     try:
-        gemini_client.initialize()
-        status["gemini"] = f"configured ({len(gemini_client.api_keys)} keys)"
+        bedrock_client._get_client()
+        status["bedrock"] = "configured"
     except Exception as e:
-        status["gemini"] = f"error: {str(e)}"
+        status["bedrock"] = f"error: {str(e)}"
     
     # Check vector store
     try:

@@ -25,7 +25,7 @@ from app.core.security import (
 from app.models.user import User, GithubConnection, LinkedInConnection
 from app.api.deps import get_current_user
 from app.services.document_parser import DocumentParserService
-from app.services.gemini_client import gemini_client
+from app.services.bedrock_client import bedrock_client
 
 logger = structlog.get_logger()
 
@@ -427,11 +427,11 @@ Extract only information clearly present. For experience and education, extract 
         
         try:
             logger.info(f"Attempting to parse resume with Gemini...")
-            gemini_client.initialize()
+            
             
             # Try the generate_json method first
             try:
-                extracted_data = await gemini_client.generate_json(
+                extracted_data = await bedrock_client.generate_json(
                     prompt=prompt,
                     system_instruction="You are a professional resume parser. Return valid JSON only.",
                     temperature=0.1,
@@ -446,7 +446,7 @@ Extract only information clearly present. For experience and education, extract 
                 import re
                 
                 full_prompt = prompt + "\n\nReturn ONLY a valid JSON object, no markdown, no extra text."
-                response_text = await gemini_client.generate_content(
+                response_text = await bedrock_client.generate_content(
                     prompt=full_prompt,
                     system_instruction="You are a professional resume parser.",
                     temperature=0.1,

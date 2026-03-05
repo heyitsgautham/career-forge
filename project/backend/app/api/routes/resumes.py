@@ -32,7 +32,7 @@ logger = structlog.get_logger()
 # Helper function to rank projects by JD relevance
 async def _rank_projects_by_relevance(projects, job_description):
     """Rank projects by relevance to job description using simple keyword matching."""
-    from app.services.gemini_client import gemini_client
+    from app.services.bedrock_client import bedrock_client
     
     # Extract JD keywords
     jd_text = f"{job_description.title} {job_description.raw_text} {' '.join(job_description.required_skills or [])}"

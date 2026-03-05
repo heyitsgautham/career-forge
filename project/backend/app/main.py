@@ -36,14 +36,18 @@ logger = structlog.get_logger()
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
-    logger.info("Starting LaTeX Resume Agent", version="1.0.0")
-    await init_db()
-    logger.info("Database initialized")
+    logger.info("Starting CareerForge", version="1.0.0")
+    
+    if settings.USE_DYNAMO:
+        logger.info("Using DynamoDB for data storage")
+    else:
+        await init_db()
+        logger.info("SQLite database initialized")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down LaTeX Resume Agent")
+    logger.info("Shutting down CareerForge")
 
 
 # Create FastAPI application

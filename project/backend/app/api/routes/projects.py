@@ -128,7 +128,7 @@ async def create_project(
     highlights = project_data.highlights
     if not highlights or len(highlights) == 0:
         try:
-            from app.services.gemini_client import gemini_client
+            from app.services.bedrock_client import bedrock_client
             
             prompt = f"""Generate exactly 3 concise, technical bullet points for this project. Each point should:
 - Be one line (max 80-100 characters)
@@ -142,7 +142,7 @@ Project Description: {project_data.description}
 
 Return ONLY the 3 bullet points, one per line, no numbering or bullets."""
 
-            response = await gemini_client.generate_content(
+            response = await bedrock_client.generate_content(
                 prompt=prompt,
                 temperature=0.7,
                 max_tokens=300,

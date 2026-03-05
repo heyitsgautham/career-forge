@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import structlog
 
-from app.services.gemini_client import gemini_client
+from app.services.bedrock_client import bedrock_client
 
 
 logger = structlog.get_logger()
@@ -122,7 +122,7 @@ class ResumeGenerationAgent:
         )
         
         try:
-            response = await gemini_client.generate_content(
+            response = await bedrock_client.generate_content(
                 prompt=prompt,
                 system_instruction=SYSTEM_PROMPT,
                 temperature=temperature,
@@ -707,7 +707,7 @@ RULES:
 Return JSON with "description" and "highlights" (array) keys."""
 
         try:
-            result = await gemini_client.generate_json(
+            result = await bedrock_client.generate_json(
                 prompt=prompt,
                 system_instruction="You are a resume optimizer. Rephrase content for relevance but NEVER add information not present in the original.",
                 temperature=0.3,
