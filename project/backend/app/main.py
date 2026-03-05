@@ -12,7 +12,7 @@ import structlog
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api.routes import projects, resumes, templates, jobs, auth, health
+from app.api.routes import projects, resumes, templates, jobs, auth, health, github
 
 
 # Configure structured logging
@@ -79,6 +79,7 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 # Include API routes
 app.include_router(health.router, tags=["Health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(github.router, prefix="/api/github", tags=["GitHub"])
 app.include_router(projects.router, prefix="/api/projects", tags=["Projects"])
 app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["Job Descriptions"])

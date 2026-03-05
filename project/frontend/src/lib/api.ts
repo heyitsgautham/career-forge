@@ -157,6 +157,13 @@ export const authApi = {
     api.post('/api/auth/register', { email, password, full_name }),
 
   githubLogin: () => {
+    // Prefer GitHub App install URL (shows repo-selection screen)
+    const appSlug = process.env.NEXT_PUBLIC_GITHUB_APP_SLUG;
+    if (appSlug) {
+      window.location.href = `https://github.com/apps/${appSlug}/installations/new`;
+      return;
+    }
+    // Fallback to legacy OAuth
     const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
     if (!clientId) {
       console.error('NEXT_PUBLIC_GITHUB_CLIENT_ID is not configured');
@@ -164,12 +171,12 @@ export const authApi = {
     }
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/callback/github`);
-    const scope = encodeURIComponent('read:user user:email repo');
+    const scope = encodeURIComponent('read:user user:email');
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
   },
 
-  githubCallback: (code: string) =>
-    api.post('/api/auth/github/callback', { code }),
+  githubCallback: (code: string, installationId?: number) =>
+    api.post('/api/auth/github/callback', { code, installation_id: installationId }),
 
   getProfile: () => api.get('/api/auth/profile'),
 };
@@ -338,6 +345,24 @@ export const resumesApi = {
     api.get(`/api/resumes/${id}/pdf`, { responseType: 'blob' }),
 
   delete: (id: string) => api.delete(`/api/resumes/${id}`),
+};
+
+// ─── GitHub Ingestion API ─────────────────────────────────────────────────────
+
+export const githubApi = {
+  /** Trigger full ingestion: fetch repos → Bedrock summary → S3 + DynamoDB */
+  ingest: (includeForks: boolean = false) =>
+    api.post('/api/github/ingest', null, { params: { include_forks: includeForks } }),
+
+  /** Poll ingestion status */
+  getIngestStatus: () =>
+    api.get<{ status: string; summary: { total: number; processed: number; failed: number; lastRunAt: string } | null }>(
+      '/api/github/ingest-status'
+    ),
+
+  /** List all ingested projects for current user */
+  listProjects: () =>
+    api.get<Array<Record<string, unknown>>>('/api/github/projects'),
 };
 
 // ─── Skill Gap API (Stubs — real in M3) ───────────────────────────────────────

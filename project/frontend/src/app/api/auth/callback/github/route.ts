@@ -16,14 +16,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard?error=no_code', request.url));
   }
 
+  // GitHub App sends installation_id alongside code
+  const installationId = searchParams.get('installation_id');
+
   try {
-    // Send code to backend to exchange for tokens
+    // Send code + installation_id to backend to exchange for tokens
     const tokenResponse = await fetch(`${BACKEND_URL}/api/auth/github/callback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({
+        code,
+        installation_id: installationId ? parseInt(installationId, 10) : null,
+      }),
     });
 
     if (!tokenResponse.ok) {

@@ -2,20 +2,26 @@
 GitHub Ingestion Service
 ========================
 Fetches and processes GitHub repositories.
+Uses GitHub App installation tokens for repo access
+and Bedrock for structured project summaries.
 """
 
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import base64
+import time
+import uuid
 import structlog
 from github import Github, GithubException
 from github.Repository import Repository
 import httpx
+import jwt as pyjwt
 
+from app.core.config import settings
 from app.core.security import token_encryptor
 from app.services.bedrock_client import bedrock_client
-from app.services.embedding_service import embedding_service
-from app.services.vector_store import vector_store, VectorStoreService
+from app.services.dynamo_service import dynamo_service
+from app.services.s3_service import s3_service
 
 
 logger = structlog.get_logger()
@@ -105,59 +111,127 @@ class GitHubIngestionService:
     """
     Service for ingesting GitHub repositories.
     Extracts metadata, README, and tech stack.
+    Uses GitHub App installation tokens for scoped repo access.
     """
     
     def __init__(self):
-        pass
+        self._cached_pem: Optional[str] = None
     
     def _get_github_client(self, encrypted_token: str) -> Github:
         """Create GitHub client with decrypted token."""
         token = token_encryptor.decrypt(encrypted_token)
         return Github(token)
     
+    async def get_installation_token(self, installation_id: int) -> str:
+        """Generate an installation access token scoped to repos the user selected."""
+        import boto3
+        
+        # Load private key from Secrets Manager (cache for session)
+        if not self._cached_pem:
+            try:
+                sm = boto3.client("secretsmanager", region_name=settings.AWS_REGION)
+                self._cached_pem = sm.get_secret_value(
+                    SecretId=settings.GITHUB_APP_PRIVATE_KEY_SECRET
+                )["SecretString"]
+            except Exception as e:
+                logger.error("Failed to load GitHub App private key from Secrets Manager", error=str(e))
+                raise
+        
+        # Sign a 10-min JWT as the GitHub App
+        now = int(time.time())
+        payload = {"iat": now - 60, "exp": now + 540, "iss": settings.GITHUB_APP_ID}
+        app_jwt = pyjwt.encode(payload, self._cached_pem, algorithm="RS256")
+        
+        # Exchange for an installation access token
+        async with httpx.AsyncClient() as client:
+            r = await client.post(
+                f"https://api.github.com/app/installations/{installation_id}/access_tokens",
+                headers={
+                    "Authorization": f"Bearer {app_jwt}",
+                    "Accept": "application/vnd.github+json",
+                },
+            )
+            r.raise_for_status()
+            return r.json()["token"]  # short-lived token, valid 1hr
+    
     async def fetch_user_repos_fast(
         self,
         encrypted_token: str,
+        installation_id: Optional[int] = None,
         include_forks: bool = True,
         include_private: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         Fetch ALL repositories using direct GitHub API (faster, async).
-        Handles pagination automatically to get all repos.
+        If installation_id is provided, uses GitHub App installation token
+        and fetches only user-selected repos.
         
         Args:
-            encrypted_token: Encrypted GitHub access token
+            encrypted_token: Encrypted GitHub access token (fallback for OAuth)
+            installation_id: GitHub App installation ID (preferred)
             include_forks: Include forked repositories
             include_private: Include private repositories
             
         Returns:
             List of all repository metadata dicts
         """
-        token = token_encryptor.decrypt(encrypted_token)
         all_repos = []
         page = 1
-        per_page = 100  # Maximum allowed by GitHub API
+        per_page = 100
+        
+        # Determine token and URL based on installation_id
+        if installation_id:
+            try:
+                token = await self.get_installation_token(installation_id)
+                use_installation_api = True
+                logger.info("Using GitHub App installation token", installation_id=installation_id)
+            except Exception as e:
+                logger.warning("Installation token failed, falling back to OAuth", error=str(e))
+                token = token_encryptor.decrypt(encrypted_token)
+                use_installation_api = False
+        else:
+            token = token_encryptor.decrypt(encrypted_token)
+            use_installation_api = False
         
         async with httpx.AsyncClient() as client:
             while True:
-                response = await client.get(
-                    "https://api.github.com/user/repos",
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Accept": "application/vnd.github+json",
-                        "X-GitHub-Api-Version": "2022-11-28",
-                    },
-                    params={
-                        "affiliation": "owner",
-                        "sort": "updated",
-                        "direction": "desc",
-                        "per_page": per_page,
-                        "page": page,
-                    },
-                    timeout=30.0,
-                )
-                response.raise_for_status()
-                repos_data = response.json()
+                if use_installation_api:
+                    # /installation/repositories returns ONLY user-selected repos
+                    response = await client.get(
+                        "https://api.github.com/installation/repositories",
+                        headers={
+                            "Authorization": f"Bearer {token}",
+                            "Accept": "application/vnd.github+json",
+                            "X-GitHub-Api-Version": "2022-11-28",
+                        },
+                        params={
+                            "per_page": per_page,
+                            "page": page,
+                        },
+                        timeout=30.0,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    repos_data = data.get("repositories", [])
+                else:
+                    response = await client.get(
+                        "https://api.github.com/user/repos",
+                        headers={
+                            "Authorization": f"Bearer {token}",
+                            "Accept": "application/vnd.github+json",
+                            "X-GitHub-Api-Version": "2022-11-28",
+                        },
+                        params={
+                            "affiliation": "owner",
+                            "sort": "updated",
+                            "direction": "desc",
+                            "per_page": per_page,
+                            "page": page,
+                        },
+                        timeout=30.0,
+                    )
+                    response.raise_for_status()
+                    repos_data = response.json()
                 
                 # No more repos to fetch
                 if not repos_data:
@@ -312,12 +386,10 @@ class GitHubIngestionService:
         # Extract tech stack from dependency files
         data["extracted_tech"] = await self._extract_tech_stack(repo)
         
-        # Get commit count
-        try:
-            commits = repo.get_commits()
-            data["commits_count"] = commits.totalCount
-        except GithubException:
-            data["commits_count"] = 0
+        # Fetch root dirs as fallback when no README
+        data["root_dirs"] = []
+        if not data["readme_content"]:
+            data["root_dirs"] = await self._fetch_root_dirs(repo)
         
         return data
     
@@ -358,6 +430,14 @@ class GitHubIngestionService:
                 continue
         
         return None
+    
+    async def _fetch_root_dirs(self, repo: Repository) -> List[str]:
+        """Fetch top-level folder names — cheap README fallback for structure signal."""
+        try:
+            contents = repo.get_contents("")
+            return [f.name for f in contents if f.type == "dir"]  # folders only
+        except GithubException:
+            return []
     
     async def _extract_tech_stack(self, repo: Repository) -> List[str]:
         """Extract technology stack from dependency files."""
@@ -479,139 +559,195 @@ class GitHubIngestionService:
     ) -> Dict[str, Any]:
         """
         Create project data from repository data.
-        Uses Gemini to generate highlights if README exists.
+        Uses Bedrock to generate a structured summary matching the academia-sync.md schema.
         
         Args:
             repo_data: Repository data dict
             
         Returns:
-            Project data ready for database insertion
+            Project data with structured summary, md content, technologies, highlights
         """
-        # Build description
-        description = repo_data.get("description") or ""
-        if repo_data.get("readme_content"):
-            # Use first 2000 chars of README for context
-            readme_excerpt = repo_data["readme_content"][:2000]
-            description = f"{description}\n\n{readme_excerpt}" if description else readme_excerpt
-        
-        # Extract technologies
-        technologies = list(set(
-            repo_data.get("extracted_tech", []) + 
-            list(repo_data.get("languages", {}).keys()) +
-            repo_data.get("topics", [])
-        ))
-        
-        # Generate highlights using Gemini
-        highlights = await self._generate_highlights(
-            title=repo_data["name"],
-            description=description,
-            technologies=technologies,
+        summary = await self._generate_structured_summary(
+            name=repo_data["name"],
+            description=repo_data.get("description", ""),
+            languages=repo_data.get("languages", {}),
+            topics=repo_data.get("topics", []),
             stars=repo_data.get("stars", 0),
             readme=repo_data.get("readme_content"),
+            root_dirs=repo_data.get("root_dirs", []),
+            dep_tech=repo_data.get("extracted_tech", []),
         )
-        
+        md_content = self._render_summary_md(repo_data["name"], summary)
         return {
-            "title": repo_data["name"],
-            "description": repo_data.get("description") or f"GitHub project: {repo_data['name']}",
-            "technologies": technologies,
-            "highlights": highlights,
-            "url": repo_data.get("url"),
-            "raw_content": description,
-            "source_type": "github",
-            "source_id": str(repo_data["github_id"]),
+            "summary":        summary,
+            "summaryMd":      md_content,
+            "technologies":   summary.get("languages", []) + summary.get("frameworks", []) + summary.get("infrastructure", []),
+            "highlights":     summary.get("highlights", []),
+            "description":    repo_data.get("description") or summary.get("oneLiner", ""),
         }
     
-    async def _generate_highlights(
+    async def _generate_structured_summary(
         self,
-        title: str,
+        name: str,
         description: str,
-        technologies: List[str],
+        languages: Dict[str, int],
+        topics: List[str],
         stars: int,
         readme: Optional[str],
-    ) -> List[str]:
-        """
-        Generate resume-friendly bullet points using Gemini.
-        Strictly grounded to provided content.
-        """
-        if not description and not readme:
-            return [f"Developed {title} using {', '.join(technologies[:5])}"]
-        
-        prompt = f"""Analyze this GitHub project and generate 2-4 resume bullet points.
-
-PROJECT TITLE: {title}
-TECHNOLOGIES: {', '.join(technologies)}
+        root_dirs: List[str],
+        dep_tech: List[str],
+    ) -> Dict[str, Any]:
+        """Generate a structured project summary using Bedrock."""
+        context = f"""REPO NAME: {name}
+GITHUB DESCRIPTION: {description or 'N/A'}
+LANGUAGES (by bytes): {', '.join(languages.keys()) or 'N/A'}
+DETECTED TECHNOLOGIES: {', '.join(dep_tech) or 'N/A'}
+TOPICS: {', '.join(topics) or 'N/A'}
 STARS: {stars}
-DESCRIPTION: {description[:1000] if description else 'N/A'}
+ROOT FOLDERS: {', '.join(root_dirs) or 'N/A'}
+README (first 3000 chars):
+{readme[:3000] if readme else 'No README available.'}"""
 
-README EXCERPT:
-{readme[:2000] if readme else 'N/A'}
+        prompt = f"""{context}
+
+Based ONLY on the above, produce a JSON object with these exact keys:
+{{
+  "oneLiner": "One sentence describing what this project does and who it's for.",
+  "problemType": "e.g. Full Stack Web App / CLI Tool / ML Model / API Service / DevOps Tool",
+  "domain": "e.g. EdTech / FinTech / DevTools / Healthcare",
+  "languages": ["TypeScript", "Python"],
+  "frameworks": ["Next.js", "FastAPI"],
+  "infrastructure": ["Docker", "AWS", "Terraform"],
+  "keyTechniques": ["JWT auth with refresh tokens", "Role-Based Access Control"],
+  "capabilities": [
+    "2-4 specialized capabilities useful for JD matching — what this project uniquely demonstrates"
+  ],
+  "highlights": [
+    "2-4 resume bullet points starting with action verbs, grounded in the content above"
+  ]
+}}
 
 RULES:
-1. ONLY use information from the provided content above
-2. DO NOT invent features, metrics, or achievements not mentioned
-3. Use action verbs (Built, Developed, Implemented, Designed)
-4. Focus on technical achievements and features
-5. If information is limited, create fewer but accurate points
-6. Format as a JSON array of strings
-
-Return ONLY a JSON array like: ["Built X using Y", "Implemented Z feature"]"""
+1. ONLY use information from the content above — never invent metrics or features
+2. If information is absent, use an empty list [] — never guess
+3. Return ONLY the JSON object, no markdown fences"""
 
         try:
             result = await bedrock_client.generate_json(
                 prompt=prompt,
-                system_instruction="You are a technical resume writer. Generate accurate, grounded bullet points. Never invent information.",
+                system_instruction="You are a technical resume analyst. Produce accurate, grounded project summaries. Never invent information.",
                 temperature=0.2,
             )
-            if isinstance(result, list):
-                return result[:4]  # Max 4 highlights
+            if isinstance(result, dict):
+                return result
         except Exception as e:
-            logger.error(f"Failed to generate highlights: {e}")
+            logger.error(f"Structured summary failed for {name}: {e}")
         
-        # Fallback
-        return [f"Developed {title} using {', '.join(technologies[:3])}"]
+        # Fallback: minimal summary
+        return {
+            "oneLiner": description or f"GitHub project: {name}",
+            "problemType": "Software Project",
+            "domain": "General",
+            "languages": list(languages.keys()),
+            "frameworks": [],
+            "infrastructure": [],
+            "keyTechniques": [],
+            "capabilities": [],
+            "highlights": [f"Developed {name} using {', '.join(list(languages.keys())[:3])}"],
+        }
+    
+    def _render_summary_md(self, name: str, summary: Dict[str, Any]) -> str:
+        """Render the structured dict into the academia-sync.md format."""
+        lines = [
+            f"# {name}",
+            "",
+            "## 1. High-Level Pitch",
+            f"- **One-Liner:** {summary.get('oneLiner', '')}",
+            f"- **Problem Type:** {summary.get('problemType', '')}",
+            f"- **Domain/Context:** {summary.get('domain', '')}",
+            "",
+            "## 2. Technical Implementation (The \"How\")",
+            f"- **Languages:** {', '.join(summary.get('languages', []))}",
+            f"- **Frameworks:** {', '.join(summary.get('frameworks', []))}",
+            f"- **Infrastructure/Tools:** {', '.join(summary.get('infrastructure', []))}",
+            f"- **Key Algorithms/Techniques:** {', '.join(summary.get('keyTechniques', []))}",
+            "",
+            "## 3. Specialized Capabilities (For JD Matching)",
+        ]
+        for cap in summary.get("capabilities", []):
+            lines.append(f"- {cap}")
+        lines += [
+            "",
+            "## 4. Impact & Metrics (CRITICAL)",
+        ]
+        for h in summary.get("highlights", []):
+            lines.append(f"- {h}")
+        return "\n".join(lines)
     
     async def ingest_and_embed_repo(
         self,
         repo_data: Dict[str, Any],
+        project_data: Dict[str, Any],
         user_id: str,
+        project_id: str,
     ) -> str:
         """
-        Create embedding for repository and store in vector store.
+        Upload .md summary to S3 and store structured project item in DynamoDB.
         
         Args:
-            repo_data: Repository data dict
-            user_id: User ID for filtering
+            repo_data: Raw GitHub repository data
+            project_data: Output of create_project_from_repo()
+            user_id: User ID
+            project_id: Generated project UUID
             
         Returns:
-            Embedding ID
+            Project ID
         """
-        # Combine text for embedding
-        text = embedding_service.combine_texts_for_embedding(
-            title=repo_data.get("name", ""),
-            description=repo_data.get("description", "") + "\n" + (repo_data.get("readme_content", "") or "")[:1500],
-            technologies=repo_data.get("extracted_tech", []) + list(repo_data.get("languages", {}).keys()),
+        name = repo_data["name"]
+        md_content = project_data["summaryMd"]
+
+        # 1. Upload .md summary to S3
+        s3_key = f"{user_id}/{name}-summary.md"
+        await s3_service.upload_file(
+            key=s3_key,
+            data=md_content.encode("utf-8"),
+            content_type="text/markdown",
         )
-        
-        # Generate embedding
-        embedding = await embedding_service.embed_text(text)
-        
-        # Store in vector store
-        embedding_id = vector_store.generate_embedding_id()
-        await vector_store.add_embedding(
-            collection_name=VectorStoreService.COLLECTION_PROJECTS,
-            embedding_id=embedding_id,
-            embedding=embedding,
-            metadata={
-                "user_id": user_id,
-                "source_type": "github",
-                "github_id": repo_data.get("github_id"),
-                "name": repo_data.get("name", ""),
-                "technologies": repo_data.get("extracted_tech", []),
-            },
-            document=text,
+
+        # 2. Write structured item to DynamoDB
+        summary = project_data["summary"]
+        now = datetime.utcnow().isoformat()
+        project_item = {
+            "userId":         user_id,
+            "projectId":      project_id,
+            "name":           name,
+            "description":    project_data["description"],
+            "oneLiner":       summary.get("oneLiner", ""),
+            "problemType":    summary.get("problemType", ""),
+            "domain":         summary.get("domain", ""),
+            "technologies":   project_data["technologies"],
+            "languages":      repo_data.get("languages", {}),
+            "frameworks":     summary.get("frameworks", []),
+            "infrastructure": summary.get("infrastructure", []),
+            "capabilities":   summary.get("capabilities", []),
+            "highlights":     project_data["highlights"],
+            "topics":         repo_data.get("topics", []),
+            "repoUrl":        repo_data.get("url", ""),
+            "stars":          repo_data.get("stars", 0),
+            "isFork":         repo_data.get("is_fork", False),
+            "pushedAt":       repo_data.get("pushed_at"),
+            "sourceType":     "github",
+            "githubId":       repo_data.get("github_id"),
+            "summaryS3Key":   s3_key,
+            "createdAt":      now,
+            "updatedAt":      now,
+        }
+        await dynamo_service.put_item(
+            table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+            item=project_item,
         )
-        
-        return embedding_id
+        logger.info("Ingested repo to DynamoDB + S3", repo=name, project_id=project_id)
+        return project_id
 
 
 # Global instance

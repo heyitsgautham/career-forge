@@ -117,6 +117,26 @@ async def list_projects(
     ]
 
 
+@router.get("/user/{user_id}")
+async def list_projects_for_user(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    List projects for a user from DynamoDB (M1.6+ ingested projects).
+    This is the read path M2 depends on.
+    """
+    from app.services.dynamo_service import dynamo_service
+    from app.core.config import settings as cfg
+    
+    items = await dynamo_service.query(
+        table=f"{cfg.DYNAMO_TABLE_PREFIX}Projects",
+        pk_name="userId",
+        pk_value=user_id,
+    )
+    return items
+
+
 @router.post("", response_model=ProjectResponse)
 async def create_project(
     project_data: ProjectCreate,
