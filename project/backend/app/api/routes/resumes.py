@@ -2,6 +2,7 @@
 Resume Routes
 =============
 Resume generation and compilation endpoints.
+Supports both legacy template-fill flow and M2 S3-summary flow.
 """
 
 from typing import List, Optional
@@ -28,6 +29,102 @@ from app.services.latex_service import latex_service
 
 router = APIRouter()
 logger = structlog.get_logger()
+
+
+# ─── M2 Models ────────────────────────────────────────────────────────────────
+
+class M2GenerateRequest(BaseModel):
+    """Request body for M2 resume generation (S3-summary-based)."""
+    jd: Optional[str] = None
+
+
+class M2GenerateResponse(BaseModel):
+    """Response from M2 resume generation."""
+    resume_id: str
+    pdf_url: Optional[str]
+    tex_url: Optional[str]
+    analysis: str
+    status: str
+    compilation_error: Optional[str] = None  # Set when LaTeX compiled but PDF failed
+
+
+# ─── M2 Endpoint ──────────────────────────────────────────────────────────────
+
+@router.post("/generate", response_model=M2GenerateResponse)
+async def generate_resume_m2(
+    body: M2GenerateRequest = None,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    M2 Resume Generation: reads project summaries from S3, runs Claude Step 0
+    analysis, generates LaTeX, compiles to PDF, uploads everything to S3.
+
+    Input: optional JD text.
+    Output: resumeId, pdfUrl, texUrl, analysis block.
+    """
+    if body is None:
+        body = M2GenerateRequest()
+
+    from app.services.resume_agent import generate_resume_from_summaries
+
+    user_id = str(current_user.id)
+
+    # Gather personal info from user profile
+    def _safe(attr, default=""):
+        v = getattr(current_user, attr, None)
+        return v if v is not None else default
+
+    import json as _json
+
+    def _parse_json(v):
+        if not v:
+            return []
+        if isinstance(v, str):
+            try:
+                return _json.loads(v)
+            except _json.JSONDecodeError:
+                return []
+        return v if isinstance(v, list) else []
+
+    personal_info = {
+        "name": _safe("name") or (_safe("email", "").split("@")[0] if _safe("email") else ""),
+        "email": _safe("email"),
+        "phone": _safe("phone"),
+        "location": _safe("location"),
+        "linkedin_url": _safe("linkedin_url"),
+        "website": _safe("website"),
+        "github": getattr(current_user, "_data", {}).get("githubUsername", "") if hasattr(current_user, "_data") else "",
+    }
+
+    education = _parse_json(_safe("education", None))
+    experience = _parse_json(_safe("experience", None))
+    skills = _parse_json(_safe("skills", None))
+    certifications = _parse_json(_safe("certifications", None))
+
+    try:
+        result = await generate_resume_from_summaries(
+            user_id=user_id,
+            jd=body.jd,
+            personal_info=personal_info,
+            education=education,
+            experience=experience,
+            skills=skills,
+            certifications=certifications,
+        )
+
+        return M2GenerateResponse(
+            resume_id=result.resume_id,
+            pdf_url=result.pdf_url,
+            tex_url=result.tex_url,
+            analysis=result.analysis,
+            status="compiled" if result.pdf_url else "generated",
+            compilation_error=result.compilation_error,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("M2 resume generation failed", error=str(e), user_id=user_id)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Helper function to rank projects by JD relevance
@@ -69,6 +166,8 @@ def _resume_from_dynamo(r: dict) -> dict:
         "latex_content": r.get("latexContent"),
         "pdf_path": r.get("pdfS3Key"),
         "error_message": r.get("errorMessage"),
+        "analysis": r.get("analysis"),
+        "tex_s3_key": r.get("texS3Key"),
         "created_at": r.get("createdAt", ""),
         "updated_at": r.get("updatedAt", ""),
     }
@@ -93,13 +192,15 @@ class ResumeGenerateRequest(BaseModel):
 class ResumeResponse(BaseModel):
     id: str
     name: str
-    template_id: Optional[str]
-    job_description_id: Optional[str]
-    selected_project_ids: List[str]
+    template_id: Optional[str] = None
+    job_description_id: Optional[str] = None
+    selected_project_ids: List[str] = []
     status: str
-    latex_content: Optional[str]
-    pdf_path: Optional[str]
-    error_message: Optional[str]
+    latex_content: Optional[str] = None
+    pdf_path: Optional[str] = None
+    error_message: Optional[str] = None
+    analysis: Optional[str] = None
+    tex_s3_key: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -666,15 +767,28 @@ async def download_pdf(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Download compiled PDF."""
+    """Download compiled PDF. Returns presigned S3 URL or local file."""
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
+        from app.services.s3_service import s3_service
+        from fastapi.responses import RedirectResponse
+
         item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
         if not item:
             raise HTTPException(status_code=404, detail="Resume not found")
-        if not item.get("pdfS3Key"):
+
+        # Try S3 presigned URL first (M2 flow stores full key)
+        pdf_key = item.get("pdfS3Key")
+        if not pdf_key:
             raise HTTPException(status_code=400, detail="PDF not available. Compile first.")
-        return FileResponse(path=item["pdfS3Key"], filename=f"{item.get('name','resume').replace(' ','_')}.pdf", media_type="application/pdf")
+
+        # If it's an S3 key (not a local path), generate presigned URL
+        if not pdf_key.startswith("/"):
+            url = await s3_service.get_presigned_url(pdf_key)
+            return RedirectResponse(url=url)
+
+        # Legacy: local file path
+        return FileResponse(path=pdf_key, filename=f"{item.get('name','resume').replace(' ','_')}.pdf", media_type="application/pdf")
 
     result = await db.execute(
         select(Resume).where(
@@ -694,6 +808,67 @@ async def download_pdf(
         path=resume.pdf_path,
         filename=f"{resume.name.replace(' ', '_')}.pdf",
         media_type="application/pdf",
+    )
+
+
+@router.get("/{resume_id}/tex")
+async def download_tex(
+    resume_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Download .tex source with Content-Disposition: attachment so the browser saves the file."""
+    from fastapi.responses import Response as FastAPIResponse
+
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        from app.services.s3_service import s3_service
+
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+
+        tex_key = item.get("texS3Key")
+        latex_content = item.get("latexContent")
+        safe_name = item.get("name", "resume").replace(" ", "_")
+        filename = f"{safe_name}.tex"
+
+        if tex_key and not tex_key.startswith("/"):
+            try:
+                content_bytes = await s3_service.download_file(tex_key)
+                return FastAPIResponse(
+                    content=content_bytes,
+                    media_type="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+                )
+            except Exception as e:
+                logger.warning("s3_tex_download_failed", error=str(e), falling_back="latexContent")
+
+        if latex_content:
+            return FastAPIResponse(
+                content=latex_content.encode("utf-8"),
+                media_type="text/plain; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+
+        raise HTTPException(status_code=404, detail="LaTeX source not available")
+
+    db_result = await db.execute(
+        select(Resume).where(
+            Resume.id == uuid.UUID(resume_id),
+            Resume.user_id == current_user.id,
+        )
+    )
+    resume = db_result.scalar_one_or_none()
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    if not resume.latex_content:
+        raise HTTPException(status_code=404, detail="LaTeX source not available")
+
+    return FastAPIResponse(
+        content=resume.latex_content.encode("utf-8"),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{resume.name.replace(" ", "_")}.tex"'},
     )
 
 
@@ -739,12 +914,24 @@ async def delete_resume(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a resume."""
+    """Delete a resume and its S3 files."""
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
+        from app.services.s3_service import s3_service
+
         item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
         if not item:
             raise HTTPException(status_code=404, detail="Resume not found")
+
+        # Clean up S3 files
+        for key_field in ("pdfS3Key", "texS3Key"):
+            s3_key = item.get(key_field)
+            if s3_key and not s3_key.startswith("/"):
+                try:
+                    await s3_service.delete_file(s3_key)
+                except Exception as e:
+                    logger.warning("S3 cleanup failed", key=s3_key, error=str(e))
+
         await dynamo_service.delete_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
         return {"message": "Resume deleted"}
 

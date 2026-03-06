@@ -139,6 +139,48 @@ class S3Service:
         except ClientError:
             return False
 
+    async def list_objects(self, prefix: str) -> list:
+        """
+        List all objects under a prefix in S3.
+
+        Args:
+            prefix: S3 key prefix (e.g., "{userId}/")
+
+        Returns:
+            List of S3 object keys
+        """
+        client = self._get_client()
+        keys = []
+
+        try:
+            paginator = client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.S3_BUCKET, Prefix=prefix):
+                for obj in page.get("Contents", []):
+                    keys.append(obj["Key"])
+            return keys
+        except ClientError as e:
+            logger.error("S3 list_objects failed", prefix=prefix, error=str(e))
+            raise
+
+    async def download_file(self, key: str) -> bytes:
+        """
+        Download a file from S3.
+
+        Args:
+            key: S3 object key
+
+        Returns:
+            File content as bytes
+        """
+        client = self._get_client()
+
+        try:
+            response = client.get_object(Bucket=settings.S3_BUCKET, Key=key)
+            return response["Body"].read()
+        except ClientError as e:
+            logger.error("S3 download failed", key=key, error=str(e))
+            raise
+
     def get_key_for_resume(
         self,
         user_id: str,
