@@ -36,3 +36,4 @@ Thumbs.db
 *.swp
 *.swo
 project/backend/latex_agent.db
+*.tsbuildinfo

@@ -60,7 +60,7 @@ interface ProfileData {
   certifications?: CertificationEntry[];
 }
 
-export function ProfileView() {
+export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: number }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -78,7 +78,8 @@ export function ProfileView() {
 
   useEffect(() => {
     loadProfile();
-  }, [refreshKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey, externalRefreshKey]);
 
   // Poll ingestion status and load projects on mount
   const stopPolling = useCallback(() => {
@@ -127,14 +128,15 @@ export function ProfileView() {
   }, [stopPolling, pollIngestionStatus]);
 
   useEffect(() => {
-    // On mount: check current status and load projects
+    // On mount: only resume polling if a sync is actively running.
+    // Never auto-trigger a new sync — user must click the button.
     (async () => {
       try {
         const res = await githubApi.getIngestStatus();
         const s = res.data.status;
         setIngestionStatus(s);
         setIngestionSummary(res.data.summary);
-        if (s === "pending" || s === "in_progress") {
+        if (s === "in_progress") {
           startPolling();
         }
       } catch { /* ignore */ }
@@ -148,18 +150,9 @@ export function ProfileView() {
     setIngesting(true);
     try {
       await githubApi.ingest(false);
-      // If the endpoint returned immediately with done status
-      await loadProjects();
-      setIngesting(false);
-      // Re-check status
-      const res = await githubApi.getIngestStatus();
-      setIngestionStatus(res.data.status);
-      setIngestionSummary(res.data.summary);
-      if (res.data.status === "done") {
-        toast({ title: "Import Complete", description: `${res.data.summary?.processed ?? 0} projects imported.` });
-      }
+      startPolling();
     } catch {
-      // If it's running in background (long-running), start polling
+      // background job started — poll for completion
       startPolling();
     }
   };
@@ -1043,7 +1036,7 @@ export function ProfileView() {
                       </div>
                     )}
                   </div>
-                  {proj.repoUrl && (
+                  {Boolean(proj.repoUrl) && (
                     <a
                       href={String(proj.repoUrl)}
                       target="_blank"
