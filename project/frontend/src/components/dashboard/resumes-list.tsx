@@ -7,9 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FileText, Download, Edit, Trash2, Clock, CheckCircle, XCircle, Loader2, Plus, X, Sparkles } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  FileText, Download, Edit, Trash2, Clock, CheckCircle, XCircle,
+  Loader2, Plus, X, Sparkles, Eye, RefreshCw, AlertTriangle, ExternalLink,
+} from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Resume {
@@ -21,6 +25,8 @@ interface Resume {
   pdf_path?: string;
   latex_content?: string;
   error_message?: string;
+  analysis?: string;
+  tex_s3_key?: string;
   created_at: string;
   updated_at: string;
 }
@@ -37,16 +43,19 @@ interface Template {
 }
 
 const statusConfig = {
-  draft: { icon: Clock, color: 'bg-gradient-to-r from-gray-500 to-gray-600', text: 'Draft' },
-  generating: { icon: Loader2, color: 'bg-gradient-to-r from-blue-500 to-cyan-500 animate-pulse', text: 'Generating' },
-  generated: { icon: CheckCircle, color: 'bg-gradient-to-r from-yellow-500 to-orange-500', text: 'Generated' },
-  compiling: { icon: Loader2, color: 'bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse', text: 'Compiling' },
-  compiled: { icon: CheckCircle, color: 'bg-gradient-to-r from-green-500 to-emerald-500', text: 'Ready' },
-  error: { icon: XCircle, color: 'bg-gradient-to-r from-red-500 to-rose-600', text: 'Error' },
+  draft: { icon: Clock, color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300', text: 'Draft' },
+  generating: { icon: Loader2, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', text: 'Generating…', animate: true },
+  generated: { icon: CheckCircle, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', text: 'Generated' },
+  compiling: { icon: Loader2, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', text: 'Compiling…', animate: true },
+  compiled: { icon: CheckCircle, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', text: 'Ready' },
+  error: { icon: XCircle, color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300', text: 'Error' },
 };
 
+// ─── Main Component ────────────────────────────────────────────────────────────
+
 export function ResumesList() {
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [previewResume, setPreviewResume] = useState<Resume | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -72,275 +81,621 @@ export function ResumesList() {
       return;
     }
     try {
-      const response = await api.get(`/resumes/${resume.id}/download`, {
+      const response = await api.get(`/api/resumes/${resume.id}/pdf`, {
         responseType: 'blob',
+        maxRedirects: 0,
+        validateStatus: (s) => s < 400,
       });
+
+      // Handle redirect (presigned URL)
+      if (response.status >= 300 && response.status < 400) {
+        const redirectUrl = response.headers['location'];
+        if (redirectUrl) {
+          window.open(redirectUrl, '_blank');
+          return;
+        }
+      }
+
+      // Download blob
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${resume.name}.pdf`);
+      const date = new Date(resume.created_at).toISOString().split('T')[0];
+      link.setAttribute('download', `resume-${date}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch {
-      toast({ title: 'Failed to download PDF', variant: 'destructive' });
+      // For redirects, the browser may have already downloaded
+      // Try opening the PDF endpoint directly
+      window.open(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/resumes/${resume.id}/pdf`,
+        '_blank'
+      );
     }
   };
 
+  const downloadTex = async (resumeId: string, filename?: string) => {
+    try {
+      const response = await resumesApi.downloadTex(resumeId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/plain' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename ?? `resume-${resumeId.slice(0, 8)}.tex`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: '.tex download failed', variant: 'destructive' });
+    }
+  };
+
+  // Loading skeleton
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <div className="h-6 bg-muted rounded w-3/4"></div>
-              <div className="h-4 bg-muted rounded w-1/2 mt-2"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-8 bg-muted rounded w-full"></div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        <div className="h-10 bg-muted/40 rounded-lg w-48 animate-pulse" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader>
+                <div className="h-5 bg-muted rounded w-3/4" />
+                <div className="h-4 bg-muted rounded w-1/2 mt-2" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
-    );
-  }
-
-  if (!resumes || resumes.length === 0) {
-    return (
-      <>
-        <Card className="text-center py-12">
-          <CardContent>
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No resumes yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first resume by selecting a template and your best projects.
-            </p>
-            <Button onClick={() => setShowCreateModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Resume
-            </Button>
-          </CardContent>
-        </Card>
-        {showCreateModal && <CreateResumeModal onClose={() => setShowCreateModal(false)} />}
-      </>
     );
   }
 
   return (
-    <>
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => setShowCreateModal(true)} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Resume
+    <div className="space-y-6">
+      {/* Header with generate button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Resumes</h2>
+          <p className="text-sm text-muted-foreground">
+            {resumes?.length || 0} resume{resumes?.length !== 1 ? 's' : ''} generated
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowGenerator(true)}
+          className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all"
+        >
+          <Sparkles className="h-4 w-4" />
+          Generate Resume
         </Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {resumes.map((resume) => {
-          const status = statusConfig[resume.status];
-          const StatusIcon = status.icon;
 
-          return (
-            <Card key={resume.id} className="hover:shadow-lg transition-shadow duration-200 border-l-4 border-l-primary">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{resume.name}</CardTitle>
-                  <Badge
-                    variant="outline"
-                    className={`gap-1 ${resume.status === 'generating' || resume.status === 'compiling' ? 'animate-pulse' : ''}`}
-                  >
-                    <StatusIcon className={`h-3 w-3 ${resume.status === 'generating' || resume.status === 'compiling' ? 'animate-spin' : ''}`} />
-                    {status.text}
-                  </Badge>
-                </div>
-                <CardDescription>
-                  Updated {new Date(resume.updated_at).toLocaleDateString()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {resume.error_message && (
-                  <p className="text-sm text-destructive mb-4 line-clamp-2">
-                    {resume.error_message}
-                  </p>
-                )}
+      {/* Generator modal */}
+      {showGenerator && (
+        <ResumeGenerator
+          onClose={() => setShowGenerator(false)}
+          onGenerated={() => {
+            queryClient.invalidateQueries({ queryKey: ['resumes'] });
+            setShowGenerator(false);
+          }}
+        />
+      )}
 
-                <div className="flex justify-between items-center">
-                  <div className="flex gap-2">
-                    <Link href={`/dashboard/resumes/${resume.id}/edit`}>
-                      <Button size="sm" variant="outline" className="gap-1">
-                        <Edit className="h-3 w-3" />
-                        Edit
-                      </Button>
-                    </Link>
-                    {resume.status === 'compiled' && resume.pdf_path && (
-                      <Button size="sm" className="gap-1" onClick={() => downloadPdf(resume)}>
-                        <Download className="h-3 w-3" />
-                        PDF
-                      </Button>
+      {/* PDF Preview modal */}
+      {previewResume && (
+        <PdfPreviewModal
+          resume={previewResume}
+          onClose={() => setPreviewResume(null)}
+          onDownload={() => downloadPdf(previewResume)}
+        />
+      )}
+
+      {/* Result area with aria-live for screen readers */}
+      <div aria-live="polite" role="status">
+        {/* Empty state */}
+        {(!resumes || resumes.length === 0) && (
+          <Card className="text-center py-16 border-dashed border-2">
+            <CardContent className="space-y-4">
+              <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <FileText className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">No resumes yet</h3>
+                <p className="text-muted-foreground mt-1 max-w-sm mx-auto">
+                  Generate your first resume from your GitHub projects. Import your repos first, then click Generate.
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowGenerator(true)}
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate Your First Resume
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Resume grid */}
+        {resumes && resumes.length > 0 && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {resumes.map((resume) => {
+              const status = statusConfig[resume.status] || statusConfig.draft;
+              const StatusIcon = status.icon;
+              const isProcessing = resume.status === 'generating' || resume.status === 'compiling';
+
+              return (
+                <Card
+                  key={resume.id}
+                  className="group hover:shadow-md transition-all duration-200 border-l-4 border-l-violet-500/60"
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <CardTitle className="text-base font-medium line-clamp-1">
+                        {resume.name}
+                      </CardTitle>
+                      <Badge
+                        variant="secondary"
+                        className={`shrink-0 text-xs font-medium gap-1 ${status.color}`}
+                      >
+                        <StatusIcon className={`h-3 w-3 ${isProcessing ? 'animate-spin' : ''}`} />
+                        {status.text}
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-xs">
+                      {new Date(resume.updated_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {resume.error_message && (
+                      <div className="flex items-start gap-2 p-2 mb-3 rounded-md bg-red-50 dark:bg-red-950/30 text-sm">
+                        <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-red-700 dark:text-red-400 line-clamp-2 text-xs">
+                            {resume.error_message}
+                          </p>
+                          <p className="text-red-500/70 dark:text-red-400/50 text-xs mt-1">
+                            Try re-importing your repos first
+                          </p>
+                        </div>
+                      </div>
                     )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => deleteMutation.mutate(resume.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-1.5">
+                        {(resume.status === 'compiled' || resume.status === 'generated') && resume.pdf_path && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 h-8 text-xs"
+                              onClick={() => setPreviewResume(resume)}
+                            >
+                              <Eye className="h-3 w-3" />
+                              Preview
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="gap-1 h-8 text-xs"
+                              onClick={() => downloadPdf(resume)}
+                            >
+                              <Download className="h-3 w-3" />
+                              PDF
+                            </Button>
+                            {resume.tex_s3_key && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 h-8 text-xs"
+                                onClick={() => downloadTex(resume.id, `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.tex`)}
+                              >
+                                <FileText className="h-3 w-3" />
+                                .tex
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {resume.status === 'generated' && !resume.pdf_path && (
+                          <CompileButton resumeId={resume.id} />
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => {
+                          if (confirm('Delete this resume?')) {
+                            deleteMutation.mutate(resume.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
-      {showCreateModal && <CreateResumeModal onClose={() => setShowCreateModal(false)} />}
-    </>
+    </div>
   );
 }
 
-function CreateResumeModal({ onClose }: { onClose: () => void }) {
-  const [name, setName] = useState('');
-  const [selectedJob, setSelectedJob] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState('');
-  const { toast } = useToast();
+// ─── Compile Button ─────────────────────────────────────────────────────────
+
+function CompileButton({ resumeId }: { resumeId: string }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const { data: jobs } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: async () => {
-      const res = await jobsApi.list();
-      return res.data as Job[];
-    },
-  });
-
-  const { data: templates } = useQuery({
-    queryKey: ['templates'],
-    queryFn: async () => {
-      const res = await templatesApi.list();
-      return res.data as Template[];
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: () => resumesApi.create({
-      name,
-      job_description_id: selectedJob || undefined,
-      template_id: selectedTemplate || undefined,
-    }),
+  const compileMutation = useMutation({
+    mutationFn: () => resumesApi.compile(resumeId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      toast({ title: 'Resume created' });
-      onClose();
+      toast({ title: 'PDF compiled successfully!' });
     },
     onError: (error: any) => {
       toast({
-        title: 'Failed to create resume',
-        description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive'
+        title: 'Compilation failed',
+        description: error.response?.data?.detail || 'Check LaTeX syntax',
+        variant: 'destructive',
       });
-    },
-  });
-
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      // First create the resume
-      const createRes = await resumesApi.create({
-        name,
-        job_description_id: selectedJob || undefined,
-        template_id: selectedTemplate || undefined,
-      });
-      const resume = createRes.data;
-      // Then generate it with AI
-      await resumesApi.generate(resume.id);
-      return resume;
-    },
-    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      toast({ title: 'Resume created and generation started!' });
-      onClose();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Failed to generate resume',
-        description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive'
-      });
     },
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Create Resume</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+    <Button
+      size="sm"
+      variant="outline"
+      className="gap-1 h-8 text-xs"
+      onClick={() => compileMutation.mutate()}
+      disabled={compileMutation.isPending}
+    >
+      {compileMutation.isPending ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <RefreshCw className="h-3 w-3" />
+      )}
+      Compile PDF
+    </Button>
+  );
+}
+
+// ─── PDF Preview Modal ──────────────────────────────────────────────────────
+
+function PdfPreviewModal({
+  resume,
+  onClose,
+  onDownload,
+}: {
+  resume: Resume;
+  onClose: () => void;
+  onDownload: () => void;
+}) {
+  const pdfUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/resumes/${resume.id}/pdf`;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-background rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div>
+            <h3 className="font-semibold">{resume.name}</h3>
+            <p className="text-xs text-muted-foreground">PDF Preview</p>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={onDownload}>
+              <Download className="h-3.5 w-3.5" />
+              Download
+            </Button>
+            <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* PDF iframe */}
+        <div className="flex-1 min-h-0">
+          <iframe
+            src={pdfUrl}
+            title="Generated resume preview"
+            aria-label={`Preview of ${resume.name}`}
+            className="w-full h-full min-h-[60vh]"
+            style={{ border: 'none' }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Resume Generator (M2 Flow) ────────────────────────────────────────────
+
+function ResumeGenerator({
+  onClose,
+  onGenerated,
+}: {
+  onClose: () => void;
+  onGenerated: () => void;
+}) {
+  const [jdText, setJdText] = useState('');
+  const [result, setResult] = useState<{
+    resume_id: string;
+    pdf_url: string | null;
+    tex_url: string | null;
+    analysis: string;
+    status: string;
+    compilation_error?: string | null;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const downloadTex = async (resumeId: string, filename?: string) => {
+    try {
+      const response = await resumesApi.downloadTex(resumeId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/plain' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename ?? `resume-${resumeId.slice(0, 8)}.tex`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: '.tex download failed', variant: 'destructive' });
+    }
+  };
+
+  const generateMutation = useMutation({
+    mutationFn: () => resumesApi.generateFromSummaries(jdText || undefined),
+    onSuccess: (res) => {
+      setResult(res.data);
+      setError(null);
+      toast({ title: 'Resume generated successfully!' });
+    },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail || 'Generation failed';
+      setError(detail);
+      setResult(null);
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-background rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Generate Resume</h2>
+              <p className="text-xs text-muted-foreground">
+                AI-powered from your GitHub projects
+              </p>
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="name">Resume Name *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Software Engineer Resume"
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* JD input */}
+          <div className="space-y-2">
+            <Label htmlFor="jd-input" className="text-sm font-medium">
+              Job Description
+              <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+            </Label>
+            <Textarea
+              id="jd-input"
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+              placeholder="Paste a job description here to tailor your resume. Leave empty for a strong base resume ranked by project complexity."
+              className="min-h-[120px] resize-y text-sm"
+              disabled={generateMutation.isPending}
             />
+            <p className="text-xs text-muted-foreground">
+              Your resume will be generated from your ingested GitHub project summaries.
+            </p>
           </div>
 
-          <div>
-            <Label htmlFor="job">Target Job (optional)</Label>
-            <select
-              id="job"
-              className="w-full border rounded-md p-2"
-              value={selectedJob}
-              onChange={(e) => setSelectedJob(e.target.value)}
-            >
-              <option value="">-- Select a job --</option>
-              {jobs?.map(job => (
-                <option key={job.id} value={job.id}>
-                  {job.title} at {job.company}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Generation in progress */}
+          {generateMutation.isPending && (
+            <div className="flex flex-col items-center py-8 space-y-4">
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full border-4 border-violet-200 dark:border-violet-900" />
+                <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-violet-600 border-t-transparent animate-spin" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="font-medium text-sm">Generating your resume…</p>
+                <p className="text-xs text-muted-foreground">
+                  Analyzing projects, ranking by relevance, crafting LaTeX…
+                </p>
+              </div>
+            </div>
+          )}
 
-          <div>
-            <Label htmlFor="template">Template (optional)</Label>
-            <select
-              id="template"
-              className="w-full border rounded-md p-2"
-              value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
-            >
-              <option value="">-- Select a template --</option>
-              {templates?.map(template => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Error state */}
+          {error && !generateMutation.isPending && (
+            <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 p-4 space-y-2">
+              <div className="flex items-start gap-2">
+                <XCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium text-sm text-red-700 dark:text-red-400">
+                    Generation failed
+                  </p>
+                  <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-1">
+                    {error}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-red-500/70 dark:text-red-400/50 pl-7">
+                Try re-importing your repos first, or check that GitHub ingestion completed.
+              </p>
+            </div>
+          )}
 
-          <div className="flex gap-2 justify-end pt-4">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button
-              variant="outline"
-              onClick={() => createMutation.mutate()}
-              disabled={!name || createMutation.isPending}
-            >
-              {createMutation.isPending ? 'Creating…' : 'Create Draft'}
-            </Button>
+          {/* Success: result */}
+          {result && !generateMutation.isPending && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/20 p-4">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <p className="font-medium text-sm text-emerald-700 dark:text-emerald-400">
+                      Resume {result.pdf_url ? 'generated & compiled' : 'generated (LaTeX saved)'}!
+                    </p>
+
+                    <div className="flex gap-2 flex-wrap">
+                      {result.pdf_url && (
+                        <a
+                          href={result.pdf_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={`resume-${new Date().toISOString().split('T')[0]}.pdf`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Download PDF
+                        </a>
+                      )}
+                      {result.tex_url && (
+                        <button
+                          onClick={() => downloadTex(result.resume_id, `resume-${new Date().toISOString().split('T')[0]}.tex`)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-gray-800 border text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          Download .tex Source
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Compilation warning — shown when LaTeX was generated but PDF failed */}
+              {!result.pdf_url && result.compilation_error && (
+                <div className="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-1">
+                  <div className="flex items-start gap-2">
+                    <XCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400">PDF compilation failed</p>
+                      <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5 font-mono break-all">{result.compilation_error}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-500/80 dark:text-amber-400/50 pl-6">
+                    Download the .tex source above to compile manually or regenerate.
+                  </p>
+                </div>
+              )}
+
+              {/* Analysis collapse */}
+              {result.analysis && (
+                <AnalysisPanel analysis={result.analysis} />
+              )}
+
+              {/* PDF preview */}
+              {result.pdf_url && (
+                <div className="rounded-lg overflow-hidden border">
+                  <iframe
+                    src={result.pdf_url}
+                    title="Generated resume preview"
+                    aria-label="Preview of generated resume"
+                    className="w-full h-[500px]"
+                    style={{ border: 'none' }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-5 border-t bg-muted/30">
+          <Button variant="ghost" onClick={onClose} className="text-sm">
+            {result ? 'Close' : 'Cancel'}
+          </Button>
+          <div className="flex gap-2">
+            {result && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  onGenerated();
+                }}
+                className="text-sm"
+              >
+                Done
+              </Button>
+            )}
             <Button
               onClick={() => generateMutation.mutate()}
-              disabled={!name || !selectedJob || generateMutation.isPending}
+              disabled={generateMutation.isPending}
+              className="gap-2 text-sm bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white"
             >
-              <Sparkles className="h-4 w-4 mr-2" />
-              {generateMutation.isPending ? 'Generating…' : 'Generate with AI'}
+              {generateMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating…
+                </>
+              ) : result ? (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Regenerate
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Generate Resume
+                </>
+              )}
             </Button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Analysis Panel ─────────────────────────────────────────────────────────
+
+function AnalysisPanel({ analysis }: { analysis: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-lg border bg-muted/30">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-3 text-sm font-medium hover:bg-muted/50 transition-colors rounded-lg"
+      >
+        <span className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          Step 0 Analysis
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {expanded ? 'Collapse' : 'Expand'}
+        </span>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3">
+          <pre className="text-xs font-mono whitespace-pre-wrap bg-background rounded-md p-3 border max-h-[300px] overflow-y-auto">
+            {analysis}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }

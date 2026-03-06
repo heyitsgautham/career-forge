@@ -28,6 +28,18 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Generated PDFs / uploads
+project/backend/uploads/pdfs/
+project/backend/*.pdf
+
 # OS
 .DS_Store
 Thumbs.db

@@ -322,6 +322,16 @@ export const resumesApi = {
     project_ids?: string[];
   }) => api.post('/api/resumes', data),
 
+  /** M2: Generate resume from S3 project summaries + optional JD */
+  generateFromSummaries: (jd?: string) =>
+    api.post<{
+      resume_id: string;
+      pdf_url: string | null;
+      tex_url: string | null;
+      analysis: string;
+      status: string;
+    }>('/api/resumes/generate', { jd: jd || null }),
+
   generate: (id: string, data?: {
     personal?: {
       name: string;
@@ -358,6 +368,9 @@ export const resumesApi = {
 
   downloadPdf: (id: string) =>
     api.get(`/api/resumes/${id}/pdf`, { responseType: 'blob' }),
+
+  downloadTex: (id: string) =>
+    api.get(`/api/resumes/${id}/tex`, { responseType: 'blob' }),
 
   delete: (id: string) => api.delete(`/api/resumes/${id}`),
 };
