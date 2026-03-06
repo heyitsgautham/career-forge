@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { projectsApi } from '@/lib/api';
+import { projectsApi, githubApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
-import { Github, ExternalLink, RefreshCw, Trash2, Calendar, Plus, X } from 'lucide-react';
+import { Github, ExternalLink, RefreshCw, Trash2, Calendar, Plus, X, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Project {
@@ -31,6 +31,68 @@ export function ProjectsList() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // ── GitHub bulk-ingestion state ─────────────────────────────────────────
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string>('none');
+  const [syncSummary, setSyncSummary] = useState<{ processed: number; failed: number; lastRunAt?: string } | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPoll = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, []);
+
+  const pollStatus = useCallback(async () => {
+    try {
+      const res = await githubApi.getIngestStatus();
+      const s = res.data.status as string;
+      setSyncStatus(s);
+      setSyncSummary(res.data.summary);
+      if (s === 'done' || s === 'completed') {
+        stopPoll(); setSyncing(false);
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        toast({ title: 'Sync complete', description: `${res.data.summary?.processed ?? 0} projects imported.` });
+      } else if (s === 'failed') {
+        stopPoll(); setSyncing(false);
+        toast({ title: 'Sync failed', description: 'Check your GitHub connection and try again.', variant: 'destructive' });
+      }
+    } catch { stopPoll(); setSyncing(false); }
+  }, [stopPoll, queryClient, toast]);
+
+  // On mount: load current ingestion status — do NOT auto-trigger, only resume polling
+  // if a sync is actively in-progress.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await githubApi.getIngestStatus();
+        const s = res.data.status as string;
+        setSyncStatus(s);
+        setSyncSummary(res.data.summary);
+        // Only resume polling if a sync is already running (not just pending)
+        if (s === 'in_progress') {
+          setSyncing(true);
+          pollRef.current = setInterval(pollStatus, 3000);
+          pollStatus();
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => stopPoll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSyncAll = async () => {
+    setSyncing(true);
+    try {
+      await githubApi.ingest(false);
+      pollRef.current = setInterval(pollStatus, 3000);
+      pollStatus();
+    } catch {
+      // background job already started — just poll
+      pollRef.current = setInterval(pollStatus, 3000);
+      pollStatus();
+    }
+  };
+  // ───────────────────────────────────────────────────────────────────────
 
   const { data: projects, isLoading, refetch } = useQuery({
     queryKey: ['projects'],
@@ -66,41 +128,98 @@ export function ProjectsList() {
     },
   });
 
+  // ── GitHub sync banner (always visible at top) ────────────────────────
+  const syncBanner = (
+    <Card className="mb-4 border-l-4 border-l-violet-500 bg-card">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Github className="h-5 w-5 text-violet-500" />
+            <CardTitle className="text-base">GitHub Sync</CardTitle>
+            {syncStatus === 'done' || syncStatus === 'completed' ? (
+              <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-0">
+                {syncSummary ? `${syncSummary.processed} imported` : 'Synced'}
+              </Badge>
+            ) : syncStatus === 'in_progress' || syncStatus === 'pending' ? (
+              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-0 animate-pulse">
+                {syncStatus === 'pending' ? 'Pending…' : 'Importing…'}
+              </Badge>
+            ) : syncStatus === 'failed' ? (
+              <Badge variant="destructive">Failed</Badge>
+            ) : null}
+          </div>
+          <Button
+            size="sm"
+            onClick={handleSyncAll}
+            disabled={syncing}
+            className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 gap-2"
+          >
+            {syncing ? (
+              <><RefreshCw className="h-4 w-4 animate-spin" />Syncing…</>
+            ) : (
+              <><Zap className="h-4 w-4" />Sync All Repos</>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      {(syncStatus === 'in_progress' || syncStatus === 'pending') && (
+        <CardContent className="pt-0">
+          <p className="text-sm text-muted-foreground animate-pulse">
+            Fetching repos and generating AI summaries via Bedrock — this takes ~1–2 min for large accounts.
+          </p>
+        </CardContent>
+      )}
+      {syncStatus === 'done' && syncSummary?.lastRunAt && (
+        <CardContent className="pt-0">
+          <p className="text-xs text-muted-foreground">
+            Last synced {new Date(syncSummary.lastRunAt).toLocaleString()}
+            {syncSummary.failed > 0 && ` · ${syncSummary.failed} failed`}
+          </p>
+        </CardContent>
+      )}
+    </Card>
+  );
+  // ───────────────────────────────────────────────────────────────────────
+
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader>
-              <div className="h-6 bg-muted rounded w-3/4"></div>
-              <div className="h-4 bg-muted rounded w-full mt-2"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <div className="h-5 bg-muted rounded w-16"></div>
-                <div className="h-5 bg-muted rounded w-16"></div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <>
+        {syncBanner}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader>
+                <div className="h-6 bg-muted rounded w-3/4"></div>
+                <div className="h-4 bg-muted rounded w-full mt-2"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <div className="h-5 bg-muted rounded w-16"></div>
+                  <div className="h-5 bg-muted rounded w-16"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </>
     );
   }
 
   if (!projects || projects.length === 0) {
     return (
       <>
+        {syncBanner}
         <Card className="text-center py-12">
           <CardContent>
             <Github className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
             <p className="text-muted-foreground mb-4">
-              Import projects from GitHub or add them manually to get started.
+              Sync your GitHub repos above, or import/add projects below.
             </p>
             <div className="flex gap-2 justify-center">
               <Button variant="outline" className="gap-2" onClick={() => setShowGithubModal(true)}>
                 <Github className="h-4 w-4" />
-                Import from GitHub
+                Import Single Repo
                 {githubReposCount !== undefined && githubReposCount > 0 && (
                   <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
                     {githubReposCount}
@@ -123,6 +242,7 @@ export function ProjectsList() {
 
   return (
     <>
+      {syncBanner}
       <div className="flex justify-end gap-2 mb-4">
         <Button variant="outline" className="gap-2 border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950" onClick={() => setShowGithubModal(true)}>
           <Github className="h-4 w-4" />

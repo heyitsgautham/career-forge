@@ -63,6 +63,7 @@ function DashboardInner() {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubUsername, setGithubUsername] = useState('');
+  const [profileRefreshKey, setProfileRefreshKey] = useState(0);
 
   /* URL-sync: update ?tab= when activeTab changes */
   const switchTab = useCallback(
@@ -274,7 +275,7 @@ function DashboardInner() {
           {activeTab === 'skill-gap' && <SkillGapShell />}
           {activeTab === 'job-scout' && <JobScoutShell />}
           {activeTab === 'apply' && <ApplyTrackShell />}
-          {activeTab === 'profile' && <ProfileView />}
+          {activeTab === 'profile' && <ProfileView externalRefreshKey={profileRefreshKey} />}
         </div>
       </main>
 
@@ -332,9 +333,10 @@ function DashboardInner() {
                         title: 'Resume uploaded!',
                         description: `Extracted ${res.data.fields_updated} profile fields.`,
                       });
-                      // Refresh user
+                      // Refresh user header + trigger ProfileView to re-fetch
                       const profileRes = await userApi.getProfile();
                       setCurrentUser(profileRes.data);
+                      setProfileRefreshKey(k => k + 1);
                       setShowSettings(false);
                     } catch {
                       toast({

@@ -5,20 +5,16 @@ Project management and GitHub ingestion endpoints.
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel, HttpUrl
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 import uuid
 
-from app.core.database import get_db
-from app.core.security import token_encryptor
-from app.models.user import User, GithubConnection
-from app.models.project import Project, GithubRepo, ProjectSourceType
-from app.api.deps import get_current_user
+from app.core.config import settings
+from app.api.deps import get_current_user, get_current_user_dynamo
 from app.services.github_service import github_service
-from app.services.embedding_service import embedding_service
-from app.services.vector_store import vector_store, VectorStoreService
+from app.services.dynamo_service import dynamo_service
+from app.services.bedrock_client import bedrock_client
 
 
 router = APIRouter()
@@ -82,68 +78,60 @@ class GitHubRepoResponse(BaseModel):
     project_id: Optional[str]
 
 
+def _dynamo_to_response(p: dict) -> dict:
+    """Normalise a DynamoDB project item to frontend-expected shape."""
+    return {
+        "id":           p.get("projectId") or p.get("id", ""),
+        "title":        p.get("name") or p.get("title", ""),
+        "description":  p.get("description", ""),
+        "technologies": p.get("technologies") or [],
+        "highlights":   p.get("highlights") or [],
+        "url":          p.get("repoUrl") or p.get("url") or p.get("demo_url"),
+        "demo_url":     p.get("demo_url"),
+        "source_type":  p.get("sourceType", "github"),
+        "is_verified":  True,
+        "is_featured":  p.get("isFeatured", False),
+        "start_date":   p.get("start_date"),
+        "end_date":     p.get("end_date"),
+        "created_at":   p.get("createdAt", ""),
+    }
+
+
 # Routes
-@router.get("", response_model=List[ProjectResponse])
+@router.get("")
 async def list_projects(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    featured_only: bool = False,
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
-    """List all projects for the current user."""
-    query = select(Project).where(Project.user_id == current_user.id)
-    if featured_only:
-        query = query.where(Project.is_featured == True)
-    query = query.order_by(Project.created_at.desc())
-    
-    result = await db.execute(query)
-    projects = result.scalars().all()
-    
-    return [
-        ProjectResponse(
-            id=str(p.id),
-            title=p.title,
-            description=p.description,
-            technologies=p.technologies or [],
-            highlights=p.highlights if isinstance(p.highlights, list) else [],
-            url=p.url,
-            demo_url=p.demo_url,
-            source_type=p.source_type.value,
-            is_verified=p.is_verified,
-            is_featured=p.is_featured,
-            start_date=str(p.start_date) if p.start_date else None,
-            end_date=str(p.end_date) if p.end_date else None,
-        )
-        for p in projects
-    ]
+    """List all projects for the current user from DynamoDB."""
+    items = await dynamo_service.query(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        pk_name="userId",
+        pk_value=current_user["userId"],
+        scan_forward=False,
+    )
+    return [_dynamo_to_response(p) for p in items]
 
 
 @router.get("/user/{user_id}")
 async def list_projects_for_user(
     user_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
-    """
-    List projects for a user from DynamoDB (M1.6+ ingested projects).
-    This is the read path M2 depends on.
-    """
-    from app.services.dynamo_service import dynamo_service
-    from app.core.config import settings as cfg
-    
+    """List projects for a user from DynamoDB (used by M2 resume generator)."""
     items = await dynamo_service.query(
-        table=f"{cfg.DYNAMO_TABLE_PREFIX}Projects",
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
         pk_name="userId",
         pk_value=user_id,
     )
     return items
 
 
-@router.post("", response_model=ProjectResponse)
+@router.post("")
 async def create_project(
     project_data: ProjectCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
-    """Create a new manual project."""
+    """Create a new manual project — stored in DynamoDB."""
     # Auto-generate highlights if not provided or empty
     highlights = project_data.highlights
     if not highlights or len(highlights) == 0:
@@ -241,315 +229,167 @@ Return ONLY the 3 bullet points, one per line, no numbering or bullets."""
     )
 
 
-@router.get("/{project_id}", response_model=ProjectResponse)
+@router.get("/{project_id}")
 async def get_project(
     project_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
-    """Get a specific project."""
-    result = await db.execute(
-        select(Project).where(
-            Project.id == uuid.UUID(project_id),
-            Project.user_id == current_user.id,
-        )
+    """Get a specific project from DynamoDB."""
+    project = await dynamo_service.get_item(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        key={"userId": current_user["userId"], "projectId": project_id},
     )
-    project = result.scalar_one_or_none()
-    
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    return ProjectResponse(
-        id=str(project.id),
-        title=project.title,
-        description=project.description,
-        technologies=project.technologies or [],
-        highlights=project.highlights if isinstance(project.highlights, list) else [],
-        url=project.url,
-        demo_url=project.demo_url,
-        source_type=project.source_type.value,
-        is_verified=project.is_verified,
-        is_featured=project.is_featured,
-        start_date=str(project.start_date) if project.start_date else None,
-        end_date=str(project.end_date) if project.end_date else None,
-    )
+    return _dynamo_to_response(project)
 
 
-@router.patch("/{project_id}", response_model=ProjectResponse)
+@router.patch("/{project_id}")
 async def update_project(
     project_id: str,
     update_data: ProjectUpdate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
-    """Update a project."""
-    result = await db.execute(
-        select(Project).where(
-            Project.id == uuid.UUID(project_id),
-            Project.user_id == current_user.id,
-        )
+    """Update a project in DynamoDB."""
+    # Verify ownership
+    project = await dynamo_service.get_item(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        key={"userId": current_user["userId"], "projectId": project_id},
     )
-    project = result.scalar_one_or_none()
-    
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Update fields
-    for field, value in update_data.model_dump(exclude_unset=True).items():
-        setattr(project, field, value)
-    
-    # Re-generate embedding if content changed
-    if any([update_data.title, update_data.description, update_data.technologies, update_data.highlights]):
-        text = embedding_service.combine_texts_for_embedding(
-            title=project.title,
-            description=project.description,
-            technologies=project.technologies,
-            highlights=project.highlights if isinstance(project.highlights, list) else [],
-        )
-        embedding = await embedding_service.embed_text(text)
-        
-        if project.embedding_id:
-            await vector_store.update_embedding(
-                collection_name=VectorStoreService.COLLECTION_PROJECTS,
-                embedding_id=project.embedding_id,
-                embedding=embedding,
-                metadata={
-                    "user_id": str(current_user.id),
-                    "source_type": project.source_type.value,
-                    "name": project.title,
-                    "technologies": project.technologies,
-                },
-                document=text,
-            )
-    
-    await db.commit()
-    await db.refresh(project)
-    
-    return ProjectResponse(
-        id=str(project.id),
-        title=project.title,
-        description=project.description,
-        technologies=project.technologies or [],
-        highlights=project.highlights if isinstance(project.highlights, list) else [],
-        url=project.url,
-        demo_url=project.demo_url,
-        source_type=project.source_type.value,
-        is_verified=project.is_verified,
-        is_featured=project.is_featured,
-        start_date=str(project.start_date) if project.start_date else None,
-        end_date=str(project.end_date) if project.end_date else None,
+
+    # Map frontend fields to DynamoDB attribute names
+    field_map = {
+        "title":        "name",
+        "description":  "description",
+        "technologies": "technologies",
+        "highlights":   "highlights",
+        "url":          "repoUrl",
+        "demo_url":     "demo_url",
+        "is_featured":  "isFeatured",
+    }
+    updates = {field_map.get(k, k): v for k, v in update_data.model_dump(exclude_unset=True).items()}
+    updates["updatedAt"] = datetime.utcnow().isoformat()
+
+    updated = await dynamo_service.update_item(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        key={"userId": current_user["userId"], "projectId": project_id},
+        updates=updates,
     )
+    # Re-fetch to return full updated item
+    refreshed = await dynamo_service.get_item(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        key={"userId": current_user["userId"], "projectId": project_id},
+    )
+    return _dynamo_to_response(refreshed or project)
 
 
 @router.delete("/{project_id}")
 async def delete_project(
     project_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
-    """Delete a project."""
-    result = await db.execute(
-        select(Project).where(
-            Project.id == uuid.UUID(project_id),
-            Project.user_id == current_user.id,
-        )
+    """Delete a project from DynamoDB."""
+    project = await dynamo_service.get_item(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        key={"userId": current_user["userId"], "projectId": project_id},
     )
-    project = result.scalar_one_or_none()
-    
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Delete embedding
-    if project.embedding_id:
-        await vector_store.delete_embedding(
-            VectorStoreService.COLLECTION_PROJECTS,
-            project.embedding_id,
-        )
-    
-    await db.delete(project)
-    await db.commit()
-    
+
+    await dynamo_service.delete_item(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        key={"userId": current_user["userId"], "projectId": project_id},
+    )
     return {"message": "Project deleted"}
 
 
 @router.post("/ingest/github")
 async def ingest_github_repos(
     request: GitHubIngestRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
-    """Ingest GitHub repositories as projects."""
-    # Get user's GitHub connection
-    result = await db.execute(
-        select(GithubConnection).where(
-            GithubConnection.user_id == current_user.id,
-            GithubConnection.is_primary == True,
-        )
-    )
-    github_conn = result.scalar_one_or_none()
-    
-    if not github_conn:
+    """
+    Ingest specific GitHub repos (or all) via the M1.6 pipeline.
+    Stores structured summaries in S3 + DynamoDB Projects table.
+    """
+    github_token = current_user.get("githubToken")
+    installation_id = current_user.get("githubInstallationId")
+    user_id = current_user["userId"]
+
+    if not github_token:
         raise HTTPException(
             status_code=400,
             detail="No GitHub account connected. Please connect your GitHub account first.",
         )
-    
+
     ingested = []
-    
+
     if request.sync_all:
-        # Fetch all repos
-        repos = await github_service.fetch_user_repos(
-            encrypted_token=github_conn.encrypted_token,
+        repos_meta = await github_service.fetch_user_repos_fast(
+            encrypted_token=github_token,
+            installation_id=installation_id,
             include_forks=request.include_forks,
-            include_private=request.include_private,
         )
     elif request.repo_urls:
-        # Fetch specific repos
-        repos = []
+        # Derive full_names from URLs, e.g. github.com/owner/repo
+        repos_meta = []
         for url in request.repo_urls:
-            try:
-                repo = await github_service.fetch_repo_by_url(
-                    url,
-                    github_conn.encrypted_token,
-                )
-                repos.append(repo)
-            except Exception as e:
-                ingested.append({"url": url, "error": str(e)})
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Either sync_all=true or repo_urls must be provided",
-        )
-    
-    # Process each repo
-    for repo_data in repos:
-        # Check if already ingested
-        result = await db.execute(
-            select(GithubRepo).where(GithubRepo.github_id == repo_data["github_id"])
-        )
-        existing_repo = result.scalar_one_or_none()
-        
-        if existing_repo and existing_repo.project_id:
-            # Check if project actually exists
-            project_result = await db.execute(
-                select(Project).where(Project.id == existing_repo.project_id)
-            )
-            existing_project = project_result.scalar_one_or_none()
-            
-            if existing_project:
-                ingested.append({
-                    "full_name": repo_data["full_name"],
-                    "status": "skipped",
-                    "reason": "already ingested",
-                })
-                continue
+            import re
+            m = re.search(r"github\.com/([^/]+/[^/]+)", url)
+            if m:
+                repos_meta.append({"full_name": m.group(1).rstrip(".git"), "name": m.group(1).split("/")[-1].rstrip(".git")})
             else:
-                # Orphaned repo entry - delete it and re-import
-                await db.delete(existing_repo)
-                await db.flush()
-        
+                ingested.append({"url": url, "error": "Invalid GitHub URL"})
+    else:
+        raise HTTPException(status_code=400, detail="Either sync_all=true or repo_urls must be provided")
+
+    for repo_meta in repos_meta:
         try:
-            # Fetch detailed info
             detailed = await github_service.fetch_repo_details(
-                repo_data["full_name"],
-                github_conn.encrypted_token,
+                full_name=repo_meta["full_name"],
+                encrypted_token=github_token,
             )
-            
-            # Create project data
             project_data = await github_service.create_project_from_repo(detailed)
-            
-            # Create project record
-            project = Project(
-                user_id=current_user.id,
-                source_type=ProjectSourceType.GITHUB,
-                source_id=str(detailed["github_id"]),
-                title=project_data["title"],
-                description=project_data["description"],
-                technologies=project_data["technologies"],
-                highlights=project_data["highlights"],
-                url=project_data["url"],
-                raw_content=project_data["raw_content"],
-                is_verified=True,
+            project_id = str(uuid.uuid4())
+            await github_service.ingest_and_embed_repo(
+                repo_data=detailed,
+                project_data=project_data,
+                user_id=user_id,
+                project_id=project_id,
             )
-            db.add(project)
-            await db.flush()
-            
-            # Create GitHub repo record
-            github_repo = GithubRepo(
-                github_connection_id=github_conn.id,
-                project_id=project.id,
-                github_id=detailed["github_id"],
-                full_name=detailed["full_name"],
-                name=detailed["name"],
-                description=detailed.get("description"),
-                readme_content=detailed.get("readme_content"),
-                languages=detailed.get("languages", {}),
-                topics=detailed.get("topics", []),
-                stars=detailed.get("stars", 0),
-                forks=detailed.get("forks", 0),
-                watchers=detailed.get("watchers", 0),
-                open_issues=detailed.get("open_issues", 0),
-                commits_count=detailed.get("commits_count", 0),
-                is_fork=detailed.get("is_fork", False),
-                is_private=detailed.get("is_private", False),
-                is_archived=detailed.get("is_archived", False),
-                extracted_tech=detailed.get("extracted_tech", []),
-            )
-            db.add(github_repo)
-            
-            # Generate and store embedding
-            embedding_id = await github_service.ingest_and_embed_repo(
-                detailed,
-                str(current_user.id),
-            )
-            project.embedding_id = embedding_id
-            
-            ingested.append({
-                "full_name": detailed["full_name"],
-                "status": "success",
-                "project_id": str(project.id),
-            })
-            
+            ingested.append({"full_name": repo_meta["full_name"], "status": "success", "project_id": project_id})
         except Exception as e:
-            ingested.append({
-                "full_name": repo_data["full_name"],
-                "status": "error",
-                "error": str(e),
-            })
-    
-    await db.commit()
-    
-    return {
-        "message": f"Processed {len(repos)} repositories",
-        "results": ingested,
-    }
+            ingested.append({"full_name": repo_meta["full_name"], "status": "error", "error": str(e)})
+
+    return {"message": f"Processed {len(repos_meta)} repositories", "results": ingested}
 
 
-@router.get("/github/repos", response_model=List[GitHubRepoResponse])
+@router.get("/github/repos")
 async def list_github_repos(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
-    """List all ingested GitHub repositories."""
-    result = await db.execute(
-        select(GithubRepo).join(GithubConnection).where(
-            GithubConnection.user_id == current_user.id
-        )
+    """List all ingested GitHub repos (sourced from DynamoDB Projects table)."""
+    items = await dynamo_service.query(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        pk_name="userId",
+        pk_value=current_user["userId"],
     )
-    repos = result.scalars().all()
-    
+    # Return only github-sourced items in the legacy GitHubRepoResponse shape
     return [
-        GitHubRepoResponse(
-            id=str(r.id),
-            full_name=r.full_name,
-            name=r.name,
-            description=r.description,
-            stars=r.stars,
-            languages=r.languages or {},
-            topics=r.topics or [],
-            project_id=str(r.project_id) if r.project_id else None,
-        )
-        for r in repos
+        {
+            "id":         p.get("projectId", ""),
+            "full_name":  p.get("name", ""),
+            "name":       p.get("name", ""),
+            "description": p.get("description"),
+            "stars":      p.get("stars", 0),
+            "languages":  p.get("languages", {}),
+            "topics":     p.get("topics", []),
+            "project_id": p.get("projectId"),
+        }
+        for p in items
+        if p.get("sourceType") == "github"
     ]
 
 
@@ -568,46 +408,38 @@ class GitHubUserRepo(BaseModel):
 
 @router.get("/github/user-repos", response_model=List[GitHubUserRepo])
 async def list_github_user_repos(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user_dynamo),
 ):
     """
     List ALL repositories from the user's GitHub account.
-    This fetches directly from GitHub API, not from our database.
-    Automatically handles pagination to get all repos.
+    Uses DynamoDB-stored token (GitHub App flow from M1.6).
     """
-    # Get user's GitHub connection
-    result = await db.execute(
-        select(GithubConnection).where(
-            GithubConnection.user_id == current_user.id,
-            GithubConnection.is_primary == True,
-        )
-    )
-    github_conn = result.scalar_one_or_none()
-    
-    if not github_conn:
+    github_token = current_user.get("githubToken")
+    installation_id = current_user.get("githubInstallationId")
+
+    if not github_token:
         raise HTTPException(
             status_code=400,
             detail="No GitHub account connected. Please connect your GitHub account first.",
         )
-    
-    # Fetch ALL repos from GitHub (handles pagination internally)
+
+    # Fetch repos via installation token (or OAuth fallback)
     repos = await github_service.fetch_user_repos_fast(
-        encrypted_token=github_conn.encrypted_token,
+        encrypted_token=github_token,
+        installation_id=installation_id,
         include_forks=True,
-        include_private=True,
     )
-    
+
     # Convert to response format
     return [
         GitHubUserRepo(
             full_name=repo["full_name"],
             name=repo["name"],
             description=repo.get("description"),
-            html_url=repo["url"],
-            stars=repo["stars"],
-            forks=repo["forks"],
-            language=repo.get("language"),  # Direct from GitHub API
+            html_url=repo.get("url", repo.get("html_url", "")),
+            stars=repo.get("stars", 0),
+            forks=repo.get("forks", 0),
+            language=repo.get("language"),
             is_private=repo.get("is_private", False),
             is_fork=repo.get("is_fork", False),
         )
