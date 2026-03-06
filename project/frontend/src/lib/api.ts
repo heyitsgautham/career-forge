@@ -80,13 +80,28 @@ export interface Job {
   jobId: string;
   title: string;
   company: string;
-  matchScore: number;
+  matchScore: number | null;
   url: string;
   location?: string;
-  skills?: string[];
+  source?: string;
+  datePosted?: string;
+  salary?: string;
+  jobType?: string;
+  category?: string;
+  requiredSkills?: string[];
+  preferredSkills?: string[];
   missingSkills?: string[];
+  experienceLevel?: string;
+  atsKeywords?: string[];
+  matchBreakdown?: {
+    vectorScore?: number;
+    keywordScore?: number;
+    matchedSkills?: string[];
+    explanation?: string;
+  };
+  isAnalyzed?: boolean;
   description?: string;
-  postedAt?: string;
+  postedAt?: string; // alias for datePosted
 }
 
 export interface Application {
@@ -388,14 +403,43 @@ export const roadmapApi = {
     Promise.resolve({ data: undefined }),
 };
 
-// ─── Job Matching API (Stubs — real in M4) ────────────────────────────────────
+// ─── Job Matching API (M4 — Job Scout) ───────────────────────────────────────
 
 export const jobMatchApi = {
-  list: (_userId: string): Promise<{ data: Job[] }> =>
-    Promise.resolve({ data: [] }),
+  /** List all scraped jobs sorted by match score */
+  list: () => api.get<Job[]>('/api/jobs/matches'),
 
-  scan: (_userId: string): Promise<{ data: Job[] }> =>
-    Promise.resolve({ data: [] }),
+  /** List with filters */
+  listFiltered: (params: {
+    role?: string;
+    minMatch?: number;
+    sortBy?: string;
+    limit?: number;
+  }) =>
+    api.get<Job[]>('/api/jobs/matches', { params: { ...params } }),
+
+  /** Trigger a new scrape + analysis + scoring */
+  scan: (data?: {
+    search_term?: string;
+    location?: string;
+    results_wanted?: number;
+  }) => api.post<Job[]>('/api/jobs/scrape', data || { search_term: 'Software Developer' }),
+
+  /** Get full detail for one job */
+  get: (jobId: string) => api.get<Job>(`/api/jobs/scout/${jobId}`),
+
+  /** Get summary stats */
+  stats: () =>
+    api.get<{
+      totalJobs: number;
+      analyzedJobs: number;
+      averageMatch: number | null;
+      topCategories: Array<{ category: string; count: number }>;
+      matchDistribution: Record<string, number>;
+    }>('/api/jobs/stats'),
+
+  /** Delete a scraped job */
+  delete: (jobId: string) => api.delete(`/api/jobs/scout/${jobId}`),
 };
 
 // ─── Applications API (Stubs — real in M5) ────────────────────────────────────
