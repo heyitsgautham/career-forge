@@ -24,9 +24,9 @@ _CACHE_RULES: list[tuple[str, str]] = [
     ("/api/auth/github/status", "private, max-age=600"),
     # Resumes — moderate churn
     ("/api/resumes", "private, max-age=60, stale-while-revalidate=120"),
-    # Projects & GitHub
-    ("/api/projects", "private, max-age=120, stale-while-revalidate=300"),
-    ("/api/github", "private, max-age=120, stale-while-revalidate=300"),
+    # Projects & GitHub — no-cache so mutations (delete, import) always get fresh data
+    ("/api/projects", "private, no-cache"),
+    ("/api/github", "private, no-cache"),
     # Jobs
     ("/api/jobs", "private, max-age=120, stale-while-revalidate=300"),
 ]
