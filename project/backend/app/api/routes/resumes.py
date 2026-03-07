@@ -797,6 +797,33 @@ async def download_pdf(
         )
     )
     resume = result.scalar_one_or_none()
+
+
+@router.get("/{resume_id}/pdf-url")
+async def get_pdf_url(
+    resume_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Return presigned S3 URL as JSON for iframe preview (avoids redirect + auth header issues)."""
+    if not settings.USE_DYNAMO:
+        raise HTTPException(status_code=501, detail="Only available with DynamoDB backend")
+
+    from app.services.dynamo_service import dynamo_service
+    from app.services.s3_service import s3_service
+
+    item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+    if not item:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    pdf_key = item.get("pdfS3Key")
+    if not pdf_key:
+        raise HTTPException(status_code=400, detail="PDF not available. Compile first.")
+
+    if pdf_key.startswith("/"):
+        raise HTTPException(status_code=400, detail="Local file preview not supported via URL")
+
+    url = await s3_service.get_presigned_url(pdf_key)
+    return {"url": url}
     
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
