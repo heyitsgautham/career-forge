@@ -663,5 +663,83 @@ export const applicationsApi = {
     api.get<ApplicationStats>(`/api/applications/stats/${userId}`),
 };
 
+// ─── Project Roadmap API ──────────────────────────────────────────────────────
+
+export interface ProjectSuggestion {
+  id: number;
+  title: string;
+  difficulty: 'medium' | 'hard';
+  description: string;
+  techStack: string[];
+  keySkills: string[];
+  estimatedHours: number;
+}
+
+export interface SuggestResponse {
+  domain: string;
+  projects: ProjectSuggestion[];
+}
+
+export interface RoadmapDay {
+  day: number;
+  title: string;
+  description: string;
+  tasks: string[];
+  techDetails: string;
+  architecture: string;
+  resources: Array<{ title: string; url: string }>;
+  estimatedHours: number;
+  completedAt?: string | null;
+}
+
+export interface ProjectRoadmap {
+  projectRoadmapId: string;
+  userId?: string;
+  domain: string;
+  projectTitle: string;
+  projectDescription: string;
+  techStack: string[];
+  totalHours: number;
+  days: RoadmapDay[];
+  completedDays: number;
+  totalDays: number;
+  unlockedAll?: boolean;
+  createdAt: string;
+}
+
+export const projectRoadmapApi = {
+  /** Step 1: Suggest 3 project ideas */
+  suggest: (domain: string) =>
+    api.post<SuggestResponse>('/api/project-roadmap/suggest', { domain }),
+
+  /** Step 2: Generate 7-day plan for chosen project */
+  plan: (data: {
+    domain: string;
+    projectTitle: string;
+    projectDescription: string;
+    techStack: string[];
+  }) => api.post<ProjectRoadmap>('/api/project-roadmap/plan', data),
+
+  /** List all project roadmaps for current user */
+  list: () =>
+    api.get<{ roadmaps: ProjectRoadmap[] }>('/api/project-roadmap/list'),
+
+  /** Fetch a specific roadmap */
+  get: (roadmapId: string) =>
+    api.get<ProjectRoadmap>(`/api/project-roadmap/${roadmapId}`),
+
+  /** Mark a day as complete */
+  markDayComplete: (roadmapId: string, dayNumber: number) =>
+    api.patch<ProjectRoadmap>(`/api/project-roadmap/${roadmapId}/day/${dayNumber}/complete`),
+
+  /** Unlock all days */
+  unlockAll: (roadmapId: string) =>
+    api.patch<ProjectRoadmap>(`/api/project-roadmap/${roadmapId}/unlock-all`),
+
+  /** Delete a roadmap */
+  delete: (roadmapId: string) =>
+    api.delete<{ deleted: boolean }>(`/api/project-roadmap/${roadmapId}`),
+};
+
 export { api };
 export default api;
