@@ -262,13 +262,9 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 @router.get("/github/authorize")
 async def github_authorize():
-    """Get GitHub App installation URL (handles both repo selection and OAuth identity)."""
-    # Prefer GitHub App install URL (shows repo-selection screen)
-    if settings.GITHUB_APP_SLUG:
-        install_url = f"https://github.com/apps/{settings.GITHUB_APP_SLUG}/installations/new"
-        return {"authorization_url": install_url}
-    
-    # Fallback to legacy OAuth App
+    """Get GitHub OAuth authorization URL for login."""
+    # Always use standard OAuth flow for login.
+    # GitHub App installation (repo selection) happens post-login via a separate endpoint.
     client_id = settings.GITHUB_APP_CLIENT_ID or settings.GITHUB_CLIENT_ID
     if not client_id:
         raise HTTPException(
@@ -279,7 +275,7 @@ async def github_authorize():
     params = {
         "client_id": client_id,
         "redirect_uri": settings.GITHUB_CALLBACK_URL,
-        "scope": "read:user user:email",
+        "scope": "read:user user:email repo",
         "state": "random_state_string",
     }
     
