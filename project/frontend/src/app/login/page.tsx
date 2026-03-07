@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Github, Loader2, ChevronDown, Zap } from 'lucide-react';
+import { Github, Loader2, ChevronDown } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -100,9 +100,7 @@ export default function LoginPage() {
             href="/"
             className="group inline-flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25 text-primary-foreground transition-all duration-300 group-hover:shadow-xl group-hover:shadow-primary/30 group-hover:scale-105">
-              <Zap className="h-5 w-5" aria-hidden="true" />
-            </span>
+            <img src="/logo.svg" alt="CareerForge logo" className="h-12 w-12 rounded-full bg-white p-0.5 object-contain shadow-lg shadow-primary/25 transition-all duration-300 group-hover:shadow-xl group-hover:shadow-primary/30 group-hover:scale-105" />
             <span className="font-bold text-xl tracking-tight">CareerForge</span>
           </Link>
           <p className="mt-2 text-sm text-muted-foreground">

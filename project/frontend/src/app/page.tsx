@@ -7,7 +7,6 @@ import {
   BookOpen,
   Briefcase,
   ArrowRight,
-  Sparkles,
   Shield,
   Zap,
   CheckCircle,
@@ -37,11 +36,9 @@ export default function HomePage() {
       {/* Header */}
       <header className="relative z-10 border-b border-border/40 bg-card/70 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
-              <Sparkles className="h-4.5 w-4.5 text-primary-foreground" aria-hidden="true" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">CareerForge</span>
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="CareerForge logo" className="h-11 w-11 rounded-full bg-white p-0.5 object-contain shadow-lg shadow-primary/25" />
+            <span className="font-bold text-xl tracking-tight">CareerForge</span>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login">
