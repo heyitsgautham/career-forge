@@ -161,6 +161,8 @@ def _resume_from_dynamo(r: dict) -> dict:
         "name": r.get("name", ""),
         "template_id": r.get("templateId"),
         "job_description_id": r.get("jobDescriptionId"),
+        "job_id": r.get("jobId"),
+        "type": r.get("type", "standard"),
         "selected_project_ids": r.get("selectedProjectIds") or [],
         "status": r.get("status", "draft"),
         "latex_content": r.get("latexContent"),
@@ -194,6 +196,8 @@ class ResumeResponse(BaseModel):
     name: str
     template_id: Optional[str] = None
     job_description_id: Optional[str] = None
+    job_id: Optional[str] = None
+    type: Optional[str] = None
     selected_project_ids: List[str] = []
     status: str
     latex_content: Optional[str] = None

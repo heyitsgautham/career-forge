@@ -21,6 +21,8 @@ interface Resume {
   name: string;
   template_id?: string;
   job_description_id?: string;
+  job_id?: string;
+  type?: string;
   status: 'draft' | 'generating' | 'generated' | 'compiling' | 'compiled' | 'error';
   pdf_path?: string;
   latex_content?: string;
