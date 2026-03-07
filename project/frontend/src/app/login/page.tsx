@@ -88,7 +88,6 @@ export default function LoginPage() {
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-background">
       {/* Ambient background */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 hero-mesh" />
         <div className="absolute left-1/2 top-1/4 -translate-x-1/2 h-[500px] w-[700px] rounded-full bg-primary/6 blur-[140px] animate-blob" />
         <div className="absolute right-0 bottom-0 h-[350px] w-[350px] rounded-full bg-[hsl(var(--accent))]/5 blur-[120px] animate-blob animation-delay-2000" />
         <div className="absolute left-0 top-0 h-[300px] w-[300px] rounded-full bg-[hsl(var(--success))]/4 blur-[100px] animate-blob animation-delay-4000" />
@@ -101,7 +100,7 @@ export default function LoginPage() {
             href="/"
             className="group inline-flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25 text-primary-foreground transition-all duration-300 group-hover:shadow-xl group-hover:shadow-primary/30 group-hover:scale-105">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/25 text-primary-foreground transition-all duration-300 group-hover:shadow-xl group-hover:shadow-primary/30 group-hover:scale-105">
               <Zap className="h-5 w-5" aria-hidden="true" />
             </span>
             <span className="font-bold text-xl tracking-tight">CareerForge</span>
