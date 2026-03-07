@@ -212,6 +212,83 @@ class BedrockClient:
 
         return json.loads(cleaned)
 
+    async def stream_generate(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+    ):
+        """
+        Stream text generation using the Bedrock ConverseStream API.
+
+        Yields text chunks as they arrive. Uses asyncio.to_thread to run
+        the synchronous Bedrock streaming call without blocking the event loop.
+
+        Args:
+            prompt: The user prompt
+            system_prompt: Optional system instruction
+            max_tokens: Override default max tokens
+            temperature: Override default temperature
+
+        Yields:
+            str: Text chunks as they stream from Bedrock
+        """
+        import queue
+        import threading
+
+        client = self._get_client()
+
+        kwargs: Dict[str, Any] = {
+            "modelId": settings.BEDROCK_MODEL_ID,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [{"text": prompt}],
+                }
+            ],
+            "inferenceConfig": {
+                "maxTokens": max_tokens or settings.BEDROCK_MAX_TOKENS,
+                "temperature": temperature if temperature is not None else settings.BEDROCK_TEMPERATURE,
+            },
+        }
+
+        if system_prompt:
+            kwargs["system"] = [{"text": system_prompt}]
+
+        chunk_queue: queue.Queue = queue.Queue()
+        _SENTINEL = object()
+
+        def _stream_worker():
+            try:
+                response = client.converse_stream(**kwargs)
+                stream = response.get("stream")
+                if stream:
+                    for event in stream:
+                        if "contentBlockDelta" in event:
+                            delta = event["contentBlockDelta"].get("delta", {})
+                            text = delta.get("text", "")
+                            if text:
+                                chunk_queue.put(text)
+                chunk_queue.put(_SENTINEL)
+            except Exception as e:
+                chunk_queue.put(e)
+                chunk_queue.put(_SENTINEL)
+
+        thread = threading.Thread(target=_stream_worker, daemon=True)
+        thread.start()
+
+        while True:
+            try:
+                item = await asyncio.to_thread(chunk_queue.get, timeout=60)
+            except Exception:
+                break
+            if item is _SENTINEL:
+                break
+            if isinstance(item, Exception):
+                raise item
+            yield item
+
     # ------------------------------------------------------------------
     # Embeddings (Titan uses invoke_model, not Converse)
     # ------------------------------------------------------------------

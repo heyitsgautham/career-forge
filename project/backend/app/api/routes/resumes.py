@@ -215,6 +215,33 @@ class CompilationResponse(BaseModel):
     warnings: List[str]
 
 
+class LatexUpdateRequest(BaseModel):
+    """Body for PUT /api/resumes/{id}/latex"""
+    latex_content: str
+
+
+class LatexUpdateResponse(BaseModel):
+    id: str
+    updated_at: str
+
+
+class CompileOnDemandRequest(BaseModel):
+    """Optional body for POST /api/resumes/{id}/compile"""
+    latex_content: Optional[str] = None
+
+
+class CompileOnDemandResponse(BaseModel):
+    pdf_url: Optional[str]
+    status: str  # "compiled" | "error"
+    error_message: Optional[str] = None
+
+
+class AiEditRequest(BaseModel):
+    """Body for POST /api/resumes/{id}/ai-edit"""
+    message: str
+    latex_content: str
+
+
 # Routes
 @router.get("", response_model=List[ResumeResponse])
 async def list_resumes(
@@ -621,38 +648,50 @@ async def generate_resume(
     )
 
 
-@router.post("/{resume_id}/compile", response_model=CompilationResponse)
+@router.post("/{resume_id}/compile", response_model=CompileOnDemandResponse)
 async def compile_resume(
     resume_id: str,
+    body: Optional[CompileOnDemandRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Compile resume LaTeX to PDF."""
+    """Compile resume LaTeX to PDF. Optional body allows overriding latex_content."""
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
+        from app.services.s3_service import s3_service
         item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
         if not item:
             raise HTTPException(status_code=404, detail="Resume not found")
-        if not item.get("latexContent"):
+        latex_to_compile = (body.latex_content if body and body.latex_content else None) or item.get("latexContent")
+        if not latex_to_compile:
             raise HTTPException(status_code=400, detail="No LaTeX content to compile. Generate first.")
         await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "compiling", "updatedAt": dynamo_service.now_iso()})
         try:
-            is_safe, issues = latex_service.validate_latex_safety(item["latexContent"])
+            is_safe, issues = latex_service.validate_latex_safety(latex_to_compile)
             if not is_safe:
                 raise HTTPException(status_code=400, detail=f"Unsafe LaTeX: {', '.join(issues)}")
+            output_filename = f"resume_{resume_id[:8]}"
             try:
-                compilation_result = await latex_service.compile_latex(latex_content=item["latexContent"], output_filename=f"resume_{resume_id[:8]}", use_docker=False)
+                compilation_result = await latex_service.compile_latex(latex_content=latex_to_compile, output_filename=output_filename, use_docker=False)
             except FileNotFoundError:
                 await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "generated", "updatedAt": dynamo_service.now_iso()})
-                return CompilationResponse(success=False, pdf_url=None, errors=[{"line": 0, "message": "LaTeX compiler not available.", "suggestion": "Use Overleaf or install TeX Live."}], warnings=["No compiler available"])
+                return CompileOnDemandResponse(status="error", pdf_url=None, error_message="LaTeX compiler not available. Install TeX Live or use Overleaf.")
             except Exception as e:
                 await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "error", "errorMessage": str(e), "updatedAt": dynamo_service.now_iso()})
-                return CompilationResponse(success=False, pdf_url=None, errors=[{"line": 0, "message": str(e), "suggestion": "Check LaTeX syntax"}], warnings=[])
+                return CompileOnDemandResponse(status="error", pdf_url=None, error_message=str(e))
             if compilation_result.success:
-                await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "compiled", "pdfS3Key": compilation_result.pdf_path, "updatedAt": dynamo_service.now_iso()})
+                # latex_service uploads to "compiled/{output_filename}.pdf" — use that same key
+                pdf_s3_key = f"compiled/{output_filename}.pdf"
+                await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "compiled", "pdfS3Key": pdf_s3_key, "updatedAt": dynamo_service.now_iso()})
+                try:
+                    presigned_url = await s3_service.get_presigned_url(pdf_s3_key)
+                except Exception:
+                    presigned_url = None
+                return CompileOnDemandResponse(status="compiled", pdf_url=presigned_url, error_message=None)
             else:
-                await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "error", "errorMessage": "; ".join(e.message for e in compilation_result.errors), "updatedAt": dynamo_service.now_iso()})
-            return CompilationResponse(success=compilation_result.success, pdf_url=f"/uploads/pdfs/{resume_id[:8]}.pdf" if compilation_result.success else None, errors=[{"line": e.line, "message": e.message, "suggestion": e.suggestion} for e in compilation_result.errors], warnings=compilation_result.warnings)
+                error_msg = "; ".join(e.message for e in compilation_result.errors)
+                await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, {"status": "error", "errorMessage": error_msg, "updatedAt": dynamo_service.now_iso()})
+                return CompileOnDemandResponse(status="error", pdf_url=None, error_message=error_msg)
         except HTTPException:
             raise
         except Exception as e:
@@ -670,8 +709,11 @@ async def compile_resume(
     
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
+
+    # Allow overriding latex content from request body
+    latex_to_compile = (body.latex_content if body and body.latex_content else None) or resume.latex_content
     
-    if not resume.latex_content:
+    if not latex_to_compile:
         raise HTTPException(status_code=400, detail="No LaTeX content to compile. Generate first.")
     
     resume.status = ResumeStatus.COMPILING
@@ -679,50 +721,34 @@ async def compile_resume(
     
     try:
         # Validate LaTeX safety
-        is_safe, issues = latex_service.validate_latex_safety(resume.latex_content)
+        is_safe, issues = latex_service.validate_latex_safety(latex_to_compile)
         if not is_safe:
             raise HTTPException(
                 status_code=400,
                 detail=f"LaTeX content contains unsafe commands: {', '.join(issues)}"
             )
         
-        # Try to compile (will use online service if Docker/pdflatex unavailable)
+        output_filename = f"resume_{resume.id.hex[:8]}"
         try:
             compilation_result = await latex_service.compile_latex(
-                latex_content=resume.latex_content,
-                output_filename=f"resume_{resume.id.hex[:8]}",
-                use_docker=False,  # Force local compilation which will fallback to online
+                latex_content=latex_to_compile,
+                output_filename=output_filename,
+                use_docker=False,
             )
         except FileNotFoundError:
-            # No LaTeX compiler available
             resume.status = ResumeStatus.GENERATED
             await db.commit()
-            return CompilationResponse(
-                success=False,
+            return CompileOnDemandResponse(
+                status="error",
                 pdf_url=None,
-                errors=[{
-                    "line": 0,
-                    "message": "LaTeX compiler not available. Install TeX Live or use Docker to compile PDFs.",
-                    "suggestion": "You can copy the LaTeX code and compile it using Overleaf or a local TeX installation."
-                }],
-                warnings=["PDF compilation skipped - no compiler available"],
+                error_message="LaTeX compiler not available. Install TeX Live or use Overleaf.",
             )
         except Exception as e:
-            # Handle any other compilation errors
             logger.error(f"LaTeX compilation error: {e}")
             resume.status = ResumeStatus.ERROR
             resume.error_message = str(e)
             await db.commit()
-            return CompilationResponse(
-                success=False,
-                pdf_url=None,
-                errors=[{
-                    "line": 0,
-                    "message": f"Compilation error: {str(e)}",
-                    "suggestion": "Check the LaTeX syntax or try compiling manually"
-                }],
-                warnings=[],
-            )
+            return CompileOnDemandResponse(status="error", pdf_url=None, error_message=str(e))
         
         if compilation_result.success:
             resume.pdf_path = compilation_result.pdf_path
@@ -731,30 +757,24 @@ async def compile_resume(
             resume.compilation_log = compilation_result.log
             resume.compilation_warnings = compilation_result.warnings
             resume.error_message = None
-        else:
-            resume.status = ResumeStatus.ERROR
-            resume.error_message = "; ".join(
-                e.message for e in compilation_result.errors
+            await db.commit()
+            return CompileOnDemandResponse(
+                status="compiled",
+                pdf_url=f"/uploads/pdfs/{output_filename}.pdf",
+                error_message=None,
             )
+        else:
+            error_msg = "; ".join(e.message for e in compilation_result.errors)
+            resume.status = ResumeStatus.ERROR
+            resume.error_message = error_msg
             resume.compilation_log = compilation_result.log
-        
-        await db.commit()
-        
-        return CompilationResponse(
-            success=compilation_result.success,
-            pdf_url=f"/uploads/pdfs/{resume.id.hex[:8]}.pdf" if compilation_result.success else None,
-            errors=[
-                {"line": e.line, "message": e.message, "suggestion": e.suggestion}
-                for e in compilation_result.errors
-            ],
-            warnings=compilation_result.warnings,
-        )
+            await db.commit()
+            return CompileOnDemandResponse(status="error", pdf_url=None, error_message=error_msg)
         
     except Exception as e:
         import traceback
-        error_traceback = traceback.format_exc()
         logger.error(f"Resume compilation failed: {str(e)}")
-        logger.error(f"Traceback: {error_traceback}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         resume.status = ResumeStatus.ERROR
         resume.error_message = str(e)
         await db.commit()
@@ -934,6 +954,194 @@ async def update_latex(
     await db.commit()
     
     return {"message": "LaTeX updated"}
+
+
+@router.put("/{resume_id}/latex", response_model=LatexUpdateResponse)
+async def save_latex(
+    resume_id: str,
+    body: LatexUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    M2.5 — Save updated LaTeX content.
+    Also syncs to S3 if a tex_s3_key exists.
+    """
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+
+        now = dynamo_service.now_iso()
+        updates: dict = {"latexContent": body.latex_content, "status": "generated", "updatedAt": now}
+
+        # Sync updated .tex to S3 if we have an existing key
+        tex_key = item.get("texS3Key")
+        if tex_key and not tex_key.startswith("/"):
+            try:
+                from app.services.s3_service import s3_service
+                await s3_service.upload_file(
+                    key=tex_key,
+                    data=body.latex_content.encode("utf-8"),
+                    content_type="text/plain; charset=utf-8",
+                )
+            except Exception as e:
+                logger.warning("s3_tex_update_failed", error=str(e))
+
+        await dynamo_service.update_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id}, updates)
+        return LatexUpdateResponse(id=resume_id, updated_at=now)
+
+    result = await db.execute(
+        select(Resume).where(
+            Resume.id == uuid.UUID(resume_id),
+            Resume.user_id == current_user.id,
+        )
+    )
+    resume = result.scalar_one_or_none()
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    resume.latex_content = body.latex_content
+    resume.status = ResumeStatus.GENERATED
+    resume.pdf_path = None  # Invalidate old PDF
+    resume.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(resume)
+    return LatexUpdateResponse(id=str(resume.id), updated_at=resume.updated_at.isoformat())
+
+
+@router.post("/{resume_id}/ai-edit")
+async def ai_edit_resume(
+    resume_id: str,
+    body: AiEditRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    M2.5 — SSE streaming AI edit.
+    Streams Claude's conversational response as 'delta' events; emits a final
+    'latex' event with the full updated .tex extracted from a <latex>...</latex> block.
+    """
+    import asyncio
+    from fastapi.responses import StreamingResponse
+    from app.services.bedrock_client import bedrock_client
+
+    # Verify ownership
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        item = await dynamo_service.get_item("Resumes", {"userId": str(current_user.id), "resumeId": resume_id})
+        if not item:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        resume_name = item.get("name", "resume")
+    else:
+        result = await db.execute(
+            select(Resume).where(
+                Resume.id == uuid.UUID(resume_id),
+                Resume.user_id == current_user.id,
+            )
+        )
+        resume_obj = result.scalar_one_or_none()
+        if not resume_obj:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        resume_name = resume_obj.name
+
+    system_prompt = f"""You are an expert LaTeX resume editor assistant.
+The user is editing their resume named "{resume_name}".
+
+You will receive:
+1. The current full LaTeX source of the resume
+2. A natural language instruction from the user
+
+Your task:
+1. Respond conversationally (2-3 sentences) explaining what change you made and why.
+2. After your explanation, output the complete modified LaTeX wrapped in <latex> and </latex> tags.
+   The user will apply this with one click.
+
+Rules:
+- ALWAYS include the full updated LaTeX in <latex>...</latex> tags, even for small changes.
+- Keep all existing sections unless explicitly told to remove them.
+- Preserve all LaTeX packages and preamble unless there's a good reason to change them.
+- Your conversational explanation must come BEFORE the <latex> block.
+- Do not include any text after the closing </latex> tag.
+"""
+
+    user_message = f"""Current LaTeX source:
+```latex
+{body.latex_content}
+```
+
+User instruction: {body.message}"""
+
+    async def event_stream():
+        import json as _json
+        import re as _re
+
+        full_response = ""
+        emitted_up_to = 0   # char index up to which we have already sent deltas
+        latex_started = False
+        # "<latex>" is 7 chars — hold back that many chars from the end of the
+        # buffer so a partial opening tag never leaks to the client.
+        LATEX_TAG_LEN = len("<latex>")
+
+        try:
+            async for chunk in bedrock_client.stream_generate(
+                prompt=user_message,
+                system_prompt=system_prompt,
+                max_tokens=8192,
+            ):
+                full_response += chunk
+
+                if latex_started:
+                    # Past the <latex> marker — collect silently for extraction
+                    pass
+                else:
+                    latex_pos = full_response.find("<latex>")
+                    if latex_pos != -1:
+                        # Emit everything before the tag that we haven't sent yet
+                        latex_started = True
+                        safe_text = full_response[emitted_up_to:latex_pos]
+                        if safe_text:
+                            yield f"event: delta\ndata: {_json.dumps({'text': safe_text})}\n\n"
+                        emitted_up_to = latex_pos
+                    else:
+                        # No <latex> yet — emit up to (len - LATEX_TAG_LEN) to
+                        # guarantee no partial tag sneaks through
+                        safe_end = max(emitted_up_to, len(full_response) - LATEX_TAG_LEN)
+                        safe_text = full_response[emitted_up_to:safe_end]
+                        if safe_text:
+                            yield f"event: delta\ndata: {_json.dumps({'text': safe_text})}\n\n"
+                            emitted_up_to = safe_end
+
+                await asyncio.sleep(0)  # yield control
+
+            # Stream ended — flush any remaining safe conversational text
+            if not latex_started and emitted_up_to < len(full_response):
+                # No <latex> block came at all — emit the rest
+                remaining = full_response[emitted_up_to:]
+                if remaining:
+                    yield f"event: delta\ndata: {_json.dumps({'text': remaining})}\n\n"
+
+            # Extract the <latex>...</latex> block from the full response
+            latex_match = _re.search(r"<latex>(.*?)</latex>", full_response, _re.DOTALL)
+            if latex_match:
+                new_latex = latex_match.group(1).strip()
+                yield f"event: latex\ndata: {_json.dumps({'latex': new_latex})}\n\n"
+
+            yield "event: done\ndata: {}\n\n"
+
+        except Exception as e:
+            yield f"event: error\ndata: {_json.dumps({'message': str(e)})}\n\n"
+            yield "event: done\ndata: {}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.delete("/{resume_id}")

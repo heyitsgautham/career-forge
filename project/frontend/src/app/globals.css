@@ -4,57 +4,58 @@
 
 @layer base {
   :root {
-    --background: 0 0% 99%;
-    --foreground: 224 71% 4%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
+    /* CareerForge — Warm Indigo palette */
+    --background: 60 9% 98%;          /* #FAFAF9  Cream White   */
+    --foreground: 24 10% 10%;         /* #1C1917  Charcoal      */
+    --card: 0 0% 100%;                /* #FFFFFF  Pure White     */
+    --card-foreground: 24 10% 10%;    /* #1C1917                */
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
-    --primary: 36 100% 50%;
-    --primary-foreground: 0 0% 2%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 224 71% 4%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 36 100% 50%;
-    --accent-foreground: 0 0% 2%;
+    --popover-foreground: 24 10% 10%;
+    --primary: 243 75% 59%;           /* #4F46E5  Deep Indigo   */
+    --primary-foreground: 0 0% 100%;  /* White on indigo        */
+    --secondary: 60 5% 96%;
+    --secondary-foreground: 24 10% 10%;
+    --muted: 60 5% 96%;
+    --muted-foreground: 24 5% 45%;    /* #78716C  Warm Gray     */
+    --accent: 38 92% 50%;             /* #F59E0B  Amber Gold    */
+    --accent-foreground: 24 10% 10%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 36 100% 50%;
-    --radius: 0.5rem;
-    --success: 142 71% 45%;
+    --border: 20 6% 90%;              /* #E7E5E4  Stone Gray    */
+    --input: 20 6% 90%;
+    --ring: 243 75% 59%;              /* matches primary        */
+    --radius: 0.75rem;
+    --success: 160 84% 39%;           /* #10B981  Emerald       */
     --warning: 38 92% 50%;
-    --match-high: 142 71% 45%;
+    --match-high: 160 84% 39%;
     --match-mid: 38 92% 50%;
     --match-low: 0 84% 60%;
   }
 
   .dark {
     color-scheme: dark;
-    --background: 224 71% 4%;
-    --foreground: 210 20% 98%;
-    --card: 224 50% 7%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 50% 7%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 36 100% 50%;
-    --primary-foreground: 0 0% 2%;
-    --secondary: 215 28% 17%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 28% 17%;
-    --muted-foreground: 218 11% 65%;
-    --accent: 36 100% 50%;
-    --accent-foreground: 0 0% 2%;
+    --background: 24 10% 6%;
+    --foreground: 60 9% 98%;
+    --card: 24 10% 9%;
+    --card-foreground: 60 9% 98%;
+    --popover: 24 10% 9%;
+    --popover-foreground: 60 9% 98%;
+    --primary: 243 75% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 10% 14%;
+    --secondary-foreground: 60 9% 98%;
+    --muted: 24 10% 14%;
+    --muted-foreground: 24 5% 55%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 63% 31%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
-    --ring: 36 100% 50%;
-    --success: 142 71% 45%;
+    --destructive-foreground: 60 9% 98%;
+    --border: 24 10% 18%;
+    --input: 24 10% 18%;
+    --ring: 243 75% 67%;
+    --success: 160 84% 45%;
     --warning: 38 92% 50%;
-    --match-high: 142 71% 45%;
+    --match-high: 160 84% 45%;
     --match-mid: 38 92% 50%;
     --match-low: 0 84% 60%;
   }
@@ -135,6 +136,113 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/40;
+}
+
+/* Smooth transitions on interactive elements */
+a, button, [role="button"], input, select, textarea, .card {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Card hover lift effect */
+.card-hover {
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -6px rgba(79, 70, 229, 0.12), 0 6px 12px -4px rgba(79, 70, 229, 0.08);
+}
+
+/* Fade-in animation for page content */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out;
+}
+
+/* Staggered children animation */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-children > * {
+  animation: stagger-in 0.4s ease-out both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+
+/* Gradient text utility */
+.text-gradient-primary {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-[hsl(243,75%,65%)] to-[hsl(var(--accent))];
+}
+
+/* Hero decorative mesh — warm indigo/amber glow */
+.hero-mesh {
+  background: radial-gradient(ellipse 60% 40% at 50% 0%, hsla(243,75%,59%,0.06) 0%, transparent 60%),
+              radial-gradient(ellipse 40% 50% at 80% 20%, hsla(38,92%,50%,0.04) 0%, transparent 50%);
+}
+
+/* Glass morphism utility */
+.glass {
+  @apply bg-card/70 backdrop-blur-xl border border-border/50;
+}
+
+/* Animated gradient background for hero */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease-in-out infinite;
+}
+
+/* Floating blob animation */
+@keyframes blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(20px, -30px) scale(1.05); }
+  50% { transform: translate(-10px, 15px) scale(0.95); }
+  75% { transform: translate(-20px, -10px) scale(1.02); }
+}
+.animate-blob {
+  animation: blob 10s ease-in-out infinite;
+}
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Hero gradient mesh background */
+.hero-mesh {
+  background: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, hsl(212 92% 45% / 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 50%, hsl(17 92% 68% / 0.08), transparent),
+    radial-gradient(ellipse 50% 50% at 20% 80%, hsl(212 92% 45% / 0.06), transparent);
 }
 
 /* Noise texture overlay for depth */

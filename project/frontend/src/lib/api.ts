@@ -156,11 +156,15 @@ const api = axios.create({
   },
 });
 
-// Inject auth token
+// Inject auth token + bypass browser HTTP cache on GETs (React Query handles caching)
 api.interceptors.request.use((config) => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.method === 'get') {
+    config.headers['Cache-Control'] = 'no-cache';
+    config.headers['Pragma'] = 'no-cache';
   }
   return config;
 });
@@ -255,9 +259,11 @@ export const projectsApi = {
 
   delete: (id: string) => api.delete(`/api/projects/${id}`),
 
-  importGithub: (fullName: string) =>
+  deleteAll: () => api.delete('/api/projects/all'),
+
+  importGithub: (fullNames: string[]) =>
     api.post('/api/projects/ingest/github', {
-      full_names: [fullName]
+      full_names: fullNames
     }),
 
   syncAllGithub: () =>
@@ -375,8 +381,19 @@ export const resumesApi = {
 
   compile: (id: string) => api.post(`/api/resumes/${id}/compile`),
 
+  /** M2.5: Compile with optional latex_content override (on-demand compile) */
+  compileWithContent: (id: string, latex_content?: string) =>
+    api.post<{ pdf_url: string | null; status: string; error_message: string | null }>(
+      `/api/resumes/${id}/compile`,
+      latex_content ? { latex_content } : {},
+    ),
+
   updateLatex: (id: string, latex_content: string) =>
     api.patch(`/api/resumes/${id}/latex`, { latex_content }),
+
+  /** M2.5: Save LaTeX via proper PUT endpoint (also syncs S3 tex key) */
+  saveLaTeX: (id: string, latex_content: string) =>
+    api.put<{ id: string; updated_at: string }>(`/api/resumes/${id}/latex`, { latex_content }),
 
   downloadPdf: (id: string) =>
     api.get(`/api/resumes/${id}/pdf`, { responseType: 'blob' }),
@@ -389,6 +406,28 @@ export const resumesApi = {
     api.get(`/api/resumes/${id}/tex`, { responseType: 'blob' }),
 
   delete: (id: string) => api.delete(`/api/resumes/${id}`),
+
+  /**
+   * M2.5: AI edit via SSE stream.
+   * Returns the fetch Response so the caller can read `response.body` as a ReadableStream.
+   * Uses fetch (not axios) because EventSource doesn't support POST + auth headers.
+   */
+  aiEdit: async (id: string, message: string, latex_content: string): Promise<Response> => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const response = await fetch(`${baseUrl}/api/resumes/${id}/ai-edit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message, latex_content }),
+    });
+    if (!response.ok) {
+      throw new Error(`AI edit failed: ${response.status}`);
+    }
+    return response;
+  },
 };
 
 // ─── GitHub Ingestion API ─────────────────────────────────────────────────────

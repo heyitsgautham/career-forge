@@ -85,21 +85,23 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-background">
       {/* Ambient background */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[600px] w-[800px] rounded-full bg-primary/5 blur-[120px]" />
-        <div className="absolute right-0 bottom-0 h-[400px] w-[400px] rounded-full bg-primary/3 blur-[100px]" />
+        <div className="absolute inset-0 hero-mesh" />
+        <div className="absolute left-1/2 top-1/4 -translate-x-1/2 h-[500px] w-[700px] rounded-full bg-primary/6 blur-[140px] animate-blob" />
+        <div className="absolute right-0 bottom-0 h-[350px] w-[350px] rounded-full bg-[hsl(var(--accent))]/5 blur-[120px] animate-blob animation-delay-2000" />
+        <div className="absolute left-0 top-0 h-[300px] w-[300px] rounded-full bg-[hsl(var(--success))]/4 blur-[100px] animate-blob animation-delay-4000" />
       </div>
 
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-6 animate-fade-in-up">
         {/* Logo */}
         <div className="text-center">
           <Link
             href="/"
             className="group inline-flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25 text-primary-foreground transition-all duration-300 group-hover:shadow-xl group-hover:shadow-primary/30 group-hover:scale-105">
               <Zap className="h-5 w-5" aria-hidden="true" />
             </span>
             <span className="font-bold text-xl tracking-tight">CareerForge</span>
@@ -109,7 +111,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <Card className="border-border/50 shadow-xl shadow-black/5">
+        <Card className="border-border/40 shadow-xl shadow-primary/5 backdrop-blur-sm">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-lg">Get started</CardTitle>
             <CardDescription>
@@ -120,7 +122,7 @@ export default function LoginPage() {
           <CardContent className="space-y-4">
             {/* Primary CTA — GitHub OAuth */}
             <Button
-              className="w-full gap-2.5 h-12 text-base font-medium"
+              className="w-full gap-2.5 h-12 text-base font-medium shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/25"
               onClick={() => authApi.githubLogin()}
               aria-label="Continue with GitHub"
             >

@@ -43,12 +43,12 @@ interface Template {
 }
 
 const statusConfig = {
-  draft: { icon: Clock, color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300', text: 'Draft' },
-  generating: { icon: Loader2, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', text: 'Generating…', animate: true },
-  generated: { icon: CheckCircle, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', text: 'Generated' },
-  compiling: { icon: Loader2, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300', text: 'Compiling…', animate: true },
-  compiled: { icon: CheckCircle, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', text: 'Ready' },
-  error: { icon: XCircle, color: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300', text: 'Error' },
+  draft: { icon: Clock, color: 'bg-muted text-muted-foreground', text: 'Draft' },
+  generating: { icon: Loader2, color: 'bg-primary/10 text-primary', text: 'Generating\u2026', animate: true },
+  generated: { icon: CheckCircle, color: 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]', text: 'Generated' },
+  compiling: { icon: Loader2, color: 'bg-primary/10 text-primary', text: 'Compiling\u2026', animate: true },
+  compiled: { icon: CheckCircle, color: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]', text: 'Ready' },
+  error: { icon: XCircle, color: 'bg-destructive/10 text-destructive', text: 'Error' },
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -325,6 +325,18 @@ export function ResumesList() {
                     {resume.status === 'generated' && !resume.pdf_path && (
                       <CompileButton resumeId={resume.id} />
                     )}
+                    {(resume.latex_content || ['generated', 'compiled', 'error'].includes(resume.status)) && (
+                      <Link href={`/dashboard/resumes/${resume.id}/edit`}>
+                        <Button
+                          size="sm"
+                          variant={resume.status === 'compiled' ? 'default' : 'outline'}
+                          className={`gap-1 h-7 text-xs ${resume.status === 'compiled' ? 'bg-violet-600 hover:bg-violet-700 text-white' : ''}`}
+                        >
+                          <Edit className="h-3 w-3" />
+                          {resume.status === 'compiled' ? 'Open in Editor' : 'Edit'}
+                        </Button>
+                      </Link>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -442,7 +454,7 @@ function PdfPreviewModal({
           )}
           {loadError && (
             <div className="flex flex-col items-center gap-3 text-muted-foreground p-8 text-center">
-              <AlertTriangle className="h-8 w-8 text-amber-500" />
+              <AlertTriangle className="h-8 w-8 text-[hsl(var(--accent))]" />
               <p className="text-sm font-medium">Preview unavailable</p>
               <p className="text-xs text-muted-foreground/70">Use the Download button to open the PDF.</p>
             </div>
@@ -519,7 +531,7 @@ function ResumeGenerator({
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -559,8 +571,8 @@ function ResumeGenerator({
           {generateMutation.isPending && (
             <div className="flex flex-col items-center py-8 space-y-4">
               <div className="relative">
-                <div className="h-16 w-16 rounded-full border-4 border-violet-200 dark:border-violet-900" />
-                <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-violet-600 border-t-transparent animate-spin" />
+                <div className="h-16 w-16 rounded-full border-4 border-primary/20" />
+                <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-primary border-t-transparent animate-spin" />
               </div>
               <div className="text-center space-y-1">
                 <p className="font-medium text-sm">Generating your resume…</p>
@@ -573,19 +585,19 @@ function ResumeGenerator({
 
           {/* Error state */}
           {error && !generateMutation.isPending && (
-            <div className="rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 p-4 space-y-2">
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-2">
               <div className="flex items-start gap-2">
-                <XCircle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                <XCircle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-sm text-red-700 dark:text-red-400">
+                  <p className="font-medium text-sm text-destructive">
                     Generation failed
                   </p>
-                  <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-1">
+                  <p className="text-xs text-destructive/80 mt-1">
                     {error}
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-red-500/70 dark:text-red-400/50 pl-7">
+              <p className="text-xs text-destructive/70 pl-7">
                 Try re-importing your repos first, or check that GitHub ingestion completed.
               </p>
             </div>
@@ -594,11 +606,11 @@ function ResumeGenerator({
           {/* Success: result */}
           {result && !generateMutation.isPending && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/20 p-4">
+              <div className="rounded-lg border border-[hsl(var(--success))]/20 bg-[hsl(var(--success))]/5 p-4">
                 <div className="flex items-start gap-2">
-                  <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-[hsl(var(--success))] mt-0.5 shrink-0" />
                   <div className="space-y-2 flex-1">
-                    <p className="font-medium text-sm text-emerald-700 dark:text-emerald-400">
+                    <p className="font-medium text-sm text-[hsl(var(--success))]">
                       Resume {result.pdf_url ? 'generated & compiled' : 'generated (LaTeX saved)'}!
                     </p>
 
@@ -609,7 +621,7 @@ function ResumeGenerator({
                           target="_blank"
                           rel="noopener noreferrer"
                           download={`resume-${new Date().toISOString().split('T')[0]}.pdf`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-medium hover:bg-emerald-700 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[hsl(var(--success))] text-white text-xs font-medium hover:opacity-90 transition-colors"
                         >
                           <Download className="h-3.5 w-3.5" />
                           Download PDF
@@ -624,6 +636,15 @@ function ResumeGenerator({
                           Download .tex Source
                         </button>
                       )}
+                      {/* Open in Editor shortcut — shown when status is compiled */}
+                      <Link
+                        href={`/dashboard/resumes/${result.resume_id}/edit`}
+                        onClick={onClose}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        Open in Editor
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -631,12 +652,12 @@ function ResumeGenerator({
 
               {/* Compilation warning — shown when LaTeX was generated but PDF failed */}
               {!result.pdf_url && result.compilation_error && (
-                <div className="rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-1">
+                <div className="rounded-lg border border-[hsl(var(--accent))]/20 bg-[hsl(var(--accent))]/5 p-3 space-y-1">
                   <div className="flex items-start gap-2">
-                    <XCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-amber-700 dark:text-amber-400">PDF compilation failed</p>
-                      <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5 font-mono break-all">{result.compilation_error}</p>
+                    <XCircle className="h-4 w-4 text-[hsl(var(--accent))] mt-0.5 shrink-0" />
+                      <div>
+                      <p className="text-xs font-medium text-[hsl(var(--accent))]">PDF compilation failed</p>
+                      <p className="text-xs text-[hsl(var(--accent))]/80 mt-0.5 font-mono break-all">{result.compilation_error}</p>
                     </div>
                   </div>
                   <p className="text-xs text-amber-500/80 dark:text-amber-400/50 pl-6">

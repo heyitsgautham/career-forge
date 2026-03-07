@@ -81,7 +81,7 @@ export function TemplatesList() {
       {systemTemplates.length > 0 && (
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Star className="h-5 w-5 text-yellow-500" />
+            <Star className="h-5 w-5 text-[hsl(var(--accent))]" />
             System Templates
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -147,7 +147,7 @@ function TemplateCard({
   onDelete?: () => void;
 }) {
   return (
-    <Card className="hover:shadow-md transition-shadow overflow-hidden">
+    <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
       {/* Preview */}
       <div className="h-48 bg-gradient-to-b from-muted to-muted/50 flex items-center justify-center border-b">
         {template.preview_image ? (
@@ -226,8 +226,8 @@ function AddTemplateModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Create Template</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -375,8 +375,8 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-background p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">{template.name}</h2>
           <div className="flex items-center gap-2">
