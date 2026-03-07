@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,29 +44,23 @@ export function SkillGapShell() {
   const { toast } = useToast();
 
   // State
-  const [roles, setRoles] = useState<Role[]>([]);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [report, setReport] = useState<SkillGapReport | null>(null);
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
-  const [loadingRoles, setLoadingRoles] = useState(true);
   const [analysing, setAnalysing] = useState(false);
   const [generatingRoadmap, setGeneratingRoadmap] = useState(false);
   const [roadmapOpen, setRoadmapOpen] = useState(true);
 
-  // Load roles on mount
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await skillGapApi.getRoles();
-        setRoles(res.data.roles || []);
-      } catch {
-        toast({ title: 'Failed to load roles', variant: 'destructive' });
-      } finally {
-        setLoadingRoles(false);
-      }
-    };
-    load();
-  }, [toast]);
+  // Load roles via React Query (static data, long cache)
+  const { data: roles = [], isLoading: loadingRoles } = useQuery({
+    queryKey: ['skill-gap-roles'],
+    queryFn: async () => {
+      const res = await skillGapApi.getRoles();
+      return res.data.roles || [];
+    },
+    staleTime: 60 * 60 * 1000,   // 1 hour — static data
+    gcTime: 2 * 60 * 60 * 1000,  // 2 hours
+  });
 
   // Run analysis
   const handleAnalyse = useCallback(async () => {
