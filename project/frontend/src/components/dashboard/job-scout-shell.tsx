@@ -177,12 +177,12 @@ export function JobScoutShell() {
   const [page, setPage] = useState(0);
 
   // Category filter (persisted in localStorage)
-  const [activeCategory, setActiveCategory] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('jobScout_category') || 'All';
-    }
-    return 'All';
-  });
+  // SSR-safe: always start with 'All', then sync from localStorage after mount
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  useEffect(() => {
+    const stored = localStorage.getItem('jobScout_category');
+    if (stored) setActiveCategory(stored);
+  }, []);
 
   const handleCategoryChange = useCallback((cat: string) => {
     setActiveCategory(cat);
