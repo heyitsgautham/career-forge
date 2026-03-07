@@ -10,13 +10,52 @@ import asyncio
 import hashlib
 import re
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import structlog
 
 from app.core.config import settings
 from app.services.dynamo_service import dynamo_service
+from app.services.naukri_scraper import naukri_scraper
+from app.services.unstop_scraper import unstop_scraper
 
 logger = structlog.get_logger()
+
+
+# ── Date freshness helper ─────────────────────────────────────────────────────
+
+def _is_recent_job(date_posted: str, max_age_hours: int) -> bool:
+    """
+    Return True if the job was posted within max_age_hours.
+    Handles:
+      - ISO date strings: "2026-03-08" (from Unstop created_at)
+      - Internshala relative text: "Today", "Just added", "1 d", "3 d"
+    Unknown / empty dates are included (benefit of the doubt).
+    """
+    if not date_posted:
+        return True
+    now = datetime.utcnow()
+    cutoff = now - timedelta(hours=max_age_hours)
+
+    # ISO date: "2026-03-08" — Unstop and Internshala JSON blob
+    try:
+        dt = datetime.strptime(date_posted[:10], "%Y-%m-%d")
+        return dt >= cutoff
+    except ValueError:
+        pass
+
+    # Internshala relative text from HTML card: "Today", "Just added", "1 d", "3 d"
+    lower = date_posted.lower().strip()
+    if lower in ("today", "just added", "0 d", "few hours ago", "1 d"):
+        return True
+    if lower.endswith(" d"):
+        try:
+            days = int(lower[:-2].strip())
+            return days * 24 <= max_age_hours
+        except ValueError:
+            pass
+
+    return True  # unknown format — include by default
+
 
 # ── Search queries covering major CS/tech roles ─────────────────────────────
 
@@ -100,12 +139,20 @@ def _extract_salary_from_description(description: str) -> Optional[str]:
 
 class JobScraper:
     """
-    Job scraper using jobspy library.
-    Fetches from LinkedIn, Indeed, and other supported sites.
+    Job scraper aggregating multiple sources:
+      • jobspy   → LinkedIn, Indeed  (global search)
+      • Naukri   → India's largest job portal  (custom scraper)
+      • Unstop   → India internship/job platform (custom scraper)
     Jobs are stored as shared resources (no userId).
     """
 
+    # Sites supported by jobspy (global)
     DEFAULT_SITES = ["indeed", "linkedin"]
+    # India-specific sources (custom scrapers)
+    INDIA_SOURCES = ["naukri", "unstop"]
+    # All combined for display / user selection
+    ALL_SUPPORTED_SITES = ["indeed", "linkedin", "naukri", "unstop"]
+
     DEFAULT_LOCATION = "India"
     DEFAULT_RESULTS_WANTED = 25
     DEFAULT_HOURS_OLD = 72  # 3 days
@@ -222,6 +269,15 @@ class JobScraper:
             if _is_management_role(title):
                 continue
 
+            # Safely convert date_posted — pd.NaT is falsy so "or" short-circuits
+            raw_date = row.get("date_posted")
+            try:
+                import pandas as pd
+                date_posted_str = raw_date.strftime("%Y-%m-%d") if raw_date and raw_date is not pd.NaT else ""
+            except Exception:
+                s = str(raw_date) if raw_date else ""
+                date_posted_str = "" if s.lower() in ("nan", "nat", "none", "null") else s
+
             job = {
                 "title": title,
                 "company": str(row.get("company") or "").strip() or None,
@@ -229,7 +285,7 @@ class JobScraper:
                 "description": str(row.get("description") or ""),
                 "url": url,
                 "source": str(row.get("site") or "unknown"),
-                "date_posted": str(row.get("date_posted") or ""),
+                "date_posted": date_posted_str,
                 "salary": salary,
                 "job_type": job_type,
             }
@@ -238,14 +294,72 @@ class JobScraper:
         logger.info(f"Scraped {len(jobs)} real jobs for '{search_term}'")
         return jobs
 
+    async def scrape_india_sources(
+        self,
+        sources: Optional[List[str]] = None,
+        max_age_hours: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Scrape India-specific platforms: Naukri, Unstop, Internshala.
+        `sources` can be a subset of INDIA_SOURCES; defaults to all three.
+        `max_age_hours`: if set, filters out jobs older than this many hours.
+          - Naukri:      handled at API level via jobAge param on the scraper instance.
+          - Unstop:      post-scrape filter on ISO date from created_at.
+          - Internshala: post-scrape filter on date string / relative text.
+        Returns a deduplicated list of job dicts.
+        """
+        sources = [s.lower() for s in (sources or self.INDIA_SOURCES)]
+        seen_urls: set = set()
+        all_jobs: List[Dict[str, Any]] = []
+
+        scraper_map = {
+            "naukri": lambda: naukri_scraper.scrape_all(),
+            "unstop": lambda: unstop_scraper.scrape_all(),
+        }
+
+        for source in sources:
+            if source not in scraper_map:
+                logger.warning(f"Unknown India source: {source}")
+                continue
+            try:
+                jobs = await scraper_map[source]()
+                fresh = 0
+                skipped = 0
+                for job in jobs:
+                    url = job.get("url", "")
+                    if not url or url in seen_urls:
+                        continue
+                    # Naukri already filters via API (jobAge=1); filter Unstop post-scrape
+                    if max_age_hours and source == "unstop":
+                        if not _is_recent_job(job.get("date_posted", ""), max_age_hours):
+                            skipped += 1
+                            continue
+                    seen_urls.add(url)
+                    all_jobs.append(job)
+                    fresh += 1
+                if max_age_hours and source == "unstop":
+                    logger.info(
+                        f"India source '{source}': {fresh} fresh / {len(jobs)} total "
+                        f"({skipped} older than {max_age_hours}h skipped)"
+                    )
+                else:
+                    logger.info(f"India source '{source}': {fresh} jobs collected")
+            except Exception as e:
+                logger.warning(f"India source '{source}' scrape failed: {e}")
+
+        return all_jobs
+
     async def scrape_all_queries(
         self,
         location: Optional[str] = None,
         results_per_query: int = 15,
+        include_india_sources: bool = True,
     ) -> Dict[str, Any]:
         """
-        Iterate through all SEARCH_QUERIES, scrape, deduplicate, and store.
-        Called by the scheduler. Jobs are shared (no userId).
+        Full scrape run:
+          1. jobspy queries (LinkedIn + Indeed)
+          2. India sources (Naukri, Unstop, Internshala)
+        Results are deduplicated and stored in DynamoDB (shared — no userId).
 
         Returns:
             Dict with total_found, new_jobs, duplicates_skipped counts.
@@ -255,12 +369,14 @@ class JobScraper:
         all_raw_jobs: List[Dict[str, Any]] = []
         seen_urls: set = set()
 
+        # ── Phase 1: jobspy (LinkedIn + Indeed) ───────────────────────────────
         for query in SEARCH_QUERIES:
             try:
                 jobs = await self.scrape_jobs(
                     search_term=query,
                     location=location,
                     results_wanted=results_per_query,
+                    hours_old=24,  # scheduled run: only last 24h
                 )
                 for job in jobs:
                     url = job.get("url", "")
@@ -270,6 +386,19 @@ class JobScraper:
             except Exception as e:
                 logger.warning(f"Query '{query[:50]}...' failed: {e}")
                 continue
+
+        # ── Phase 2: India-specific sources ───────────────────────────────────
+        if include_india_sources:
+            try:
+                india_jobs = await self.scrape_india_sources(max_age_hours=24)
+                for job in india_jobs:
+                    url = job.get("url", "")
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                        all_raw_jobs.append(job)
+                logger.info(f"India sources added {len(india_jobs)} unique jobs")
+            except Exception as e:
+                logger.warning(f"India sources scrape failed: {e}")
 
         # Store new jobs (dedup against existing DB)
         new_count = 0
@@ -305,11 +434,14 @@ class JobScraper:
             }
 
             try:
-                await dynamo_service.put_item("Jobs", item)
+                inserted = await dynamo_service.upsert_job(item)
                 self._existing_urls.add(url)
-                new_count += 1
+                if inserted:
+                    new_count += 1
             except Exception as e:
-                logger.warning(f"Failed to store job: {e}")
+                # ConditionalCheckFailedException means item already exists — safe to skip
+                if "ConditionalCheckFailed" not in str(e):
+                    logger.warning(f"Failed to store job: {e}")
 
         total = len(all_raw_jobs)
         logger.info(
@@ -377,9 +509,10 @@ class JobScraper:
             }
 
             try:
-                await dynamo_service.put_item("Jobs", item)
+                inserted = await dynamo_service.upsert_job(item)
                 self._existing_urls.add(url)
-                stored_jobs.append(item)
+                if inserted:
+                    stored_jobs.append(item)
             except Exception as e:
                 logger.error("Failed to store job", job_title=raw_job["title"], error=str(e))
 

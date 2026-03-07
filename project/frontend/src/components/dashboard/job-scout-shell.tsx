@@ -70,6 +70,11 @@ const TRACKING_COLORS: Record<string, string> = {
 
 const ROWS_PER_PAGE = 25;
 
+// ── Source filter options ────────────────────────────────────────────────────
+
+const SOURCES = ['All', 'naukri', 'linkedin', 'indeed', 'unstop'] as const;
+type SourceFilter = (typeof SOURCES)[number];
+
 // ── Rich markdown description renderer ───────────────────────────────────────
 
 function unescapeMarkdown(text: string): string {
@@ -301,6 +306,7 @@ export function JobScoutShell() {
   // Category filter (persisted in localStorage)
   // SSR-safe: always start with 'All', then sync from localStorage after mount
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [activeSource, setActiveSource] = useState<SourceFilter>('All');
   useEffect(() => {
     const stored = localStorage.getItem('jobScout_category');
     if (stored) setActiveCategory(stored);
@@ -399,6 +405,11 @@ export function JobScoutShell() {
   const filtered = useMemo(() => {
     let list = jobs;
 
+    // Source filter
+    if (activeSource !== 'All') {
+      list = list.filter((j) => (j.source || '').toLowerCase() === activeSource);
+    }
+
     // Category filter
     if (activeCategory !== 'All') {
       const cat = activeCategory.toLowerCase();
@@ -422,7 +433,7 @@ export function JobScoutShell() {
     }
 
     return list;
-  }, [jobs, activeCategory, searchQuery]);
+  }, [jobs, activeCategory, activeSource, searchQuery]);
 
   // ── Pagination ─────────────────────────────────────────────────────────
 
@@ -524,6 +535,20 @@ export function JobScoutShell() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <th className="whitespace-nowrap px-4 py-3 w-10">
+                  <div className="flex flex-col gap-1">
+                    <span>Source</span>
+                    <select
+                      value={activeSource}
+                      onChange={(e) => { setActiveSource(e.target.value as SourceFilter); setPage(0); }}
+                      className="mt-0.5 w-24 rounded border border-border/60 bg-background px-1 py-0.5 text-[10px] font-normal normal-case text-foreground cursor-pointer"
+                    >
+                      {SOURCES.map((s) => (
+                        <option key={s} value={s}>{s === 'All' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </th>
                 <th className="whitespace-nowrap px-4 py-3 w-72">Title</th>
                 <th className="whitespace-nowrap px-4 py-3">Company</th>
                 <th className="whitespace-nowrap px-4 py-3 hidden md:table-cell">Location</th>
@@ -536,7 +561,7 @@ export function JobScoutShell() {
               {jobsLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-4 animate-pulse rounded bg-muted" />
                       </td>
@@ -618,6 +643,30 @@ export function JobScoutShell() {
   );
 }
 
+// ── Source logo/favicon ──────────────────────────────────────────────────────
+
+const SOURCE_ICONS: Record<string, string> = {
+  linkedin:    '/icons/linkedin.jpg',
+  indeed:      '/icons/indeed-copy.jpeg',
+  naukri:      '/icons/naukri.png',
+  unstop:      '/icons/unstop.jpg',
+  internshala: '/icons/internshala.jpeg',
+};
+
+function SourceLogo({ source }: { source?: string }) {
+  const key = (source || '').toLowerCase();
+  const icon = SOURCE_ICONS[key];
+  if (!icon) return <Building2 className="h-7 w-7 shrink-0 text-muted-foreground" />;
+  return (
+    <img
+      src={icon}
+      alt={key}
+      title={key.charAt(0).toUpperCase() + key.slice(1)}
+      className="h-7 w-7 shrink-0 rounded object-contain"
+      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+    />
+  );
+}
 // ── Single table row ─────────────────────────────────────────────────────────
 
 function JobRow({
@@ -639,6 +688,11 @@ function JobRow({
 }) {
   return (
     <tr className="group transition-all duration-150 hover:bg-primary/[0.03]">
+      {/* Source icon */}
+      <td className="px-4 py-3 w-10">
+        <SourceLogo source={job.source} />
+      </td>
+
       {/* Title + salary */}
       <td className="px-4 py-3 w-72 max-w-[18rem]">
         <button
@@ -658,7 +712,6 @@ function JobRow({
       {/* Company */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
-          <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <span className="line-clamp-1">{job.company || '—'}</span>
         </div>
       </td>

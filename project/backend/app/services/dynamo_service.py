@@ -74,13 +74,14 @@ class DynamoService:
         """Get a DynamoDB table reference."""
         return self._get_resource().Table(table_name)
 
-    async def put_item(self, table: str, item: dict) -> dict:
+    async def put_item(self, table: str, item: dict, condition_expression=None) -> dict:
         """
         Put an item into a DynamoDB table.
 
         Args:
             table: Table name
             item: Item dict to store
+            condition_expression: Optional boto3 ConditionExpression (e.g. Attr('pk').not_exists())
 
         Returns:
             The stored item
@@ -91,13 +92,73 @@ class DynamoService:
         # Remove None values (DynamoDB doesn't allow them)
         safe_item = {k: v for k, v in safe_item.items() if v is not None}
 
+        kwargs = {"Item": safe_item}
+        if condition_expression is not None:
+            kwargs["ConditionExpression"] = condition_expression
+
         try:
-            dynamo_table.put_item(Item=safe_item)
+            dynamo_table.put_item(**kwargs)
             logger.debug("DynamoDB put_item", table=table, key=str(list(safe_item.keys())[:3]))
             return item
         except ClientError as e:
             logger.error("DynamoDB put_item failed", table=table, error=str(e))
             raise
+
+    async def upsert_job(self, item: dict) -> bool:
+        """
+        Insert a job item if it doesn't exist, or backfill description if the
+        existing item has an empty description.
+
+        Uses two conditional DynamoDB operations:
+          1. Try PUT where jobId does NOT exist (new job).
+          2. If it already exists, try UPDATE to set description only where
+             description is currently missing or empty (backfill lost descriptions).
+
+        Returns:
+            True if a new item was inserted or description was backfilled.
+            False if item already existed with a non-empty description (no-op).
+        """
+        from boto3.dynamodb.conditions import Attr
+        dynamo_table = self._get_table("Jobs")
+        safe_item = _convert_floats(item)
+        safe_item = {k: v for k, v in safe_item.items() if v is not None}
+
+        # ── Step 1: try to insert as a brand-new job ──────────────────────────
+        try:
+            dynamo_table.put_item(
+                Item=safe_item,
+                ConditionExpression=Attr("jobId").not_exists(),
+            )
+            return True  # inserted
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                raise  # unexpected error — rethrow
+
+        # ── Step 2: item already exists — backfill description if empty ───────
+        description = safe_item.get("description", "")
+        if not description:
+            return False  # nothing to backfill
+
+        try:
+            dynamo_table.update_item(
+                Key={"jobId": safe_item["jobId"]},
+                UpdateExpression="SET #desc = :d, updatedAt = :ts",
+                ConditionExpression=(
+                    Attr("description").not_exists() | Attr("description").eq("")
+                ),
+                ExpressionAttributeNames={"#desc": "description"},
+                ExpressionAttributeValues={
+                    ":d": description,
+                    ":ts": safe_item.get("updatedAt", ""),
+                },
+            )
+            logger.info("Backfilled missing description", jobId=safe_item["jobId"])
+            return True  # description backfilled
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                return False  # already has a description — no-op
+            raise
+
 
     async def get_item(self, table: str, key: dict) -> Optional[dict]:
         """
@@ -304,9 +365,22 @@ class DynamoService:
             kwargs["Limit"] = limit
 
         try:
-            response = dynamo_table.scan(**kwargs)
-            items = response.get("Items", [])
-            return [_convert_decimals(item) for item in items]
+            items: List[dict] = []
+            last_key = None
+            while True:
+                if last_key:
+                    kwargs["ExclusiveStartKey"] = last_key
+                response = dynamo_table.scan(**kwargs)
+                page_items = response.get("Items", [])
+                items.extend([_convert_decimals(item) for item in page_items])
+                last_key = response.get("LastEvaluatedKey")
+                if not last_key:
+                    break
+                # Honour limit across pages
+                if limit and len(items) >= limit:
+                    items = items[:limit]
+                    break
+            return items
         except ClientError as e:
             logger.error("DynamoDB scan failed", table=table, error=str(e))
             raise

@@ -53,13 +53,16 @@ function DashboardInner() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  /* Derive initial tab from URL ?tab= or default to resumes */
-  const initialTab = (searchParams.get('tab') as TabKey) || 'resumes';
-
-  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  // Always start with 'resumes' on the server to avoid SSR ↔ client hydration
+  // mismatch (server doesn't know the URL's ?tab= during pre-render).
+  // Sync to the actual URL param in useEffect — runs only on the client.
+  const [activeTab, setActiveTab] = useState<TabKey>('resumes');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
+  // mounted guard: prevents server/client HTML mismatch for query-driven header content
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const queryClient = useQueryClient();
 
   /* ── User profile via React Query (cached, persisted) ──────────────── */
@@ -98,6 +101,15 @@ function DashboardInner() {
     },
     []
   );
+
+  /* Sync active tab from URL param on client mount */
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabKey;
+    if (tab && TABS.some(t => t.key === (tab as string))) {
+      setActiveTab(tab);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount — switchTab() keeps URL in sync for all subsequent changes
 
   /* Handle OAuth callback query params */
   useEffect(() => {
@@ -271,7 +283,7 @@ function DashboardInner() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            {currentUser && (
+            {mounted && currentUser && (
               <div className="text-right hidden md:block">
                 <p className="text-sm font-medium truncate max-w-[160px]">
                   {currentUser.name || currentUser.email}
@@ -284,7 +296,7 @@ function DashboardInner() {
               </div>
             )}
 
-            {githubConnected ? (
+            {mounted && (githubConnected ? (
               <Badge
                 variant="outline"
                 className="gap-1.5 border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 text-[hsl(var(--success))] cursor-default"
@@ -302,7 +314,7 @@ function DashboardInner() {
                 <Github className="h-3.5 w-3.5" aria-hidden="true" />
                 Connect GitHub
               </Button>
-            )}
+            ))}
           </div>
         </header>
 
