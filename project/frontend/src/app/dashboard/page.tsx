@@ -114,12 +114,14 @@ function DashboardInner() {
   /* Handle OAuth callback query params */
   useEffect(() => {
     const github = searchParams.get('github');
+    const google = searchParams.get('google');
     const token = searchParams.get('token');
     const error = searchParams.get('error');
 
-    if (github === 'connected') {
+    if (github === 'connected' || google === 'connected') {
       if (token) localStorage.setItem('token', token);
-      toast({ title: 'GitHub connected!', description: 'Your account is now linked.' });
+      const provider = github ? 'GitHub' : 'Google';
+      toast({ title: `${provider} connected!`, description: 'Your account is now linked.' });
       router.replace('/dashboard');
     }
     if (error) {
@@ -309,7 +311,7 @@ function DashboardInner() {
                 variant="outline"
                 size="sm"
                 className="gap-1.5"
-                onClick={() => authApi.githubLogin()}
+                onClick={() => authApi.githubInstall()}
               >
                 <Github className="h-3.5 w-3.5" aria-hidden="true" />
                 Connect GitHub
@@ -427,7 +429,7 @@ function DashboardInner() {
                   <Button
                     variant="outline"
                     className="w-full gap-2"
-                    onClick={() => authApi.githubLogin()}
+                    onClick={() => authApi.githubInstall()}
                   >
                     <Github className="h-4 w-4" aria-hidden="true" />
                     Connect GitHub
