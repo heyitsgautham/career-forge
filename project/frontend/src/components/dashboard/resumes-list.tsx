@@ -385,7 +385,18 @@ function PdfPreviewModal({
   onClose: () => void;
   onDownload: () => void;
 }) {
-  const pdfUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/resumes/${resume.id}/pdf`;
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    setLoadError(false);
+    setPdfUrl(null);
+
+    resumesApi
+      .getPdfUrl(resume.id)
+      .then((res) => setPdfUrl(res.data.url))
+      .catch(() => setLoadError(true));
+  }, [resume.id]);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -408,14 +419,29 @@ function PdfPreviewModal({
         </div>
 
         {/* PDF iframe */}
-        <div className="flex-1 min-h-0">
-          <iframe
-            src={pdfUrl}
-            title="Generated resume preview"
-            aria-label={`Preview of ${resume.name}`}
-            className="w-full h-full min-h-[60vh]"
-            style={{ border: 'none' }}
-          />
+        <div className="flex-1 min-h-0 flex items-center justify-center">
+          {!pdfUrl && !loadError && (
+            <div className="flex flex-col items-center gap-3 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="text-sm">Loading preview…</span>
+            </div>
+          )}
+          {loadError && (
+            <div className="flex flex-col items-center gap-3 text-muted-foreground p-8 text-center">
+              <AlertTriangle className="h-8 w-8 text-amber-500" />
+              <p className="text-sm font-medium">Preview unavailable</p>
+              <p className="text-xs text-muted-foreground/70">Use the Download button to open the PDF.</p>
+            </div>
+          )}
+          {pdfUrl && (
+            <iframe
+              src={pdfUrl}
+              title="Generated resume preview"
+              aria-label={`Preview of ${resume.name}`}
+              className="w-full h-full min-h-[60vh]"
+              style={{ border: 'none' }}
+            />
+          )}
         </div>
       </div>
     </div>

@@ -20,7 +20,7 @@ logging.basicConfig(
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.cache_middleware import CacheControlMiddleware
-from app.api.routes import projects, resumes, templates, jobs, auth, health, github, skill_gap
+from app.api.routes import projects, resumes, templates, jobs, auth, health, github, skill_gap, applications
 
 
 # Configure structured logging
@@ -48,6 +48,12 @@ async def lifespan(app: FastAPI):
     
     if settings.USE_DYNAMO:
         logger.info("Using DynamoDB for data storage")
+        # Ensure Job Scout tables exist
+        from app.services.dynamo_service import dynamo_service
+        await dynamo_service.ensure_job_scout_tables()
+        # Start hourly scrape scheduler
+        from app.services.scheduler import start_scheduler
+        start_scheduler()
     else:
         await init_db()
         logger.info("SQLite database initialized")
@@ -55,6 +61,9 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
+    if settings.USE_DYNAMO:
+        from app.services.scheduler import stop_scheduler
+        stop_scheduler()
     logger.info("Shutting down CareerForge")
 
 
@@ -96,6 +105,7 @@ app.include_router(templates.router, prefix="/api/templates", tags=["Templates"]
 app.include_router(jobs.router, prefix="/api/jobs", tags=["Job Descriptions"])
 app.include_router(resumes.router, prefix="/api/resumes", tags=["Resumes"])
 app.include_router(skill_gap.router, prefix="/api/skill-gap", tags=["Skill Gap & Roadmap"])
+app.include_router(applications.router, prefix="/api", tags=["Applications & Tailor"])
 
 
 @app.get("/")
