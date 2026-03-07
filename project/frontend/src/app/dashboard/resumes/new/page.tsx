@@ -148,7 +148,7 @@ export default function NewResumePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-card px-4 py-3 flex items-center gap-4">
+      <header className="border-b border-border/60 bg-card px-4 py-3 flex items-center gap-4">
         <Link href="/dashboard">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5" />
@@ -163,19 +163,21 @@ export default function NewResumePage() {
       </header>
 
       {/* Progress Steps */}
-      <div className="border-b bg-card">
+      <div className="border-b border-border/60 bg-card">
         <div className="container max-w-4xl mx-auto py-4">
           <div className="flex justify-between">
             {steps.map((s, i) => (
               <div
                 key={s.key}
-                className={`flex items-center gap-2 ${i <= currentStepIndex ? 'text-primary' : 'text-muted-foreground'
+                className={`flex items-center gap-2 transition-colors duration-200 ${
+                  i <= currentStepIndex ? 'text-primary' : 'text-muted-foreground'
                   }`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${i < currentStepIndex
-                    ? 'bg-primary border-primary text-primary-foreground'
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                  i < currentStepIndex
+                    ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/20'
                     : i === currentStepIndex
-                      ? 'border-primary'
+                      ? 'border-primary shadow-sm shadow-primary/10'
                       : 'border-muted'
                   }`}>
                   {i < currentStepIndex ? <Check className="h-4 w-4" /> : s.icon}
@@ -199,13 +201,13 @@ export default function NewResumePage() {
               {templates?.map((template: any) => (
                 <Card
                   key={template.id}
-                  className={`cursor-pointer transition-all ${selectedTemplateId === template.id
-                      ? 'ring-2 ring-primary'
-                      : 'hover:shadow-md'
+                  className={`cursor-pointer transition-all duration-200 ${selectedTemplateId === template.id
+                      ? 'ring-2 ring-primary shadow-md shadow-primary/10'
+                      : 'hover:shadow-md hover:-translate-y-0.5'
                     }`}
                   onClick={() => setSelectedTemplateId(template.id)}
                 >
-                  <div className="aspect-[8.5/11] bg-muted flex items-center justify-center">
+                  <div className="aspect-[8.5/11] bg-muted/50 flex items-center justify-center rounded-t-xl">
                     <LayoutTemplate className="h-12 w-12 text-muted-foreground/30" />
                   </div>
                   <CardHeader className="pb-2">
@@ -230,9 +232,9 @@ export default function NewResumePage() {
               {projects?.map((project: any) => (
                 <Card
                   key={project.id}
-                  className={`cursor-pointer transition-all ${selectedProjectIds.includes(project.id)
-                      ? 'ring-2 ring-primary'
-                      : 'hover:shadow-md'
+                  className={`cursor-pointer transition-all duration-200 ${selectedProjectIds.includes(project.id)
+                      ? 'ring-2 ring-primary shadow-md shadow-primary/10'
+                      : 'hover:shadow-md hover:-translate-y-0.5'
                     }`}
                   onClick={() => toggleProject(project.id)}
                 >
@@ -250,7 +252,7 @@ export default function NewResumePage() {
                   <CardContent className="pt-0">
                     <div className="flex flex-wrap gap-1">
                       {project.technologies?.slice(0, 4).map((tech: string) => (
-                        <span key={tech} className="text-xs bg-muted px-2 py-0.5 rounded">
+                        <span key={tech} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md">
                           {tech}
                         </span>
                       ))}
@@ -270,7 +272,7 @@ export default function NewResumePage() {
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               <Card
-                className={`cursor-pointer transition-all ${selectedJobId === null ? 'ring-2 ring-primary' : 'hover:shadow-md'
+                className={`cursor-pointer transition-all duration-200 ${selectedJobId === null ? 'ring-2 ring-primary shadow-md shadow-primary/10' : 'hover:shadow-md hover:-translate-y-0.5'
                   }`}
                 onClick={() => setSelectedJobId(null)}
               >
@@ -284,7 +286,7 @@ export default function NewResumePage() {
               {jobs?.map((job: any) => (
                 <Card
                   key={job.id}
-                  className={`cursor-pointer transition-all ${selectedJobId === job.id ? 'ring-2 ring-primary' : 'hover:shadow-md'
+                  className={`cursor-pointer transition-all duration-200 ${selectedJobId === job.id ? 'ring-2 ring-primary shadow-md shadow-primary/10' : 'hover:shadow-md hover:-translate-y-0.5'
                     }`}
                   onClick={() => setSelectedJobId(job.id)}
                 >

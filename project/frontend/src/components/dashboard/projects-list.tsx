@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Github, ExternalLink, RefreshCw, Trash2, Calendar, Plus, X } from 'lucide-react';
+import { Github, ExternalLink, RefreshCw, Trash2, Calendar, Plus, X, Code2, Sparkles, GitBranch, FileCode, Lock, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Project {
@@ -19,6 +19,8 @@ interface Project {
   technologies: string[];
   url?: string;
   highlights: string[];
+  is_private?: boolean;
+  source_type?: string;
   start_date?: string;
   end_date?: string;
   created_at: string;
@@ -153,21 +155,57 @@ export function ProjectsList() {
   });
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [importingRepos, setImportingRepos] = useState<string[]>([]);
+
+  // ── Import mutation (lifted to parent so loading overlay survives modal close) ──
+  const importMutation = useMutation({
+    mutationFn: (fullNames: string[]) => projectsApi.importGithub(fullNames),
+    onMutate: () => {
+      // importingRepos already set before calling mutate
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      const results: Array<{ full_name?: string; status?: string; error?: string }> = response.data?.results ?? [];
+      const failed = results.filter(r => r.status === 'error');
+      const succeeded = results.filter(r => r.status === 'success');
+      if (succeeded.length > 0 && failed.length === 0) {
+        toast({ title: `${succeeded.length} project${succeeded.length !== 1 ? 's' : ''} imported successfully` });
+      } else if (succeeded.length > 0 && failed.length > 0) {
+        toast({ title: `${succeeded.length} imported, ${failed.length} failed`, description: `Failed: ${failed.map(f => f.full_name).join(', ')}` });
+      } else if (failed.length > 0) {
+        toast({ title: `Import failed for ${failed.length} project${failed.length !== 1 ? 's' : ''}`, description: failed[0].error ?? 'Unknown error', variant: 'destructive' });
+      } else {
+        toast({ title: 'Import completed' });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: 'Failed to import repositories', description: error.response?.data?.detail || error.message || 'Unknown error', variant: 'destructive' });
+    },
+    onSettled: () => {
+      setImportingRepos([]);
+    },
+  });
+
+  const handleStartImport = (fullNames: string[]) => {
+    setImportingRepos(fullNames.map(fn => fn.split('/').pop() || fn));
+    setShowGithubModal(false);
+    importMutation.mutate(fullNames);
+  };
 
   // ── GitHub sync banner (always visible at top) ────────────────────────
   const syncBanner = (
-    <Card className="mb-4 border-l-4 border-l-violet-500 bg-card">
+    <Card className="mb-4 border-l-4 border-l-primary bg-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Github className="h-5 w-5 text-violet-500" />
+            <Github className="h-5 w-5 text-primary" />
             <CardTitle className="text-base">GitHub Sync</CardTitle>
             {syncStatus === 'done' || syncStatus === 'completed' ? (
-              <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-0">
+              <Badge className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-0">
                 {syncSummary ? `${syncSummary.processed} imported` : 'Synced'}
               </Badge>
             ) : syncStatus === 'in_progress' || syncStatus === 'pending' ? (
-              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-0 animate-pulse">
+              <Badge className="bg-primary/10 text-primary border-0 animate-pulse">
                 {syncStatus === 'pending' ? 'Pending…' : 'Importing…'}
               </Badge>
             ) : syncStatus === 'failed' ? (
@@ -180,7 +218,7 @@ export function ProjectsList() {
               onClick={handleSyncAll}
               disabled={busy}
               variant="outline"
-              className="gap-2 border-violet-400 dark:border-violet-600 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950"
+              className="gap-2 border-primary/40 text-primary hover:bg-primary/5"
             >
               {syncing ? (
                 <><RefreshCw className="h-4 w-4 animate-spin" />Syncing…</>
@@ -192,7 +230,7 @@ export function ProjectsList() {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
+                className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5"
                 onClick={() => setShowClearConfirm(true)}
                 disabled={deleteAllMutation.isPending}
               >
@@ -221,6 +259,16 @@ export function ProjectsList() {
     </Card>
   );
   // ───────────────────────────────────────────────────────────────────────
+
+  // ── Import loading overlay ────────────────────────────────────────────
+  if (importingRepos.length > 0) {
+    return (
+      <>
+        {syncBanner}
+        <ImportLoadingOverlay repoNames={importingRepos} />
+      </>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -262,7 +310,7 @@ export function ProjectsList() {
                 <Github className="h-4 w-4" />
                 Import from GitHub
                 {githubReposCount !== undefined && githubReposCount > 0 && (
-                  <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                  <Badge variant="secondary" className="ml-1 bg-primary/10 text-primary">
                     {githubReposCount}
                   </Badge>
                 )}
@@ -276,7 +324,7 @@ export function ProjectsList() {
         </Card>
 
         {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
-        {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} />}
+        {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} />}
       </>
     );
   }
@@ -285,16 +333,16 @@ export function ProjectsList() {
     <>
       {syncBanner}
       <div className="flex justify-end gap-2 mb-4">
-        <Button variant="outline" className="gap-2 border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950" onClick={() => setShowGithubModal(true)}>
+        <Button variant="outline" className="gap-2 border-primary/30 hover:bg-primary/5" onClick={() => setShowGithubModal(true)}>
           <Github className="h-4 w-4" />
           Import from GitHub
           {githubReposCount !== undefined && githubReposCount > 0 && (
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+            <Badge variant="secondary" className="ml-1 bg-primary/10 text-primary">
               {githubReposCount}
             </Badge>
           )}
         </Button>
-        <Button onClick={() => setShowAddModal(true)} className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 shadow-lg">
+        <Button onClick={() => setShowAddModal(true)} className="shadow-md shadow-primary/20 hover:shadow-lg">
           <Plus className="h-4 w-4 mr-2" />
           Add Project
         </Button>
@@ -302,10 +350,23 @@ export function ProjectsList() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {projects.map((project) => (
-          <Card key={project.id} className="hover:shadow-lg transition-shadow duration-200 border-l-4 border-l-success">
+          <Card key={project.id} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-[hsl(var(--success))]">
             <CardHeader>
               <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{project.title}</CardTitle>
+                <div className="flex items-center gap-2 min-w-0">
+                  <CardTitle className="text-lg truncate">{project.title}</CardTitle>
+                  {project.source_type === 'github' && (
+                    project.is_private ? (
+                      <span title="Private repository" className="flex-shrink-0">
+                        <Lock className="h-3.5 w-3.5 text-amber-500" />
+                      </span>
+                    ) : (
+                      <span title="Public repository" className="flex-shrink-0">
+                        <Globe className="h-3.5 w-3.5 text-green-500" />
+                      </span>
+                    )
+                  )}
+                </div>
                 <div className="flex gap-1">
                   {project.url && (
                     <Button variant="ghost" size="icon" asChild>
@@ -323,9 +384,9 @@ export function ProjectsList() {
             <CardContent>
               <div className="flex flex-wrap gap-1 mb-4">
                 {project.technologies?.slice(0, 5).map((tech, idx) => (
-                  <Badge key={tech} variant="secondary" className={`text-xs ${idx % 3 === 0 ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                    idx % 3 === 1 ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
-                      'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200'
+                  <Badge key={tech} variant="secondary" className={`text-xs ${idx % 3 === 0 ? 'bg-primary/10 text-primary' :
+                    idx % 3 === 1 ? 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]' :
+                      'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
                     }`}>
                     {tech}
                   </Badge>
@@ -365,11 +426,11 @@ export function ProjectsList() {
       </div>
 
       {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
-      {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} />}
+      {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} />}
       {selectedProject && <ProjectDetailsModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
       {showClearConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg w-full max-w-sm">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2">Clear All Projects?</h2>
             <p className="text-sm text-muted-foreground mb-4">
               This will permanently delete all {projects?.length ?? 0} projects. You can re-import specific ones afterwards using "Import from GitHub".
@@ -392,8 +453,8 @@ export function ProjectsList() {
 
 function ProjectDetailsModal({ project, onClose }: { project: Project; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">{project.title}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -501,8 +562,8 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Add Project</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -581,13 +642,11 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function GithubImportModal({ onClose }: { onClose: () => void }) {
+function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onClose: () => void; onStartImport: (fullNames: string[]) => void; importedRepoNames: Set<string> }) {
   const [repoUrl, setRepoUrl] = useState('');
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [importMode, setImportMode] = useState<'select' | 'url'>('select');
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Fetch user's GitHub repositories
   const { data: userRepos, isLoading: loadingRepos, error: reposError } = useQuery({
@@ -623,6 +682,8 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
     );
   });
 
+  const isAlreadyImported = (repo: { name: string }) => importedRepoNames.has(repo.name);
+
   const toggleRepo = (fullName: string) => {
     setSelectedRepos(prev => {
       const next = new Set(prev);
@@ -637,78 +698,41 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
 
   const toggleAll = () => {
     if (!filteredRepos) return;
-    const allFilteredSelected = filteredRepos.every(r => selectedRepos.has(r.full_name));
+    const selectableRepos = filteredRepos.filter(r => !isAlreadyImported(r));
+    const allFilteredSelected = selectableRepos.every(r => selectedRepos.has(r.full_name));
     if (allFilteredSelected) {
-      // Deselect all filtered
       setSelectedRepos(prev => {
         const next = new Set(prev);
-        filteredRepos.forEach(r => next.delete(r.full_name));
+        selectableRepos.forEach(r => next.delete(r.full_name));
         return next;
       });
     } else {
-      // Select all filtered
       setSelectedRepos(prev => {
         const next = new Set(prev);
-        filteredRepos.forEach(r => next.add(r.full_name));
+        selectableRepos.forEach(r => next.add(r.full_name));
         return next;
       });
     }
   };
 
-  const importMutation = useMutation({
-    mutationFn: async () => {
-      if (importMode === 'select') {
-        if (selectedRepos.size === 0) throw new Error('No repositories selected');
-        return projectsApi.importGithub(Array.from(selectedRepos));
-      } else {
-        // URL mode: parse owner/repo from the typed URL
-        const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-        if (!match) throw new Error('Invalid GitHub URL');
-        const fullName = `${match[1]}/${match[2].replace('.git', '')}`;
-        return projectsApi.importGithub([fullName]);
-      }
-    },
-    onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      const results: Array<{ full_name?: string; status?: string; error?: string }> = response.data?.results ?? [];
-      const failed = results.filter(r => r.status === 'error');
-      const succeeded = results.filter(r => r.status === 'success');
-      if (succeeded.length > 0 && failed.length === 0) {
-        toast({
-          title: `${succeeded.length} project${succeeded.length !== 1 ? 's' : ''} imported successfully`,
-        });
-        onClose();
-      } else if (succeeded.length > 0 && failed.length > 0) {
-        toast({
-          title: `${succeeded.length} imported, ${failed.length} failed`,
-          description: `Failed: ${failed.map(f => f.full_name).join(', ')}`,
-        });
-        onClose();
-      } else if (failed.length > 0) {
-        toast({
-          title: `Import failed for ${failed.length} project${failed.length !== 1 ? 's' : ''}`,
-          description: failed[0].error ?? 'Unknown error',
-          variant: 'destructive',
-        });
-      } else {
-        toast({ title: 'Import completed' });
-        onClose();
-      }
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Failed to import repositories',
-        description: error.response?.data?.detail || error.message || 'Unknown error',
-        variant: 'destructive'
-      });
-    },
-  });
+  const handleImport = () => {
+    if (importMode === 'select') {
+      if (selectedRepos.size === 0) return;
+      onStartImport(Array.from(selectedRepos));
+    } else {
+      const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      if (!match) return;
+      const fullName = `${match[1]}/${match[2].replace('.git', '')}`;
+      onStartImport([fullName]);
+    }
+  };
 
-  const allFilteredSelected = filteredRepos && filteredRepos.length > 0 && filteredRepos.every(r => selectedRepos.has(r.full_name));
+  const selectableFilteredRepos = filteredRepos?.filter(r => !isAlreadyImported(r));
+  const allFilteredSelected = selectableFilteredRepos && selectableFilteredRepos.length > 0 && selectableFilteredRepos.every(r => selectedRepos.has(r.full_name));
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Import from GitHub</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -805,23 +829,30 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                   {/* Repo List with Checkboxes */}
                   <div className="border rounded-lg max-h-72 overflow-y-auto divide-y">
                     {filteredRepos?.map((repo) => {
-                      const isSelected = selectedRepos.has(repo.full_name);
+                      const imported = isAlreadyImported(repo);
+                      const isSelected = !imported && selectedRepos.has(repo.full_name);
                       return (
                         <label
                           key={repo.full_name}
-                          className={`flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors ${
-                            isSelected ? 'bg-violet-50 dark:bg-violet-950/30' : ''
+                          className={`flex items-start gap-3 px-3 py-2.5 transition-colors ${
+                            imported
+                              ? 'opacity-50 cursor-not-allowed bg-muted/30'
+                              : isSelected
+                                ? 'bg-primary/5 cursor-pointer hover:bg-muted/50'
+                                : 'cursor-pointer hover:bg-muted/50'
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={() => toggleRepo(repo.full_name)}
-                            className="mt-1 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                            onChange={() => !imported && toggleRepo(repo.full_name)}
+                            disabled={imported}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500 disabled:opacity-50"
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-sm truncate">{repo.full_name}</span>
+                              {imported && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]">Imported</Badge>}
                               {repo.is_private && <Badge variant="outline" className="text-[10px] px-1 py-0">Private</Badge>}
                               {repo.is_fork && <Badge variant="outline" className="text-[10px] px-1 py-0">Fork</Badge>}
                             </div>
@@ -873,23 +904,130 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
           <div className="flex gap-2 justify-end pt-4">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button
-              onClick={() => importMutation.mutate()}
+              onClick={handleImport}
               disabled={
                 (importMode === 'url' && !repoUrl) ||
-                (importMode === 'select' && selectedRepos.size === 0) ||
-                importMutation.isPending
+                (importMode === 'select' && selectedRepos.size === 0)
               }
             >
-              {importMutation.isPending
-                ? 'Importing…'
-                : importMode === 'select' && selectedRepos.size > 1
-                  ? `Import ${selectedRepos.size} Repositories`
-                  : 'Import Repository'
+              {importMode === 'select' && selectedRepos.size > 1
+                ? `Import ${selectedRepos.size} Repositories`
+                : 'Import Repository'
               }
             </Button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Creative import loading overlay ─────────────────────────────────────
+const LOADING_PHRASES = [
+  'Cloning repository data...',
+  'Scanning source files...',
+  'Analyzing code architecture...',
+  'Extracting tech stack...',
+  'Generating AI summaries...',
+  'Building project highlights...',
+  'Crafting project cards...',
+  'Almost there...',
+];
+
+function ImportLoadingOverlay({ repoNames }: { repoNames: string[] }) {
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [visibleRepos, setVisibleRepos] = useState(0);
+
+  useEffect(() => {
+    const phraseTimer = setInterval(() => {
+      setPhraseIdx(prev => (prev + 1) % LOADING_PHRASES.length);
+    }, 3000);
+    return () => clearInterval(phraseTimer);
+  }, []);
+
+  useEffect(() => {
+    if (visibleRepos < repoNames.length) {
+      const timer = setTimeout(() => setVisibleRepos(prev => prev + 1), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [visibleRepos, repoNames.length]);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4">
+      {/* Animated orbital spinner */}
+      <div className="relative w-32 h-32 mb-8">
+        {/* Outer ring */}
+        <div className="absolute inset-0 rounded-full border-2 border-violet-200 dark:border-violet-900" />
+        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-violet-500 animate-spin" style={{ animationDuration: '2s' }} />
+        {/* Middle ring */}
+        <div className="absolute inset-3 rounded-full border-2 border-transparent border-b-purple-500 animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
+        {/* Inner ring */}
+        <div className="absolute inset-6 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" style={{ animationDuration: '1s' }} />
+        {/* Center icon */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30 animate-pulse">
+            <Code2 className="h-6 w-6 text-white" />
+          </div>
+        </div>
+      </div>
+
+      {/* Title */}
+      <h3 className="text-xl font-bold bg-gradient-to-r from-violet-600 via-purple-500 to-blue-500 bg-clip-text text-transparent mb-2">
+        Importing {repoNames.length} {repoNames.length === 1 ? 'Repository' : 'Repositories'}
+      </h3>
+
+      {/* Animated status text */}
+      <p className="text-sm text-muted-foreground mb-8 h-5 transition-opacity duration-500">
+        {LOADING_PHRASES[phraseIdx]}
+      </p>
+
+      {/* Repo cards being "built" */}
+      <div className="w-full max-w-lg space-y-3">
+        {repoNames.slice(0, visibleRepos).map((name, idx) => (
+          <div
+            key={name}
+            className="flex items-center gap-3 p-3 rounded-lg border bg-card animate-in slide-in-from-bottom-2 fade-in duration-500"
+            style={{ animationDelay: `${idx * 100}ms` }}
+          >
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/50 dark:to-purple-900/50 flex items-center justify-center">
+              {idx % 3 === 0 ? (
+                <GitBranch className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              ) : idx % 3 === 1 ? (
+                <FileCode className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              ) : (
+                <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{name}</p>
+              <div className="flex gap-2 mt-1">
+                <div className="h-2 bg-muted rounded-full overflow-hidden flex-1 max-w-[180px]">
+                  <div
+                    className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full animate-pulse"
+                    style={{ width: '100%', animationDuration: `${1.5 + idx * 0.3}s` }}
+                  />
+                </div>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap animate-pulse">analyzing...</span>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Ghost cards for repos not yet shown */}
+        {visibleRepos < repoNames.length && (
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed bg-muted/30 animate-pulse">
+            <div className="w-8 h-8 rounded-lg bg-muted" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 bg-muted rounded w-32" />
+              <div className="h-2 bg-muted rounded w-24" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <p className="text-xs text-muted-foreground mt-6 text-center max-w-md">
+        Each repository is analyzed by AI to extract technologies, highlights, and project details. This may take a moment.
+      </p>
     </div>
   );
 }

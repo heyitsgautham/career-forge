@@ -26,10 +26,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
-        <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#FAFAF9" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#1C1917" media="(prefers-color-scheme: dark)" />
         <link rel="preconnect" href="https://avatars.githubusercontent.com" />
       </head>
       <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans`}>
