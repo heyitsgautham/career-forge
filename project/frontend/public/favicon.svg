@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Circular background -->
+  <circle cx="32" cy="32" r="32" fill="#F8F8F8"/>
+  <circle cx="32" cy="32" r="30" fill="white" stroke="#E5E7EB" stroke-width="0.5"/>
+  <!-- C letter -->
+  <path d="M26 14c-13 0-18 10-18 18s5 18 18 18c6 0 11-2 15-7l-5-5c-2 3-6 5-10 5-8 0-12-6-12-11s4-11 12-11c4 0 8 2 10 5l5-5c-4-5-9-7-15-7z" fill="#4F46E5"/>
+  <!-- Arrow -->
+  <path d="M36 22l7-10 7 10h-4v6h-6v-6z" fill="#4F46E5"/>
+  <!-- F letter -->
+  <path d="M42 16h18v7h-12v5h10v6h-10v10h-6z" fill="#F5A623"/>
+</svg>
