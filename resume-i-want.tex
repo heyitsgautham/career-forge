@@ -1,0 +1,180 @@
+\documentclass[letterpaper,11pt]{article}
+\usepackage{lmodern}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{textcomp}
+\input{glyphtounicode}
+\usepackage{fontawesome5}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\pdfgentounicode=1
+
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+\begin{center}
+    \href{https://gauthamkrishna.dev}{\textbf{\Huge \scshape Gautham Krishna S}} \\ \vspace{1pt}
+    \small \faPhone\ +91 8825885520 \quad
+    \href{mailto:heyitsgautham@gmail.com}{\faEnvelope\ heyitsgautham@gmail.com} \quad
+    \href{https://linkedin.com/in/heyitsgautham}{\faLinkedin\ linkedin.com/in/heyitsgautham} \quad
+    \href{https://github.com/heyitsgautham}{\faGithub\ github.com/heyitsgautham} \quad
+    \href{https://gauthamkrishna.dev}{\faGlobe\ gauthamkrishna.dev}
+\end{center}
+
+%% EDUCATION
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Indian Institute of Technology Madras}{CGPA - 9.1}
+    {Bachelor of Science (BS) Degree in Data Science and Applications}{May 2023 -- May 2027}
+  \resumeSubheading
+    {Saveetha Engineering College}{CGPA - 8.8}
+    {Bachelor of Technology, Artificial Intelligence and Machine Learning}{Sep 2023 -- May 2027}
+\resumeSubHeadingListEnd
+
+%% EXPERIENCE
+\section{Experience}
+\resumeSubHeadingListStart
+
+  \resumeSubheading
+    {Software Engineer Intern}{Sep 2025 -- Nov 2025}
+    {Presidio}{}
+    \resumeItemListStart
+      \resumeItem{Engineered 4 production-grade cloud-native systems using Node.js, TypeScript, React, and AWS services}
+      \resumeItem{Built full-stack screening platform with React 19 and FastAPI, reducing manual review time by 98\%}
+      \resumeItem{Designed microservices-based LMS with Node.js, PostgreSQL, and Docker deployed on AWS ECS Fargate}
+      \resumeItem{Automated CI/CD pipelines using GitHub Actions with Terraform infrastructure-as-code provisioning}
+    \resumeItemListEnd
+
+  \resumeSubheading
+    {Team Leader}{Oct 2024 -- Dec 2024}
+    {Google Cloud Platform, IIT Madras}{}
+    \resumeItemListStart
+      \resumeItem{Led team through Google Cloud GenAI Bootcamp, earning 18 certifications in AI/ML and cloud tools}
+      \resumeItem{Developed GenAI applications using Vertex AI, Gemini API, Cloud Vision, and Speech-to-Text services}
+      \resumeItem{Implemented prompt engineering techniques like few-shot and chain-of-thought for production LLMs}
+      \resumeItem{Achieved 95\% lab completion rate, ranked in the top 5\% nationally for GenAI project evaluations}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%% PROJECTS
+\section{Projects}
+\resumeSubHeadingListStart
+
+  \resumeProjectHeading
+    {\textbf{\href{https://github.com/heyitsgautham/AcademiaSync}{\faGithub\ AcademiaSync}} $|$ \emph{TypeScript, Node.js 20, Next.js 14, Express, PostgreSQL, Docker, AWS, Terraform}}{}
+    \resumeItemListStart
+      \resumeItem{Built cloud-native learning management system enabling course management, enrollment, and analytics}
+      \resumeItem{Architected 3 independent microservices with Docker containerization and health check orchestration}
+      \resumeItem{Deployed on AWS ECS Fargate with Terraform IaC, Google OAuth 2.0, and role-based access for 3 roles}
+    \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{\href{https://github.com/heyitsgautham/Sticky-Net}{\faGithub\ Sticky-Net}} $|$ \emph{TypeScript, React 19, FastAPI, Docker, Google Cloud Run, Firestore, Tailwind CSS}}{}
+    \resumeItemListStart
+      \resumeItem{Built AI-powered honeypot system that detects scam messages and extracts financial intelligence data}
+      \resumeItem{Engineered 4-stage detection pipeline with 10ms regex pre-filter and 150ms AI classification latency}
+      \resumeItem{Validated 50+ UPI providers and 50+ Indian bank patterns with production deployment on Cloud Run}
+    \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{\href{https://github.com/heyitsgautham/SkillSync}{\faGithub\ SkillSync}} $|$ \emph{TypeScript, React 19, FastAPI, PostgreSQL, AWS S3, Multi-LLM Orchestration}}{}
+    \resumeItemListStart
+      \resumeItem{Developed enterprise resume screening platform with RAG-powered semantic matching and PII redaction}
+      \resumeItem{Optimized screening pipeline to process 500 applicants in 90 seconds, achieving 98\% cost reduction}
+      \resumeItem{Constructed multi-LLM backup system with 10 API keys and automatic rotation for 99.9\% uptime}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%% TECHNICAL SKILLS
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+  \small{\item{
+    \textbf{Languages}{: JavaScript, TypeScript, Python, Java, C, SQL, HTML/CSS} \\
+    \textbf{Frameworks}{: Node.js, Express, React, Next.js, FastAPI, Flask, Bootstrap, Tailwind CSS} \\
+    \textbf{Databases}{: MongoDB, PostgreSQL, SQLite, Firebase Firestore} \\
+    \textbf{Developer Tools}{: Git, Docker, AWS, Google Cloud Platform, Terraform, GitHub Actions, VS Code} \\
+    \textbf{Libraries}{: Mongoose, Prisma, Axios, Redux, pandas, NumPy, Recharts, Jest} \\
+    \textbf{Other Skills}{: REST APIs, Microservices, CI/CD, Agile, Code Reviews, Unit Testing, Documentation} \\
+    \textbf{Certificates}{: AWS Cloud Practitioner Essentials, PyTorch Ultimate 2024, Database Management Essentials} \\
+    \textbf{Relevant Coursework}{: Database Management Systems, Software Engineering, Computer Networks, Operating Systems, Web Development, Data Structures and Algorithms}
+  }}
+\end{itemize}
+
+%% ACHIEVEMENTS
+\section{Achievements}
+\resumeItemListStart
+  \resumeItem{100\% Merit Scholarship Recipient, Saveetha Engineering College (Full tuition waiver, 4 years)}
+  \resumeItem{Smart India Hackathon 2025 Finalist - India's premier national innovation challenge}
+  \resumeItem{Impact-Metrics Hackathon Finalist (IIT-BHU) - National-level technical competition}
+  \resumeItem{3$\times$ National Hackathon Finalist: HackIO, GenAIVersity, Hack Hustle}
+\resumeItemListEnd
+
+\end{document}

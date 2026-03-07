@@ -1,0 +1,179 @@
+\documentclass[letterpaper,11pt]{article}
+\usepackage{lmodern}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{textcomp}
+\input{glyphtounicode}
+\usepackage{fontawesome5}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\pdfgentounicode=1
+
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+
+
+\begin{document}
+
+
+
+\begin{center}
+    \textbf{\Huge \scshape Gautham Krishna S} \\ \vspace{1pt}
+    \small \faPhone\ +91 8825885520 \quad
+    \href{mailto:heyitsgautham@gmail.com}{\faEnvelope\ heyitsgautham@gmail.com} \quad
+    \href{https://linkedin.com/in/heyitsgautham}{\faLinkedin\ linkedin.com/in/heyitsgautham} \quad
+    \href{https://github.com/heyitsgautham}{\faGithub\ github.com/heyitsgautham}
+\end{center}
+
+\section{Professional Summary}
+\small Data and AI engineer with experience in developing scalable AI solutions, containerization, and cloud computing. Proficient in Python, Java, C, SQL, and JavaScript, with a strong background in data analysis and processing. Proven ability to work with diverse technologies and adapt to new environments.
+
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Indian Institute of Technology Madras}{CGPA - 9.17}
+    {Bachelor of Science in Data Science and Applications}{May 2023 -- May 2027}
+  \resumeSubheading
+    {Saveetha Engineering College}{CGPA - 8.85}
+    {Bachelor of Technology in Artificial Intelligence and Machine Learning}{Sep 2023 -- May 2027}
+\resumeSubHeadingListEnd
+
+\section{Experience}
+\resumeSubHeadingListStart
+
+  \resumeSubheading
+    {Software Engineer Intern}{Sep 2025 -- Nov 2025}
+    {Presidio}{}
+    \resumeItemListStart
+      \resumeItem{Developed RESTful APIs with FastAPI for ML model serving, handling 10K+ inference requests daily}
+      \resumeItem{Implemented containerized microservices using Docker and Kubernetes for scalable AI deployments}
+      \resumeItem{Built automated CI/CD pipelines with GitHub Actions, reducing deployment time by 60\%}
+      \resumeItem{Optimized PostgreSQL queries and implemented caching strategies, improving API response time by 35\%}
+    \resumeItemListEnd
+
+  \vspace{6pt}
+  \resumeSubheading
+    {Team Leader - AI Infrastructure}{Oct 2024 -- Dec 2024}
+    {Google Cloud Platform, IIT Madras}{}
+    \resumeItemListStart
+      \resumeItem{Built ML training/inference clusters on GKE with GPU node pools for distributed model training}
+      \resumeItem{Deployed model serving infrastructure on Vertex AI with auto-scaling endpoints, 99.5\% availability}
+      \resumeItem{Configured VPC networks, load balancers, and firewall rules for secure AI infrastructure connectivity}
+      \resumeItem{Led 5-member team through 15+ labs on Kubernetes orchestration and distributed computing patterns}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+\section{Projects}
+\resumeSubHeadingListStart
+
+  \resumeProjectHeading
+    {\textbf{\href{https://github.com/heyitsgautham/aura-health}{\faGithub\ Aura Health}} $|$ \emph{Python, FastAPI, Docker, AWS, RAG, Multi-LLM Backup}}{}
+    \resumeItemListStart
+      \resumeItem{Developed a multi-domain RAG system for multi-specialty hospitals}
+      \resumeItem{Implemented advanced RAG techniques to improve retrieval quality and answer accuracy}
+      \resumeItem{Incorporated safety guardrails to block threatening or harmful queries}
+    \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{\href{https://github.com/heyitsgautham/AcademiaSync}{\faGithub\ Academiasync}} $|$ \emph{TypeScript, Next.js, Docker, AWS, Terraform}}{}
+    \resumeItemListStart
+      \resumeItem{Designed a modern and scalable learning platform for educational institutions}
+      \resumeItem{Implemented Google OAuth authentication for secure user access}
+      \resumeItem{Developed a comprehensive course management system with real-time analytics}
+    \resumeItemListEnd
+
+  \resumeProjectHeading
+    {\textbf{\href{https://github.com/heyitsgautham/skill-sync-backend}{\faGithub\ Skill Sync Backend}} $|$ \emph{Python, FastAPI, Docker, AWS, RAG, Multi-LLM Backup}}{}
+    \resumeItemListStart
+      \resumeItem{Anonymized hundreds of resumes against job requirements to deliver unbiased candidate recommendations}
+      \resumeItem{Automated daily digests, bulk campaigns, and stakeholder notifications}
+      \resumeItem{Utilized an enterprise RAG system with multi-LLM backup for 99.9\% uptime}
+    \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+  \small{\item{
+    \textbf{Languages}{: Python, Java, C, SQL, JavaScript} \\
+    \textbf{Frameworks}{: FastAPI, Next.js, React} \\
+    \textbf{Cloud \& Infrastructure}{: AWS, GCP, Azure, Docker, Kubernetes} \\
+    \textbf{Developer Tools}{: Git, GitHub Actions, Terraform} \\
+    \textbf{Relevant Coursework}{: Data Science, Artificial Intelligence, Machine Learning}
+  }}
+\end{itemize}
+
+\section{Achievements}
+\resumeItemListStart
+  \resumeItem{100\% Merit Scholarship Recipient, Saveetha Engineering College (Full tuition waiver, 4 years)}
+  \resumeItem{Smart India Hackathon 2025 Finalist -- India's premier national innovation challenge}
+  \resumeItem{Impact-Metrics Hackathon Finalist (IIT-BHU) -- National-level technical competition}
+  \resumeItem{3× National Hackathon Finalist: HackIO, GenAIVersity, Hack Hustle}
+\resumeItemListEnd
+
+\end{document}
