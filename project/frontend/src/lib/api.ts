@@ -200,7 +200,7 @@ export const authApi = {
       console.error('NEXT_PUBLIC_GITHUB_CLIENT_ID is not configured');
       return;
     }
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001').replace(/\/$/, '');
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/callback/github`);
     const scope = encodeURIComponent('read:user user:email repo');
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
