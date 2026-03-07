@@ -20,7 +20,7 @@ Port the latex-agent resume generation pipeline to AWS. A user can log in, have 
 
 **Pipeline: Read all `{userId}/*-summary.md` from S3 → pass to Claude with `new-resume.prompt.md` system prompt → LaTeX output**
 
-- [ ] Add `app/services/resume_agent.py`:
+- [x] Add `app/services/resume_agent.py`:
   1. `list_project_summaries(user_id: str) -> List[str]` — lists all `{userId}/*-summary.md` keys from S3 and downloads their content; returns a list of raw `.md` strings
   2. `generate_resume_latex(user_id: str, jd: Optional[str]) -> str` — assembles the prompt and calls Bedrock Claude:
      ```python
@@ -47,70 +47,70 @@ Port the latex-agent resume generation pipeline to AWS. A user can log in, have 
          )
          return response
      ```
-- [ ] Store `RESUME_SYSTEM_PROMPT` as a constant in `app/services/resume_agent.py` — this is the `new-resume.prompt.md` content adapted for Bedrock's system parameter (strip the YAML front-matter, keep Step 0 through Output Requirements intact)
-- [ ] **Anti-hallucination constraint** must be in the system prompt:
+- [x] Store `RESUME_SYSTEM_PROMPT` as a constant in `app/services/resume_agent.py` — this is the `new-resume.prompt.md` content adapted for Bedrock's system parameter (strip the YAML front-matter, keep Step 0 through Output Requirements intact)
+- [x] **Anti-hallucination constraint** must be in the system prompt:
   > "Only use data from the provided project summaries. Never fabricate metrics, experience, or skills not present in the summaries."
-- [ ] **Step 0 must execute before LaTeX output** — system prompt must explicitly instruct Claude to output the ranking table and analysis in a `<analysis>` block before the `<latex>` block so the API response can be parsed in two parts
-- [ ] Parse response: extract `<analysis>` block (log it for debugging) and `<latex>` block (pass to 2.3 compilation)
-- [ ] Test: pass 5 summary `.md` files + a sample JD → receive valid `.tex` string with projects ranked and selected correctly
+- [x] **Step 0 must execute before LaTeX output** — system prompt must explicitly instruct Claude to output the ranking table and analysis in a `<analysis>` block before the `<latex>` block so the API response can be parsed in two parts
+- [x] Parse response: extract `<analysis>` block (log it for debugging) and `<latex>` block (pass to 2.3 compilation)
+- [x] Test: pass 5 summary `.md` files + a sample JD → receive valid `.tex` string with projects ranked and selected correctly
 
 ### 2.2 — Project Context Assembly (replaces matching_engine)
 
 > **No cosine similarity. No Titan embeddings. No `matching_engine.py`.** Project ranking happens inside Claude's Step 0 prompt analysis — it scores every project on Unique JD Requirements, Problem-Type Match, Tech Stack Match, Role Type Match, and Impact Relevance, which is strictly more accurate than vector similarity. Cosine similarity can't detect that a PII detection JD and a generic LMS project share the same tech stack but solve completely different types of problems.
 
-- [ ] `list_project_summaries()` (implemented in 2.1) is the only assembly step needed:
+- [x] `list_project_summaries()` (implemented in 2.1) is the only assembly step needed:
   - List all `{userId}/*-summary.md` keys via `s3_service.list_objects(prefix=f"{user_id}/")`
   - Download each `.md` and return the full list — Claude receives everything and decides what's relevant
-- [ ] No pre-filtering, no ranking code — pass all summaries and let the Step 0 prompt do the work
-- [ ] If `user_id` has zero summaries in S3, surface a clear API error: `"No projects found. Please run GitHub ingestion first."`
-- [ ] Test: call `list_project_summaries(user_id)` for a user with 10 ingested repos → 10 `.md` strings returned, each matching the `academia-sync.md` structure
+- [x] No pre-filtering, no ranking code — pass all summaries and let the Step 0 prompt do the work
+- [x] If `user_id` has zero summaries in S3, surface a clear API error: `"No projects found. Please run GitHub ingestion first."`
+- [x] Test: call `list_project_summaries(user_id)` for a user with 10 ingested repos → 10 `.md` strings returned, each matching the `academia-sync.md` structure
 
 ### 2.3 — LaTeX Compilation Pipeline
 
-- [ ] Keep `latex.ytotech.com` as compiler (already working, no need to change)
-- [ ] Update `app/services/latex_service.py`:
+- [x] Keep `latex.ytotech.com` as compiler (already working, no need to change)
+- [x] Update `app/services/latex_service.py`:
   1. Receive `.tex` string from resume agent
   2. POST to ytotech API → receive PDF bytes
   3. Upload PDF to S3 via `s3_service.upload_file()`
   4. Upload `.tex` source to S3 (for re-editing later)
   5. Store resume metadata in DynamoDB `Resumes` table
   6. Return presigned S3 URL to frontend
-- [ ] Add fallback: if ytotech is down, return `.tex` file for manual compilation
-- [ ] Test: full pipeline → `.tex` generated → compiled → PDF in S3 → URL works
+- [x] Add fallback: if ytotech is down, return `.tex` file for manual compilation
+- [x] Test: full pipeline → `.tex` generated → compiled → PDF in S3 → URL works
 
 ### 2.4 — Resume API Endpoints
 
-- [ ] `POST /api/resumes/generate` — trigger base resume generation
+- [x] `POST /api/resumes/generate` — trigger base resume generation
   - Input: `{ userId, jd?: string }` (optional JD; no JD = base resume ranked by complexity/recency)
   - Output: `{ resumeId, pdfUrl, texUrl, analysis: string }` (analysis = Step 0 output block, useful for debugging)
-- [ ] `GET /api/resumes/{resumeId}` — fetch resume metadata + download URL
-- [ ] `GET /api/resumes/user/{userId}` — list all resumes for a user
-- [ ] `DELETE /api/resumes/{resumeId}` — delete resume + S3 files
-- [ ] All endpoints use DynamoDB for metadata, S3 for files
+- [x] `GET /api/resumes/{resumeId}` — fetch resume metadata + download URL
+- [x] `GET /api/resumes/user/{userId}` — list all resumes for a user
+- [x] `DELETE /api/resumes/{resumeId}` — delete resume + S3 files
+- [x] All endpoints use DynamoDB for metadata, S3 for files
 
 ### 2.5 — Frontend: Wire Resume Tab (Shell built in M1.5)
 
 > The Resume Generator tab, loading skeleton, and empty state already exist from M1.5. This section only wires real data.
 
-- [ ] Enable the "Generate Resume" button (remove `disabled` + tooltip stub)
-- [ ] Wire `POST /api/resumes/generate` — on click: show skeleton → on success: replace with real PDF iframe
-- [ ] Wire `GET /api/resumes/user/{userId}` — replace placeholder list with real resume history
-- [ ] PDF preview: `<iframe src={pdfUrl} title="Generated resume preview" />` with `aria-label`
-- [ ] Download button: presigned S3 URL, `<a download>` with filename `resume-{date}.pdf`
-- [ ] Error state: inline error message below button (not toast), includes fix hint: "Try re-importing your repos first"
-- [ ] `aria-live="polite"` on result area so screen readers announce PDF ready
+- [x] Enable the "Generate Resume" button (remove `disabled` + tooltip stub)
+- [x] Wire `POST /api/resumes/generate` — on click: show skeleton → on success: replace with real PDF iframe
+- [x] Wire `GET /api/resumes/user/{userId}` — replace placeholder list with real resume history
+- [x] PDF preview: `<iframe src={pdfUrl} title="Generated resume preview" />` with `aria-label`
+- [x] Download button: presigned S3 URL, `<a download>` with filename `resume-{date}.pdf`
+- [x] Error state: inline error message below button (not toast), includes fix hint: "Try re-importing your repos first"
+- [x] `aria-live="polite"` on result area so screen readers announce PDF ready
 
 ---
 
 ## Verification Checklist
 
-- [ ] Login → repos fetched → "Generate Resume" button active
-- [ ] Click generate → loading state → PDF appears in < 15 seconds
-- [ ] PDF content matches user's actual GitHub projects (no hallucination)
-- [ ] PDF downloads correctly from S3 presigned URL
-- [ ] Resume record exists in DynamoDB with correct metadata
-- [ ] `.tex` source also stored in S3 for reference
-- [ ] Multiple resumes can be generated and listed
+- [x] Login → repos fetched → "Generate Resume" button active
+- [x] Click generate → loading state → PDF appears in < 15 seconds
+- [x] PDF content matches user's actual GitHub projects (no hallucination)
+- [x] PDF downloads correctly from S3 presigned URL
+- [x] Resume record exists in DynamoDB with correct metadata
+- [x] `.tex` source also stored in S3 for reference
+- [x] Multiple resumes can be generated and listed
 
 ---
 
