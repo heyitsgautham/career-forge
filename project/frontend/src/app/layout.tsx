@@ -30,6 +30,8 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#FAFAF9" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#1C1917" media="(prefers-color-scheme: dark)" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="apple-touch-icon" href="/favicon.svg" />
         <link rel="preconnect" href="https://avatars.githubusercontent.com" />
       </head>
       <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans`}>
