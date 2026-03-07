@@ -33,9 +33,11 @@ export function ProjectsList() {
   const queryClient = useQueryClient();
 
   // ── GitHub bulk-ingestion state ─────────────────────────────────────────
-  const [syncing, setSyncing] = useState(false);
+  const [syncing, setSyncing] = useState(false);      // "Sync All Repos"
+  const [importing, setImporting] = useState(false);  // "Import All Repos"
+  const busy = syncing || importing;
   const [syncStatus, setSyncStatus] = useState<string>('none');
-  const [syncSummary, setSyncSummary] = useState<{ processed: number; failed: number; lastRunAt?: string } | null>(null);
+  const [syncSummary, setSyncSummary] = useState<{ processed: number; failed: number; mode?: string; lastRunAt?: string } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPoll = useCallback(() => {
@@ -46,34 +48,45 @@ export function ProjectsList() {
     try {
       const res = await githubApi.getIngestStatus();
       const s = res.data.status as string;
+      const summary = res.data.summary;
       setSyncStatus(s);
-      setSyncSummary(res.data.summary);
+      setSyncSummary(summary);
       if (s === 'done' || s === 'completed') {
-        stopPoll(); setSyncing(false);
+        stopPoll(); setSyncing(false); setImporting(false);
         queryClient.invalidateQueries({ queryKey: ['projects'] });
-        toast({ title: 'Sync complete', description: `${res.data.summary?.processed ?? 0} projects imported.` });
+        const count = summary?.processed ?? 0;
+        const isSync = summary?.mode === 'sync';
+        toast({
+          title: isSync ? 'Sync complete' : 'Import complete',
+          description: isSync
+            ? `${count} existing project${count !== 1 ? 's' : ''} refreshed.`
+            : `${count} new project${count !== 1 ? 's' : ''} imported.`,
+        });
       } else if (s === 'failed') {
-        stopPoll(); setSyncing(false);
-        toast({ title: 'Sync failed', description: 'Check your GitHub connection and try again.', variant: 'destructive' });
+        stopPoll(); setSyncing(false); setImporting(false);
+        toast({ title: 'Operation failed', description: 'Check your GitHub connection and try again.', variant: 'destructive' });
       }
-    } catch { stopPoll(); setSyncing(false); }
+    } catch { stopPoll(); setSyncing(false); setImporting(false); }
   }, [stopPoll, queryClient, toast]);
 
-  // Cleanup polling on unmount only — no auto-sync on page load.
-  // Sync is triggered exclusively by the user clicking "Sync All Repos".
   useEffect(() => () => stopPoll(), [stopPoll]);
 
   const handleSyncAll = async () => {
     setSyncing(true);
     try {
-      await githubApi.ingest(false);
-      pollRef.current = setInterval(pollStatus, 3000);
-      pollStatus();
-    } catch {
-      // background job already started — just poll
-      pollRef.current = setInterval(pollStatus, 3000);
-      pollStatus();
-    }
+      await githubApi.sync(false);
+    } catch { /* server already processing */ }
+    pollRef.current = setInterval(pollStatus, 3000);
+    pollStatus();
+  };
+
+  const handleImportAll = async () => {
+    setImporting(true);
+    try {
+      await githubApi.importNew(false);
+    } catch { /* server already processing */ }
+    pollRef.current = setInterval(pollStatus, 3000);
+    pollStatus();
   };
   // ───────────────────────────────────────────────────────────────────────
 
@@ -83,6 +96,8 @@ export function ProjectsList() {
       const res = await projectsApi.list();
       return res.data as Project[];
     },
+    staleTime: 5 * 60 * 1000,   // 5 min
+    gcTime: 30 * 60 * 1000,     // 30 min
   });
 
   // Fetch GitHub repos count for the badge
@@ -96,18 +111,35 @@ export function ProjectsList() {
         return 0;
       }
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,   // 5 min
+    gcTime: 30 * 60 * 1000,     // 30 min
     retry: false,
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => projectsApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast({ title: 'Project deleted successfully' });
+    onMutate: async (id: string) => {
+      // Cancel any in-flight refetches so they don't overwrite the optimistic update
+      await queryClient.cancelQueries({ queryKey: ['projects'] });
+      // Snapshot so we can roll back on error
+      const previous = queryClient.getQueryData(['projects']);
+      // Optimistically remove from cache immediately
+      queryClient.setQueryData(['projects'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.filter((p: { id: string }) => p.id !== id);
+      });
+      return { previous };
     },
-    onError: () => {
+    onError: (_err, _id, context) => {
+      // Roll back to snapshot
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(['projects'], context.previous);
+      }
       toast({ title: 'Failed to delete project', variant: 'destructive' });
+    },
+    onSettled: () => {
+      // Sync with server once the mutation resolves either way
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 
@@ -131,18 +163,33 @@ export function ProjectsList() {
               <Badge variant="destructive">Failed</Badge>
             ) : null}
           </div>
-          <Button
-            size="sm"
-            onClick={handleSyncAll}
-            disabled={syncing}
-            className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 gap-2"
-          >
-            {syncing ? (
-              <><RefreshCw className="h-4 w-4 animate-spin" />Syncing…</>
-            ) : (
-              <><Zap className="h-4 w-4" />Sync All Repos</>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleSyncAll}
+              disabled={busy}
+              variant="outline"
+              className="gap-2 border-violet-400 dark:border-violet-600 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950"
+            >
+              {syncing ? (
+                <><RefreshCw className="h-4 w-4 animate-spin" />Syncing…</>
+              ) : (
+                <><RefreshCw className="h-4 w-4" />Sync Existing</>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleImportAll}
+              disabled={busy}
+              className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 gap-2"
+            >
+              {importing ? (
+                <><RefreshCw className="h-4 w-4 animate-spin" />Importing…</>
+              ) : (
+                <><Zap className="h-4 w-4" />Import All Repos</>
+              )}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       {(syncStatus === 'in_progress' || syncStatus === 'pending') && (
@@ -266,8 +313,8 @@ export function ProjectsList() {
               <div className="flex flex-wrap gap-1 mb-4">
                 {project.technologies?.slice(0, 5).map((tech, idx) => (
                   <Badge key={tech} variant="secondary" className={`text-xs ${idx % 3 === 0 ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                      idx % 3 === 1 ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
-                        'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200'
+                    idx % 3 === 1 ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
+                      'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200'
                     }`}>
                     {tech}
                   </Badge>
@@ -530,7 +577,8 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
       }>;
     },
     retry: false,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,   // 5 min
+    gcTime: 30 * 60 * 1000,     // 30 min
   });
 
   // Filter repos based on search query
@@ -547,20 +595,38 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      let url = importMode === 'url' ? repoUrl : selectedRepo;
-
-      // Parse GitHub URL
-      const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-      if (!match) {
-        throw new Error('Invalid GitHub URL');
+      if (importMode === 'dropdown') {
+        // selectedRepo is full_name (e.g. "heyitsgautham/swades-connect") — no parsing needed
+        if (!selectedRepo) throw new Error('No repository selected');
+        return projectsApi.importGithub(selectedRepo);
+      } else {
+        // URL mode: parse owner/repo from the typed URL
+        const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+        if (!match) throw new Error('Invalid GitHub URL');
+        const fullName = `${match[1]}/${match[2].replace('.git', '')}`;
+        return projectsApi.importGithub(fullName);
       }
-      const [, owner, repo] = match;
-      return projectsApi.importGithub(owner, repo.replace('.git', ''));
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast({ title: 'Repository imported successfully' });
-      onClose();
+      // Check whether the backend actually succeeded (HTTP 200 but result may contain errors)
+      const results: Array<{ full_name?: string; status?: string; error?: string }> = response.data?.results ?? [];
+      const failed = results.filter(r => r.status === 'error');
+      const succeeded = results.filter(r => r.status === 'success');
+      if (succeeded.length > 0) {
+        toast({ title: 'Repository imported successfully' });
+        onClose();
+      } else if (failed.length > 0) {
+        const errMsg = failed[0].error ?? 'Unknown error';
+        toast({
+          title: 'Import failed',
+          description: errMsg,
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Repository imported successfully' });
+        onClose();
+      }
     },
     onError: (error: any) => {
       toast({
@@ -650,7 +716,7 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                     >
                       <option value="">-- Select a repository --</option>
                       {filteredRepos?.map((repo) => (
-                        <option key={repo.full_name} value={repo.html_url}>
+                        <option key={repo.full_name} value={repo.full_name}>
                           {repo.full_name}
                           {repo.is_private && ' 🔒'}
                           {repo.is_fork && ' 🍴'}
@@ -664,7 +730,7 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                   {selectedRepo && (
                     <div className="mt-2 p-3 bg-muted rounded-lg">
                       {(() => {
-                        const repo = userRepos.find(r => r.html_url === selectedRepo);
+                        const repo = userRepos.find(r => r.full_name === selectedRepo);
                         return repo ? (
                           <div>
                             <h3 className="font-semibold">{repo.name}</h3>

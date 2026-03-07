@@ -251,9 +251,9 @@ export const projectsApi = {
 
   delete: (id: string) => api.delete(`/api/projects/${id}`),
 
-  importGithub: (owner: string, repo: string) =>
+  importGithub: (fullName: string) =>
     api.post('/api/projects/ingest/github', {
-      repo_urls: [`https://github.com/${owner}/${repo}`]
+      full_names: [fullName]
     }),
 
   syncAllGithub: () =>
@@ -386,13 +386,21 @@ export const resumesApi = {
 // ─── GitHub Ingestion API ─────────────────────────────────────────────────────
 
 export const githubApi = {
-  /** Trigger full ingestion: fetch repos → Bedrock summary → S3 + DynamoDB */
+  /** Refresh already-imported repos with latest README + Bedrock summary */
+  sync: (includeForks: boolean = false) =>
+    api.post('/api/github/ingest', null, { params: { include_forks: includeForks, mode: 'sync' } }),
+
+  /** Import repos not yet in the Projects table */
+  importNew: (includeForks: boolean = false) =>
+    api.post('/api/github/ingest', null, { params: { include_forks: includeForks, mode: 'import_new' } }),
+
+  /** @deprecated use sync() */
   ingest: (includeForks: boolean = false) =>
-    api.post('/api/github/ingest', null, { params: { include_forks: includeForks } }),
+    api.post('/api/github/ingest', null, { params: { include_forks: includeForks, mode: 'sync' } }),
 
   /** Poll ingestion status */
   getIngestStatus: () =>
-    api.get<{ status: string; summary: { total: number; processed: number; failed: number; lastRunAt: string } | null }>(
+    api.get<{ status: string; summary: { total: number; processed: number; failed: number; mode?: string; lastRunAt: string } | null }>(
       '/api/github/ingest-status'
     ),
 
