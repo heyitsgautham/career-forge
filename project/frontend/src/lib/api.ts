@@ -69,11 +69,16 @@ export interface SkillGap {
 
 export interface SkillGapReport {
   reportId: string;
-  overallScore: number;
+  userId: string;
+  roleId: string;
+  roleName: string;
+  userScores: Record<string, number>;
+  benchmarkScores: Record<string, number>;
   gaps: SkillGap[];
+  overallFitPercent: number;
+  projectCount: number;
   createdAt: string;
-  roleId?: string;
-  roleName?: string;
+  report?: null; // present when no report found
 }
 
 export interface Job {
@@ -118,15 +123,23 @@ export interface Application {
 export interface RoadmapWeek {
   week: number;
   projectTitle: string;
+  description?: string;
   techStack: string[];
   estimatedHours: number;
   resources: Array<{ title: string; url: string }>;
-  completedAt?: string;
+  completedAt?: string | null;
 }
 
 export interface Roadmap {
   roadmapId: string;
+  userId?: string;
+  roleId: string;
+  roleName: string;
+  reportId?: string;
+  overallFitPercent?: number;
   weeks: RoadmapWeek[];
+  completedWeeks: number;
+  totalWeeks: number;
   createdAt: string;
 }
 
@@ -172,13 +185,8 @@ export const authApi = {
     api.post('/api/auth/register', { email, password, full_name }),
 
   githubLogin: () => {
-    // Prefer GitHub App install URL (shows repo-selection screen)
-    const appSlug = process.env.NEXT_PUBLIC_GITHUB_APP_SLUG;
-    if (appSlug) {
-      window.location.href = `https://github.com/apps/${appSlug}/installations/new`;
-      return;
-    }
-    // Fallback to legacy OAuth
+    // Always use standard OAuth flow for login.
+    // GitHub App installation (repo selection) happens post-login in the dashboard.
     const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
     if (!clientId) {
       console.error('NEXT_PUBLIC_GITHUB_CLIENT_ID is not configured');
@@ -186,7 +194,7 @@ export const authApi = {
     }
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/callback/github`);
-    const scope = encodeURIComponent('read:user user:email');
+    const scope = encodeURIComponent('read:user user:email repo');
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
   },
 
@@ -393,27 +401,50 @@ export const githubApi = {
     api.get<Array<Record<string, unknown>>>('/api/github/projects'),
 };
 
-// ─── Skill Gap API (Stubs — real in M3) ───────────────────────────────────────
+// ─── Skill Gap API ────────────────────────────────────────────────────────────
+
+export interface Role {
+  roleId: string;
+  role: string;
+  icon: string;
+  description: string;
+  skillDomains: string[];
+}
 
 export const skillGapApi = {
-  getReport: (_userId: string): Promise<{ data: SkillGapReport | null }> =>
-    Promise.resolve({ data: null }),
+  /** List available career roles */
+  getRoles: () =>
+    api.get<{ roles: Role[] }>('/api/skill-gap/roles'),
 
-  analyse: (_userId: string, _jobDescription: string): Promise<{ data: SkillGapReport | null }> =>
-    Promise.resolve({ data: null }),
+  /** Run skill gap analysis for user vs role */
+  analyse: (roleId: string) =>
+    api.post<SkillGapReport>('/api/skill-gap/analyse', { roleId }),
+
+  /** Fetch cached gap report */
+  getReport: (roleId?: string) =>
+    api.get<SkillGapReport | { report: null }>('/api/skill-gap/report', {
+      params: roleId ? { roleId } : {},
+    }),
 };
 
-// ─── Roadmap API (Stubs — real in M3) ─────────────────────────────────────────
+// ─── Roadmap API ──────────────────────────────────────────────────────────────
 
 export const roadmapApi = {
-  generate: (_userId: string, _roleId: string): Promise<{ data: Roadmap | null }> =>
-    Promise.resolve({ data: null }),
+  /** Generate a learning roadmap from gap analysis */
+  generate: (roleId: string, reportId?: string) =>
+    api.post<Roadmap>('/api/skill-gap/roadmap/generate', { roleId, reportId }),
 
-  get: (_roadmapId: string): Promise<{ data: Roadmap | null }> =>
-    Promise.resolve({ data: null }),
+  /** Fetch a specific roadmap */
+  get: (roadmapId: string) =>
+    api.get<Roadmap>(`/api/skill-gap/roadmap/${roadmapId}`),
 
-  markComplete: (_roadmapId: string, _week: number): Promise<{ data: void }> =>
-    Promise.resolve({ data: undefined }),
+  /** List all roadmaps for current user */
+  list: () =>
+    api.get<{ roadmaps: Roadmap[] }>('/api/skill-gap/roadmaps'),
+
+  /** Mark a milestone week as complete */
+  markComplete: (roadmapId: string, weekNumber: number) =>
+    api.patch<Roadmap>(`/api/skill-gap/roadmap/${roadmapId}/milestone/${weekNumber}`),
 };
 
 // ─── Job Matching API (M4 — Job Scout) ───────────────────────────────────────
