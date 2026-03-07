@@ -124,7 +124,6 @@ async def tailor_resume(
     experience = _parse_json(_safe("experience", None))
     skills = _parse_json(_safe("skills", None))
     certifications = _parse_json(_safe("certifications", None))
-    achievements = _parse_json(_safe("achievements", None))
 
     try:
         result = await tailor_resume_for_job(
@@ -135,7 +134,6 @@ async def tailor_resume(
             experience=experience,
             skills=skills,
             certifications=certifications,
-            achievements=achievements,
         )
 
         return TailorResponse(
@@ -151,23 +149,14 @@ async def tailor_resume(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         import traceback
-        error_str = str(e)
-        tb = traceback.format_exc()
         logger.error(
             "Resume tailoring failed",
-            error=error_str,
-            traceback=tb,
+            error=str(e),
+            traceback=traceback.format_exc(),
             user_id=user_id,
             job_id=body.jobId,
         )
-        # Surface a clear message for Bedrock access issues
-        if "ResourceNotFoundException" in tb or "use case details" in error_str:
-            raise HTTPException(
-                status_code=503,
-                detail="AI model not available — Bedrock model access has not been granted for this AWS account. "
-                       "Submit the Anthropic use-case form in the AWS Bedrock console and retry in ~15 minutes.",
-            )
-        raise HTTPException(status_code=500, detail=error_str)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/resumes/job/{job_id}", response_model=TailorResponse)
