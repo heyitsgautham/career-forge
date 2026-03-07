@@ -10,8 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import {
   FileText,
   FolderGit2,
-  Briefcase,
-  LayoutTemplate,
   Target,
   Search,
   Send,
@@ -33,21 +31,22 @@ import { SkillGapShell } from '@/components/dashboard/skill-gap-shell';
 import { JobScoutShell } from '@/components/dashboard/job-scout-shell';
 import { ApplyTrackShell } from '@/components/dashboard/apply-shell';
 import { useToast } from '@/hooks/use-toast';
-import { userApi, authApi, projectsApi, resumesApi, templatesApi, jobsApi, jobMatchApi, skillGapApi } from '@/lib/api';
+import { userApi, authApi, projectsApi, resumesApi, jobMatchApi, skillGapApi } from '@/lib/api';
 import type { User as UserType } from '@/lib/api';
 
 /* ─── Tab definitions ────────────────────────────────────────────────────── */
 const TABS = [
   { key: 'resumes', label: 'Resumes', icon: FileText },
   { key: 'projects', label: 'Projects', icon: FolderGit2 },
-  { key: 'jobs', label: 'Job Descriptions', icon: Briefcase },
-  { key: 'templates', label: 'Templates', icon: LayoutTemplate },
   { key: 'skill-gap', label: 'Skill Gap', icon: Target },
   { key: 'job-scout', label: 'Job Scout', icon: Search },
   { key: 'apply', label: 'Apply & Track', icon: Send },
 ] as const;
 
-type TabKey = (typeof TABS)[number]['key'] | 'profile';
+// Hidden tabs — still routable via ?tab= but removed from sidebar
+const HIDDEN_TABS = ['jobs', 'templates'] as const;
+
+type TabKey = (typeof TABS)[number]['key'] | (typeof HIDDEN_TABS)[number] | 'profile';
 
 /* ─── Dashboard inner (needs Suspense for useSearchParams) ───────────────── */
 function DashboardInner() {
@@ -143,16 +142,6 @@ function DashboardInner() {
       staleTime: 5 * 60 * 1000,
     });
     queryClient.prefetchQuery({
-      queryKey: ['templates'],
-      queryFn: () => templatesApi.list().then(r => r.data),
-      staleTime: 30 * 60 * 1000,
-    });
-    queryClient.prefetchQuery({
-      queryKey: ['jobs'],
-      queryFn: () => jobsApi.list().then(r => r.data),
-      staleTime: 2 * 60 * 1000,
-    });
-    queryClient.prefetchQuery({
       queryKey: ['skill-gap-roles'],
       queryFn: () => skillGapApi.getRoles().then(r => r.data.roles || []),
       staleTime: 60 * 60 * 1000,
@@ -173,12 +162,6 @@ function DashboardInner() {
         break;
       case 'projects':
         queryClient.prefetchQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data), staleTime: 5 * 60 * 1000 });
-        break;
-      case 'jobs':
-        queryClient.prefetchQuery({ queryKey: ['jobs'], queryFn: () => jobsApi.list().then(r => r.data), staleTime: 2 * 60 * 1000 });
-        break;
-      case 'templates':
-        queryClient.prefetchQuery({ queryKey: ['templates'], queryFn: () => templatesApi.list().then(r => r.data), staleTime: 30 * 60 * 1000 });
         break;
       case 'skill-gap':
         queryClient.prefetchQuery({ queryKey: ['skill-gap-roles'], queryFn: () => skillGapApi.getRoles().then(r => r.data.roles || []), staleTime: 60 * 60 * 1000 });
