@@ -9,20 +9,40 @@ import sys
 import json
 import tempfile
 import os
+import platform
 
 logger = logging.getLogger(__name__)
 
 
+def _get_chrome_user_data_dir() -> Optional[str]:
+    """Return the path to Chrome's user data directory on this OS."""
+    system = platform.system()
+    if system == "Darwin":
+        path = os.path.expanduser("~/Library/Application Support/Google/Chrome")
+    elif system == "Linux":
+        path = os.path.expanduser("~/.config/google-chrome")
+    elif system == "Windows":
+        path = os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data")
+    else:
+        return None
+    return path if os.path.isdir(path) else None
+
+
 def _run_playwright_script(profile_url: str) -> str:
-    """Run Playwright in a separate process to avoid Windows asyncio issues."""
-    # Ensure we're going to the certifications section
-    # LinkedIn profile URL: https://www.linkedin.com/in/username/
-    # Certifications section: https://www.linkedin.com/in/username/details/certifications/
-    
+    """
+    Run Playwright in a separate process.
+
+    Strategy (in order):
+    1. Use the real Chrome profile (headless) — already logged in to LinkedIn,
+       no browser window at all. Requires Chrome to not be running (profile lock).
+    2. If Chrome is running (profile locked), fall back to the Playwright-managed
+       persistent session (~/.linkedin_playwright_data). After the first login in
+       that browser, all future calls also run headlessly with no visible window.
+    """
     base_url = profile_url.rstrip('/')
     certs_url = f"{base_url}/details/certifications/"
-    
-    # Create a temporary Python script that runs Playwright
+    chrome_user_data = _get_chrome_user_data_dir() or ""
+
     script = f'''
 import sys
 import io
@@ -30,192 +50,176 @@ import os
 from playwright.sync_api import sync_playwright
 import time
 
-# Force UTF-8 encoding for stdout
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 profile_url = "{profile_url}"
 certs_url = "{certs_url}"
+chrome_user_data = r"{chrome_user_data}"
 
-# Use a persistent user data directory to remember login
-user_data_dir = os.path.join(os.path.expanduser("~"), ".linkedin_playwright_data")
-os.makedirs(user_data_dir, exist_ok=True)
+# Fallback persistent dir for Playwright's own Chromium
+fallback_data_dir = os.path.join(os.path.expanduser("~"), ".linkedin_playwright_data")
+os.makedirs(fallback_data_dir, exist_ok=True)
 
 def is_login_page(url):
-    """Check if current page is a login/auth page."""
-    login_indicators = ['login', 'authwall', 'checkpoint', 'uas/login', 'signin', 'session']
-    url_lower = url.lower()
-    return any(indicator in url_lower for indicator in login_indicators)
+    indicators = ["login", "authwall", "checkpoint", "uas/login", "signin", "session"]
+    return any(i in url.lower() for i in indicators)
+
+def scrape_certs_page(page):
+    page.goto(certs_url, timeout=60000, wait_until="domcontentloaded")
+    time.sleep(3)
+    current_url = page.evaluate("() => window.location.href")
+    if "certifications" not in current_url and "licenses" not in current_url:
+        alt_url = profile_url.rstrip("/") + "/details/licenses-and-certifications/"
+        sys.stderr.write(f"Trying alt URL: {{alt_url}}\\n")
+        page.goto(alt_url, timeout=60000, wait_until="domcontentloaded")
+        time.sleep(3)
+    try:
+        page.wait_for_load_state("networkidle", timeout=15000)
+    except:
+        pass
+    time.sleep(2)
+    for _ in range(5):
+        page.evaluate("window.scrollBy(0, 400)")
+        time.sleep(0.5)
+    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    time.sleep(2)
+    page.evaluate("window.scrollTo(0, 0)")
+    time.sleep(1)
+    return page.content()
+
+def check_logged_in(page):
+    page.goto("https://www.linkedin.com/feed", timeout=30000, wait_until="domcontentloaded")
+    time.sleep(2)
+    url = page.evaluate("() => window.location.href")
+    return not is_login_page(url) and any(k in url for k in ["feed", "/in/", "mynetwork"])
 
 try:
     with sync_playwright() as p:
-        # Use persistent context to remember login
-        context = p.chromium.launch_persistent_context(
-            user_data_dir,
-            headless=False,
-            args=['--start-maximized', '--disable-blink-features=AutomationControlled'],
-            slow_mo=100,
-            viewport={{'width': 1920, 'height': 1080}},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        )
-        page = context.new_page()
-        
-        # Navigate to LinkedIn login page directly
-        sys.stderr.write("Opening LinkedIn...\\n")
-        page.goto("https://www.linkedin.com/login", timeout=60000, wait_until='domcontentloaded')
-        time.sleep(3)
-        
-        # Get actual URL using JavaScript (more reliable)
-        actual_url = page.evaluate("() => window.location.href")
-        sys.stderr.write(f"Current URL after navigation: {{actual_url}}\\n")
-        
-        # Check if already logged in (redirected to feed)
-        if 'feed' in actual_url or ('/in/' in actual_url and 'login' not in actual_url):
-            sys.stderr.write("Already logged in!\\n")
-        else:
-            # Wait for user to log in
-            sys.stderr.write("\\n" + "="*60 + "\\n")
-            sys.stderr.write("PLEASE LOG IN TO LINKEDIN IN THE BROWSER WINDOW\\n")
-            sys.stderr.write("After logging in, the script will continue automatically\\n")
-            sys.stderr.write("You have 5 minutes to complete the login\\n")
-            sys.stderr.write("="*60 + "\\n\\n")
-            
-            max_wait = 300  # 5 minutes
-            waited = 0
-            logged_in = False
-            
-            while waited < max_wait:
-                time.sleep(3)
-                waited += 3
-                
-                try:
-                    # Use JavaScript to get the actual URL from the browser
-                    # This is more reliable than page.url for detecting navigation
-                    current_url = page.evaluate("() => window.location.href")
-                    sys.stderr.write(f"Checking URL: {{current_url}}\\n")
-                    
-                    # Also check the document title for additional context
-                    try:
-                        title = page.evaluate("() => document.title")
-                        sys.stderr.write(f"Page title: {{title}}\\n")
-                    except:
-                        pass
-                    
-                    # Check if we're on the feed page (means login was successful)
-                    if 'linkedin.com/feed' in current_url:
-                        logged_in = True
-                        sys.stderr.write("Login detected (feed page)! Continuing...\\n")
-                        break
-                    
-                    # Check if we're on a profile page
-                    if '/in/' in current_url and 'login' not in current_url:
-                        logged_in = True
-                        sys.stderr.write("Login detected (profile page)! Continuing...\\n")
-                        break
-                    
-                    # Check if we're on mynetwork or other logged-in pages
-                    if 'mynetwork' in current_url or 'messaging' in current_url or 'jobs' in current_url:
-                        logged_in = True
-                        sys.stderr.write("Login detected (other page)! Continuing...\\n")
-                        break
-                    
-                    # Check for session_redirect which also indicates successful login
-                    if 'session_redirect' in current_url or 'trk=' in current_url:
-                        logged_in = True
-                        sys.stderr.write("Login detected (redirect)! Continuing...\\n")
-                        break
-                    
-                    # Check if we're still on login page
-                    if is_login_page(current_url):
-                        sys.stderr.write(f"Still on login page, waiting... ({{waited}}s)\\n")
-                        continue
-                except Exception as e:
-                    sys.stderr.write(f"Check error (continuing): {{e}}\\n")
-                    continue
-            
-            if not logged_in:
-                final_url = page.evaluate("() => window.location.href")
-                if is_login_page(final_url):
+        html = None
+
+        # ── Strategy 1: real Chrome profile (no login needed, headless) ──
+        if chrome_user_data and os.path.isdir(chrome_user_data):
+            sys.stderr.write("Trying real Chrome profile (headless)...\\n")
+            try:
+                context = p.chromium.launch_persistent_context(
+                    chrome_user_data,
+                    channel="chrome",
+                    headless=True,
+                    args=[
+                        "--profile-directory=Default",
+                        "--no-first-run",
+                        "--no-default-browser-check",
+                        "--disable-blink-features=AutomationControlled",
+                    ],
+                    viewport={{"width": 1280, "height": 900}},
+                )
+                page = context.new_page()
+                if check_logged_in(page):
+                    sys.stderr.write("Logged in via Chrome profile — scraping headlessly...\\n")
+                    html = scrape_certs_page(page)
                     context.close()
-                    raise Exception("Login timeout - please try again and complete login within 5 minutes")
-        
-        sys.stderr.write("Login successful! Navigating to certifications...\\n")
-        time.sleep(2)
-        
-        # Now navigate to the certifications section
-        sys.stderr.write(f"Going to: {{certs_url}}\\n")
-        page.goto(certs_url, timeout=60000, wait_until='domcontentloaded')
-        time.sleep(3)
-        
-        # Wait for page to fully load
-        try:
-            page.wait_for_load_state('networkidle', timeout=15000)
-        except:
-            pass
-        time.sleep(2)
-        
-        # Check if we landed on the certifications page
-        if 'certifications' not in page.url and 'licenses' not in page.url:
-            sys.stderr.write(f"Warning: May not be on certifications page. Current URL: {{page.url}}\\n")
-            # Try alternative URL
-            alt_url = profile_url.rstrip('/') + "/details/licenses-and-certifications/"
-            sys.stderr.write(f"Trying alternative URL: {{alt_url}}\\n")
-            page.goto(alt_url, timeout=60000, wait_until='domcontentloaded')
-            time.sleep(3)
-        
-        # Scroll to load all certifications
-        sys.stderr.write("Scrolling to load all content...\\n")
-        try:
-            for i in range(5):
-                page.evaluate("window.scrollBy(0, 400)")
-                time.sleep(0.5)
-            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            time.sleep(2)
-            # Scroll back up
-            page.evaluate("window.scrollTo(0, 0)")
-            time.sleep(1)
-        except Exception as e:
-            sys.stderr.write(f"Scroll warning (ignored): {{e}}\\n")
-        
-        html = page.content()
-        sys.stderr.write(f"Got page content ({{len(html)}} chars)\\n")
-        context.close()
+                else:
+                    sys.stderr.write("Chrome profile not logged in to LinkedIn, will try fallback...\\n")
+                    context.close()
+            except Exception as chrome_err:
+                sys.stderr.write(f"Chrome profile attempt failed ({{chrome_err}}), trying fallback...\\n")
+
+        # ── Strategy 2: Playwright's own persistent Chromium profile ──
+        if html is None:
+            sys.stderr.write("Using Playwright persistent profile...\\n")
+            context = p.chromium.launch_persistent_context(
+                fallback_data_dir,
+                headless=True,
+                args=["--disable-blink-features=AutomationControlled"],
+                viewport={{"width": 1280, "height": 900}},
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            )
+            page = context.new_page()
+            if check_logged_in(page):
+                sys.stderr.write("Saved session valid — scraping headlessly...\\n")
+                html = scrape_certs_page(page)
+                context.close()
+            else:
+                context.close()
+                sys.stderr.write("No saved session. Opening browser for one-time login...\\n")
+
+                # Visible browser — login once, session saved for all future headless calls
+                context = p.chromium.launch_persistent_context(
+                    fallback_data_dir,
+                    headless=False,
+                    args=["--start-maximized", "--disable-blink-features=AutomationControlled"],
+                    slow_mo=100,
+                    viewport={{"width": 1920, "height": 1080}},
+                    user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                )
+                page = context.new_page()
+                page.goto("https://www.linkedin.com/login", timeout=60000, wait_until="domcontentloaded")
+                time.sleep(3)
+
+                actual_url = page.evaluate("() => window.location.href")
+                if is_login_page(actual_url):
+                    sys.stderr.write("\\n" + "="*60 + "\\n")
+                    sys.stderr.write("PLEASE LOG IN TO LINKEDIN IN THE BROWSER WINDOW\\n")
+                    sys.stderr.write("Your session will be saved — you will NEVER need to do this again.\\n")
+                    sys.stderr.write("="*60 + "\\n\\n")
+
+                    max_wait, waited, logged_in = 300, 0, False
+                    while waited < max_wait:
+                        time.sleep(3)
+                        waited += 3
+                        try:
+                            current_url = page.evaluate("() => window.location.href")
+                            if any(k in current_url for k in ["feed", "mynetwork", "messaging", "jobs"]):
+                                logged_in = True
+                                break
+                            if "/in/" in current_url and "login" not in current_url:
+                                logged_in = True
+                                break
+                        except:
+                            pass
+                    if not logged_in:
+                        context.close()
+                        raise Exception("Login timeout — please try again")
+
+                sys.stderr.write("Logged in! Scraping certifications...\\n")
+                html = scrape_certs_page(page)
+                context.close()
+
+        sys.stderr.write(f"Got {{len(html)}} chars of HTML\\n")
         print(html)
-        
+
 except Exception as e:
     sys.stderr.write(f"Error: {{str(e)}}\\n")
     import traceback
     traceback.print_exc(file=sys.stderr)
     sys.exit(1)
 '''
-    
+
     try:
-        # Write script to temp file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
             f.write(script)
             script_path = f.name
-        
-        # Run the script in a separate process
+
         logger.info(f"Running Playwright script for: {profile_url}")
         result = subprocess.run(
             [sys.executable, script_path],
             capture_output=True,
             text=True,
-            timeout=420,  # 7 minutes timeout to allow for login + navigation
+            timeout=420,
             encoding='utf-8',
             errors='replace'
         )
-        
+
         if result.returncode != 0:
             error_msg = result.stderr or "Unknown error"
             logger.error(f"Playwright script error: {error_msg}")
             raise Exception(f"Playwright script failed: {error_msg}")
-        
+
         if not result.stdout or len(result.stdout) < 100:
             raise Exception("Failed to get page content from LinkedIn")
-        
+
         return result.stdout
     finally:
-        # Clean up temp file
         try:
             os.unlink(script_path)
         except:
