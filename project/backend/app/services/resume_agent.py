@@ -143,7 +143,7 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
     "website_url": "https://example.com",
     "website_display": "example.com"
   },
-  "professional_summary": "2-3 sentence professional summary highlighting key strengths, technologies, and career focus. Tailored to the JD if provided. Must be grounded in actual data from summaries and profile.",
+  "professional_summary": "4-5 sentence professional summary highlighting key strengths, technologies, and career focus. Tailored to the JD if provided. Must be grounded in actual data from summaries and profile. Should span 4-5 lines when rendered.",
   "education": [
     {
       "school": "University Name",
@@ -192,19 +192,24 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
    - Max 3 bullet points per project
    - Select 3-4 projects based on whether experience exists
    - Keep experience bullets to 3-4 per role
-   - Professional summary: 2-3 concise sentences
+   - Professional summary: 4-5 sentences (minimum 4 lines of text)
 3. **PLAIN TEXT ONLY**: All string values must be plain text. NO LaTeX commands (no \textbf, no \href, no \\, no \%). The template engine adds all formatting. The ONLY exception: use -- (double hyphen) for date ranges.
 4. **PROFESSIONAL SUMMARY**: 
-   - 2-3 sentences highlighting key strengths and career focus
-   - Tailored to JD if provided (embed key JD terms naturally)
+   - 4-5 sentences highlighting key strengths and career focus (MINIMUM 4 sentences — a 2-3 sentence summary is a FAILURE)
+   - Must span 4-5 lines of text when rendered on the resume
+   - Sentence 1: Role identity + years/level + core domain (e.g., "Software engineer with X years...")
+   - Sentence 2: Key technical strengths and primary technology stack
+   - Sentence 3: Notable achievement, project, or impact from their work
+   - Sentence 4-5: JD-alignment — embed key JD terms and explain fit
    - Must be grounded in actual skills/projects from the data
-   - Start with role identity (e.g., "Software engineer with experience in...")
 5. **BULLET LENGTH — HARD CONSTRAINT (THIS IS NOT OPTIONAL)**:
-   - Every single bullet point (project AND experience) MUST be between 90 and 115 characters inclusive.
-   - Count characters carefully BEFORE outputting. If a bullet is under 90 chars, ADD more technical detail. If over 115 chars, SHORTEN it.
-   - NEVER write a bullet shorter than 90 characters. NEVER write a bullet longer than 115 characters.
+   - Every single bullet point (project AND experience) MUST be between 100 and 120 characters inclusive.
+   - Count characters carefully BEFORE outputting. If a bullet is under 100 chars, ADD more technical detail, specific numbers, or technology names. If over 120 chars, SHORTEN it.
+   - NEVER write a bullet shorter than 100 characters. NEVER write a bullet longer than 120 characters.
    - A bullet that wraps to 2 lines in a PDF is TOO LONG. A bullet that looks visually short is TOO SHORT.
-   - This is the #1 most common failure. Double-check EVERY bullet before finalizing.
+   - Example of TOO SHORT (bad): "Built REST API with Flask and deployed to AWS." (45 chars)
+   - Example of CORRECT length: "Engineered a REST API with Flask and FastAPI serving 500+ users, deployed on AWS ECS with auto-scaling." (103 chars)
+   - This is the #1 most common failure. Count EVERY bullet before finalizing.
 6. **BULLET QUALITY**:
    - Start with strong action verbs (Developed, Architected, Implemented, Integrated, Optimized, Designed, Engineered, Built)
    - Use DIFFERENT action verbs for each bullet — never repeat within same section
@@ -411,7 +416,8 @@ def _build_header(header: dict) -> str:
 
     website_url = header.get("website_url", "")
     website_display = header.get("website_display", "")
-    if website_url and website_display:
+    # Skip website if it's a GitHub URL (already shown above) to avoid duplicates
+    if website_url and website_display and "github.com" not in website_url.lower():
         parts.append(f"\\href{{{website_url}}}{{\\faGlobe\\ {_escape_latex(website_display)}}}")
 
     contact_line = " \\quad\n    ".join(parts)
