@@ -190,7 +190,7 @@ export function ResumesList() {
           )}
           <Button
             onClick={() => setShowGenerator(true)}
-            className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all"
           >
             <Sparkles className="h-4 w-4" />
             Generate Resume
@@ -330,7 +330,7 @@ export function ResumesList() {
                         <Button
                           size="sm"
                           variant={resume.status === 'compiled' ? 'default' : 'outline'}
-                          className={`gap-1 h-7 text-xs ${resume.status === 'compiled' ? 'bg-violet-600 hover:bg-violet-700 text-white' : ''}`}
+                          className={`gap-1 h-7 text-xs ${resume.status === 'compiled' ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : ''}`}
                         >
                           <Edit className="h-3 w-3" />
                           {resume.status === 'compiled' ? 'Open in Editor' : 'Edit'}
@@ -531,7 +531,7 @@ function ResumeGenerator({
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -640,7 +640,7 @@ function ResumeGenerator({
                       <Link
                         href={`/dashboard/resumes/${result.resume_id}/edit`}
                         onClick={onClose}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium transition-colors"
                       >
                         <Edit className="h-3.5 w-3.5" />
                         Open in Editor
@@ -707,7 +707,7 @@ function ResumeGenerator({
             <Button
               onClick={() => generateMutation.mutate()}
               disabled={generateMutation.isPending}
-              className="gap-2 text-sm bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white"
+              className="gap-2 text-sm bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {generateMutation.isPending ? (
                 <>
