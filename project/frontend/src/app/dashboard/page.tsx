@@ -18,7 +18,6 @@ import {
   Settings,
   Menu,
   User,
-  Zap,
   Upload,
   X,
 } from 'lucide-react';
@@ -198,10 +197,8 @@ function DashboardInner() {
               href="/"
               className="group flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md shadow-primary/25 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105">
-                <Zap className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <span className="font-bold text-sm tracking-tight">CareerForge</span>
+              <img src="/logo.svg" alt="CareerForge logo" className="h-10 w-10 rounded-full bg-white p-0.5 object-contain shadow-md shadow-primary/25 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105" />
+              <span className="font-bold text-base tracking-tight">CareerForge</span>
             </Link>
           )}
           <Button
