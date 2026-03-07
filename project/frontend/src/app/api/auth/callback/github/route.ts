@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
 
   // GitHub App sends installation_id alongside code
   const installationId = searchParams.get('installation_id');
+  // state carries the existing JWT when linking GitHub to a Google-logged-in user
+  const state = searchParams.get('state');
 
   try {
     // Send code + installation_id to backend to exchange for tokens
@@ -29,6 +31,7 @@ export async function GET(request: NextRequest) {
       body: JSON.stringify({
         code,
         installation_id: installationId ? parseInt(installationId, 10) : null,
+        link_token: state || undefined,
       }),
     });
 

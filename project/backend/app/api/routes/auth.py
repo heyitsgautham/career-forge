@@ -6,7 +6,7 @@ User authentication and GitHub OAuth.
 
 from datetime import timedelta, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Body
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -90,7 +90,6 @@ class UserProfileResponse(BaseModel):
     education: Optional[list]
     skills: Optional[list]
     certifications: Optional[list]
-    achievements: Optional[list]
     
     class Config:
         from_attributes = True
@@ -119,12 +118,12 @@ class UserProfileUpdate(BaseModel):
     education: Optional[list] = None
     skills: Optional[list] = None
     certifications: Optional[list] = None
-    achievements: Optional[list] = None
 
 
 class GitHubCallbackRequest(BaseModel):
     code: str
     installation_id: Optional[int] = None
+    link_token: Optional[str] = None  # existing JWT — link GitHub to this user
 
 
 # Routes
@@ -356,47 +355,19 @@ async def github_callback(
         is_new_user = False
         encrypted_token = token_encryptor.encrypt(github_token)
         installation_id = callback_data.installation_id
-        
-        # Check if user already linked to this GitHub account
-        existing = await dynamo_service.scan(
-            "Users", filter_expression=Attr("githubUserId").eq(str(github_user["id"]))
-        )
-        if existing:
-            user_id = existing[0]["userId"]
-            update_fields = {
-                "githubToken": encrypted_token,
-                "githubUsername": github_user["login"],
-                "githubAvatarUrl": github_user.get("avatar_url"),
-                "updatedAt": dynamo_service.now_iso(),
-            }
-            if installation_id:
-                update_fields["githubInstallationId"] = installation_id
-            await dynamo_service.update_item("Users", {"userId": user_id}, update_fields)
-        else:
-            # Look up by email
-            email_users = await dynamo_service.scan(
-                "Users", filter_expression=Attr("email").eq(primary_email)
-            )
-            if email_users:
-                user_id = email_users[0]["userId"]
-            else:
-                # Create new user
-                is_new_user = True
-                user_id = dynamo_service.generate_id()
-                now = dynamo_service.now_iso()
-                new_user_item = {
-                    "userId": user_id,
-                    "email": primary_email,
-                    "name": github_user.get("name") or github_user["login"],
-                    "avatarUrl": github_user.get("avatar_url"),
-                    "isActive": True,
-                    "isVerified": True,
-                    "ingestionStatus": "none",
-                    "createdAt": now,
-                    "updatedAt": now,
-                }
-                await dynamo_service.put_item("Users", new_user_item)
-            # Store GitHub connection info on user record
+
+        # If link_token is set, the user is already logged in (e.g. via Google)
+        # and is connecting GitHub from the dashboard. Link to that user directly.
+        link_user_id = None
+        if callback_data.link_token:
+            from app.core.security import decode_access_token as _decode
+            payload = _decode(callback_data.link_token)
+            if payload and payload.get("sub"):
+                link_user_id = payload["sub"]
+
+        if link_user_id:
+            # Link GitHub to the existing logged-in user
+            user_id = link_user_id
             update_fields = {
                 "githubUserId": str(github_user["id"]),
                 "githubUsername": github_user["login"],
@@ -407,6 +378,58 @@ async def github_callback(
             if installation_id:
                 update_fields["githubInstallationId"] = installation_id
             await dynamo_service.update_item("Users", {"userId": user_id}, update_fields)
+        else:
+            # Standard flow: find or create user by GitHub identity
+            # Check if user already linked to this GitHub account
+            existing = await dynamo_service.scan(
+                "Users", filter_expression=Attr("githubUserId").eq(str(github_user["id"]))
+            )
+            if existing:
+                user_id = existing[0]["userId"]
+                update_fields = {
+                    "githubToken": encrypted_token,
+                    "githubUsername": github_user["login"],
+                    "githubAvatarUrl": github_user.get("avatar_url"),
+                    "updatedAt": dynamo_service.now_iso(),
+                }
+                if installation_id:
+                    update_fields["githubInstallationId"] = installation_id
+                await dynamo_service.update_item("Users", {"userId": user_id}, update_fields)
+            else:
+                # Look up by email
+                email_users = await dynamo_service.scan(
+                    "Users", filter_expression=Attr("email").eq(primary_email)
+                )
+                if email_users:
+                    user_id = email_users[0]["userId"]
+                else:
+                    # Create new user
+                    is_new_user = True
+                    user_id = dynamo_service.generate_id()
+                    now = dynamo_service.now_iso()
+                    new_user_item = {
+                        "userId": user_id,
+                        "email": primary_email,
+                        "name": github_user.get("name") or github_user["login"],
+                        "avatarUrl": github_user.get("avatar_url"),
+                        "isActive": True,
+                        "isVerified": True,
+                        "ingestionStatus": "none",
+                        "createdAt": now,
+                        "updatedAt": now,
+                    }
+                    await dynamo_service.put_item("Users", new_user_item)
+                # Store GitHub connection info on user record
+                update_fields = {
+                    "githubUserId": str(github_user["id"]),
+                    "githubUsername": github_user["login"],
+                    "githubAvatarUrl": github_user.get("avatar_url"),
+                    "githubToken": encrypted_token,
+                    "updatedAt": dynamo_service.now_iso(),
+                }
+                if installation_id:
+                    update_fields["githubInstallationId"] = installation_id
+                await dynamo_service.update_item("Users", {"userId": user_id}, update_fields)
 
         access_token = create_access_token(
             data={"sub": user_id},
@@ -465,6 +488,154 @@ async def github_callback(
         expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     
+    return TokenResponse(access_token=access_token)
+
+
+# ─── Cognito (Google sign-in) ───────────────────────────────────────────────
+
+
+class CognitoCallbackRequest(BaseModel):
+    code: str
+
+
+@router.get("/cognito/authorize")
+async def cognito_authorize():
+    """Get Cognito hosted-UI authorization URL (Google sign-in)."""
+    if not settings.COGNITO_APP_CLIENT_ID or not settings.COGNITO_DOMAIN:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cognito not configured",
+        )
+    params = {
+        "client_id": settings.COGNITO_APP_CLIENT_ID,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "redirect_uri": settings.COGNITO_CALLBACK_URL,
+        "identity_provider": "Google",
+    }
+    url = f"https://{settings.COGNITO_DOMAIN}/oauth2/authorize?" + "&".join(
+        f"{k}={v}" for k, v in params.items()
+    )
+    return {"authorization_url": url}
+
+
+@router.post("/cognito/callback", response_model=TokenResponse)
+async def cognito_callback(callback_data: CognitoCallbackRequest):
+    """
+    Exchange Cognito authorization code for tokens, then find-or-create
+    the user in DynamoDB and return our app JWT.
+    """
+    import base64 as _b64
+
+    if not settings.COGNITO_APP_CLIENT_ID or not settings.COGNITO_DOMAIN:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cognito not configured",
+        )
+
+    # Build Basic auth header for the token endpoint
+    basic = _b64.b64encode(
+        f"{settings.COGNITO_APP_CLIENT_ID}:{settings.COGNITO_APP_CLIENT_SECRET}".encode()
+    ).decode()
+
+    # Exchange code for tokens
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(
+            f"https://{settings.COGNITO_DOMAIN}/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": callback_data.code,
+                "redirect_uri": settings.COGNITO_CALLBACK_URL,
+                "client_id": settings.COGNITO_APP_CLIENT_ID,
+            },
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": f"Basic {basic}",
+            },
+        )
+        token_data = token_resp.json()
+
+    if "error" in token_data:
+        logger.error("Cognito token exchange failed", detail=token_data)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cognito error: {token_data.get('error_description', token_data['error'])}",
+        )
+
+    id_token = token_data.get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=400, detail="No id_token in Cognito response")
+
+    # Decode the id_token (signature is already validated by Cognito)
+    # We only need the claims — email, name, sub
+    import json as _json
+
+    parts = id_token.split(".")
+    if len(parts) != 3:
+        raise HTTPException(status_code=400, detail="Malformed id_token")
+
+    # id_token payload is Base64url-encoded JSON
+    payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)  # pad
+    claims = _json.loads(_b64.urlsafe_b64decode(payload_b64))
+
+    cognito_sub = claims.get("sub")
+    email = claims.get("email")
+    name = claims.get("name", "")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="No email in Cognito token")
+
+    # ── Find or create user in DynamoDB ──
+    from app.services.dynamo_service import dynamo_service
+    from boto3.dynamodb.conditions import Attr
+
+    # First check by cognitoSub
+    existing = await dynamo_service.scan(
+        "Users", filter_expression=Attr("cognitoSub").eq(cognito_sub)
+    )
+    if existing:
+        user_id = existing[0]["userId"]
+        await dynamo_service.update_item(
+            "Users",
+            {"userId": user_id},
+            {"updatedAt": dynamo_service.now_iso()},
+        )
+    else:
+        # Check by email
+        email_match = await dynamo_service.scan(
+            "Users", filter_expression=Attr("email").eq(email)
+        )
+        if email_match:
+            user_id = email_match[0]["userId"]
+            await dynamo_service.update_item(
+                "Users",
+                {"userId": user_id},
+                {
+                    "cognitoSub": cognito_sub,
+                    "name": name or email_match[0].get("name", ""),
+                    "updatedAt": dynamo_service.now_iso(),
+                },
+            )
+        else:
+            # New user
+            user_id = dynamo_service.generate_id()
+            now = dynamo_service.now_iso()
+            await dynamo_service.put_item("Users", {
+                "userId": user_id,
+                "email": email,
+                "name": name or email.split("@")[0],
+                "cognitoSub": cognito_sub,
+                "isActive": True,
+                "isVerified": True,
+                "ingestionStatus": "none",
+                "createdAt": now,
+                "updatedAt": now,
+            })
+
+    access_token = create_access_token(
+        data={"sub": user_id},
+        expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
     return TokenResponse(access_token=access_token)
 
 
@@ -709,7 +880,6 @@ async def get_profile(
         education=current_user.education,
         skills=current_user.skills,
         certifications=current_user.certifications,
-        achievements=current_user.achievements,
     )
 
 
@@ -783,7 +953,6 @@ async def update_profile(
         education=current_user.education,
         skills=current_user.skills,
         certifications=current_user.certifications,
-        achievements=current_user.achievements,
     )
 
 
@@ -1058,3 +1227,134 @@ async def scrape_linkedin_certifications_endpoint(
             status_code=500,
             detail=f"Failed to scrape certifications: {str(e)}"
         )
+
+
+class LinkedInImportRequest(BaseModel):
+    linkedin_url: Optional[str] = None  # If not provided, uses stored profile URL
+
+
+@router.post("/linkedin/import-profile")
+async def import_linkedin_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    request: Optional[LinkedInImportRequest] = Body(default=None),
+):
+    """
+    Scrape a LinkedIn profile and import: summary, website, contact info,
+    education, and certifications into the user's profile.
+
+    Accepts an optional linkedin_url in the body; falls back to the
+    linkedin_url already stored on the user record.
+    """
+    from app.services.linkedin_scraper import scrape_linkedin_profile, parse_linkedin_url
+
+    # Resolve which URL to use — body is optional; fallback to stored profile URL
+    req_url = request.linkedin_url if request else None
+    raw_url = req_url or current_user.linkedin_url
+    if not raw_url:
+        raise HTTPException(
+            status_code=400,
+            detail="No LinkedIn URL provided. Pass linkedin_url in the request body.",
+        )
+
+    linkedin_url = parse_linkedin_url(raw_url)
+    if not linkedin_url:
+        raise HTTPException(status_code=400, detail="Invalid LinkedIn URL format")
+
+    try:
+        logger.info(f"Starting LinkedIn profile import for: {linkedin_url}")
+        data = await scrape_linkedin_profile(linkedin_url)
+    except Exception as e:
+        import traceback
+        logger.error(f"LinkedIn profile import failed: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to import LinkedIn profile: {str(e)}")
+
+    # ── Merge extracted data into user profile ───────────────────────────
+    update_fields: dict = {}
+
+    # Always persist the (possibly new) LinkedIn URL
+    update_fields["linkedin_url"] = linkedin_url
+
+    # Personal details — only fill if not already set
+    if data.get("name") and not current_user.name:
+        update_fields["name"] = data["name"]
+    if data.get("headline"):
+        update_fields["headline"] = data["headline"]
+    if data.get("location") and not current_user.location:
+        update_fields["location"] = data["location"]
+
+    if data.get("summary"):
+        update_fields["summary"] = data["summary"]
+
+    if data.get("website") and not current_user.website:
+        update_fields["website"] = data["website"]
+
+    if data.get("phone") and not current_user.phone:
+        update_fields["phone"] = data["phone"]
+
+    if data.get("email") and not current_user.email:
+        update_fields["email"] = data["email"]
+
+    # Merge education — avoid duplicates by school name
+    if data.get("education"):
+        existing_edu: list = current_user.education or []
+        existing_schools = {e.get("school", "").lower() for e in existing_edu}
+        new_edu = [
+            e for e in data["education"]
+            if e.get("school") and e["school"].lower() not in existing_schools
+        ]
+        update_fields["education"] = existing_edu + new_edu
+
+    # Merge certifications — avoid duplicates by name
+    if data.get("certifications"):
+        existing_certs: list = current_user.certifications or []
+        existing_names = {c.get("name", "").lower() for c in existing_certs}
+        new_certs = [
+            c for c in data["certifications"]
+            if c.get("name") and c["name"].lower() not in existing_names
+        ]
+        update_fields["certifications"] = existing_certs + new_certs
+
+    # Compute counts BEFORE writing to DB (current_user may be refreshed after)
+    new_edu_count   = len(update_fields.get("education",       [])) - len(current_user.education       or []) if "education"       in update_fields else 0
+    new_certs_count = len(update_fields.get("certifications",  [])) - len(current_user.certifications  or []) if "certifications"  in update_fields else 0
+
+    # Write to DB (DynamoDB or SQL)
+    _FIELD_MAP = {
+        "linkedin_url": "linkedinUrl",
+    }
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        dynamo_updates = {_FIELD_MAP.get(k, k): v for k, v in update_fields.items()}
+        await dynamo_service.update_item(
+            "Users",
+            {"userId": str(current_user.id)},
+            {**dynamo_updates, "updatedAt": dynamo_service.now_iso()},
+        )
+    else:
+        if update_fields:
+            await db.execute(
+                update(User).where(User.id == current_user.id).values(**update_fields)
+            )
+            await db.commit()
+            await db.refresh(current_user)
+
+    logger.info(f"LinkedIn profile import complete. Updated fields: {list(update_fields.keys())}")
+
+    return {
+        "success": True,
+        "message": "LinkedIn profile imported successfully",
+        "imported": {
+            "name": data.get("name"),
+            "headline": data.get("headline"),
+            "location": data.get("location"),
+            "summary": bool(data.get("summary")),
+            "website": data.get("website"),
+            "phone": data.get("phone"),
+            "email": data.get("email"),
+            "education_added": new_edu_count,
+            "education": (update_fields.get("education") or [])[-new_edu_count:] if new_edu_count > 0 else [],
+            "certifications_added": new_certs_count,
+        },
+        "data": data,
+    }

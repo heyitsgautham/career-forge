@@ -72,6 +72,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
 
   // GitHub ingestion state
   const [ingesting, setIngesting] = useState(false);
+  const [linkedInUrlPrompt, setLinkedInUrlPrompt] = useState(false);
+  const [linkedInUrlInput, setLinkedInUrlInput] = useState("");
   const [ingestionStatus, setIngestionStatus] = useState<string>("none");
   const [ingestionSummary, setIngestionSummary] = useState<{
     total: number; processed: number; failed: number; lastRunAt: string;
@@ -113,6 +115,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         stopPolling();
         setIngesting(false);
         await loadProjects();
+        // Reload profile so newly-added skills appear immediately
+        try {
+          const profileRes = await api.get("/api/auth/profile");
+          setProfile(profileRes.data);
+        } catch {}
         toast({ title: "Import Complete", description: `${res.data.summary?.processed ?? 0} projects imported.` });
       } else if (s === "failed" || s === "stale") {
         stopPolling();
@@ -169,9 +176,18 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
     setIngesting(true);
     try {
       await githubApi.ingest(false);
-      startPolling();
+      // Ingest is synchronous — skills are already updated in DynamoDB.
+      // Reload profile immediately so the skills field reflects the new data.
+      try {
+        const profileRes = await api.get("/api/auth/profile");
+        setProfile(profileRes.data);
+      } catch { /* silent — UI still shows old skills */ }
+      await loadProjects();
+      setIngesting(false);
+      setIngestionStatus("done");
+      toast({ title: "Sync complete", description: "Projects refreshed and skills updated." });
     } catch {
-      // background job started — poll for completion
+      // Ingest may be running as a background job — fall back to polling.
       startPolling();
     }
   };
@@ -268,12 +284,98 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
     );
   }
 
+  const handleLinkedInImport = async (overrideUrl?: string) => {
+    const urlToUse = overrideUrl || profile.linkedin_url;
+    if (!urlToUse) {
+      // No URL stored — show inline prompt
+      setLinkedInUrlInput("");
+      setLinkedInUrlPrompt(true);
+      return;
+    }
+    setLinkedInUrlPrompt(false);
+    try {
+      toast({
+        title: "Opening LinkedIn…",
+        description: "A browser will open. Please log in to LinkedIn if needed, then wait while we import your profile.",
+      });
+
+      const response = await api.post('/api/auth/linkedin/import-profile', { linkedin_url: urlToUse });
+
+      if (response.data.success) {
+        const updatedProfile = await api.get('/api/auth/profile');
+        setProfile(updatedProfile.data);
+
+        const imp = response.data.imported;
+        const parts: string[] = [];
+        if (imp?.education_added) parts.push(`${imp.education_added} education`);
+        if (imp?.certifications_added) parts.push(`${imp.certifications_added} certifications`);
+        if (imp?.name) parts.push('name');
+        if (imp?.headline) parts.push('headline');
+        if (imp?.location) parts.push('location');
+        if (imp?.email) parts.push('email');
+        if (imp?.phone) parts.push('phone');
+        if (imp?.website) parts.push('website');
+
+        toast({
+          title: "Import Complete!",
+          description: parts.length > 0
+            ? `Imported: ${parts.join(', ')}`
+            : "Profile imported (no new data found).",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error importing LinkedIn profile:', error);
+      toast({
+        title: "Import Failed",
+        description: error.response?.data?.detail || "Failed to import from LinkedIn. Make sure you logged in when the browser opened.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save Changes"}
-        </Button>
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <Button
+            variant="outline"
+            onClick={() => handleLinkedInImport()}
+            className="border-[#0077B5]/40 text-[#0077B5] hover:bg-[#0077B5]/10"
+          >
+            <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+            </svg>
+            Import from LinkedIn
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save Changes"}
+          </Button>
+        </div>
+        {linkedInUrlPrompt && (
+          <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
+            <input
+              autoFocus
+              type="url"
+              placeholder="https://linkedin.com/in/your-profile"
+              value={linkedInUrlInput}
+              onChange={(e) => setLinkedInUrlInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && linkedInUrlInput.trim()) handleLinkedInImport(linkedInUrlInput.trim());
+                if (e.key === "Escape") setLinkedInUrlPrompt(false);
+              }}
+              className="flex-1 px-3 py-1.5 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-[#0077B5]/40"
+            />
+            <Button
+              size="sm"
+              className="bg-[#0077B5] hover:bg-[#006097] text-white"
+              disabled={!linkedInUrlInput.trim()}
+              onClick={() => handleLinkedInImport(linkedInUrlInput.trim())}
+            >
+              Import
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setLinkedInUrlPrompt(false)}>Cancel</Button>
+          </div>
+        )}
       </div>
 
       {/* Basic Information */}
@@ -792,52 +894,6 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <CardDescription>Your professional certifications and credentials</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  if (!profile.linkedin_url) {
-                    toast({
-                      title: "LinkedIn URL Required",
-                      description: "Please add your LinkedIn URL to your profile first!",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-
-                  try {
-                    toast({
-                      title: "Opening LinkedIn…",
-                      description: "A browser will open. Please log in to LinkedIn if needed, then wait while we scrape your certifications.",
-                    });
-
-                    const response = await api.post('/api/auth/linkedin/scrape-certifications');
-
-                    if (response.data.success) {
-                      // Reload profile to get updated certifications
-                      const updatedProfile = await api.get('/api/auth/profile');
-                      setProfile(updatedProfile.data);
-
-                      toast({
-                        title: "Success!",
-                        description: response.data.message,
-                      });
-                    }
-                  } catch (error: any) {
-                    console.error('Error scraping LinkedIn:', error);
-                    toast({
-                      title: "Scraping Failed",
-                      description: error.response?.data?.detail || "Failed to scrape LinkedIn. Make sure you logged in when the browser opened.",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                className="border-primary/30 hover:bg-primary/5"
-              >
-                <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                </svg>
-                Import from LinkedIn
-              </Button>
               <Button
                 onClick={() => {
                   const newCert: CertificationEntry = {

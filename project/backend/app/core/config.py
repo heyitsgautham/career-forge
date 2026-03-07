@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     
     # AWS Bedrock
-    BEDROCK_MODEL_ID: str = "us.anthropic.claude-sonnet-4-6"
+    BEDROCK_MODEL_ID: str = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     BEDROCK_EMBED_MODEL_ID: str = "amazon.titan-embed-text-v2:0"
     BEDROCK_TEMPERATURE: float = 0.2
     BEDROCK_MAX_TOKENS: int = 8192
@@ -74,6 +74,13 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: Optional[str] = None
     GITHUB_CLIENT_SECRET: Optional[str] = None
     GITHUB_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/github"
+    
+    # AWS Cognito
+    COGNITO_USER_POOL_ID: str = "us-east-1_Mtxh0HEPD"
+    COGNITO_APP_CLIENT_ID: str = "2lac8ac29r2rnjbkk7q43p1hr2"
+    COGNITO_APP_CLIENT_SECRET: str = "REDACTED_COGNITO_SECRET"
+    COGNITO_DOMAIN: str = "careerforge.auth.us-east-1.amazoncognito.com"
+    COGNITO_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/cognito"
     
     # LinkedIn OAuth
     LINKEDIN_CLIENT_ID: Optional[str] = None

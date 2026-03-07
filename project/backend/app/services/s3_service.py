@@ -75,15 +75,17 @@ class S3Service:
         key: str,
         expires_in: int = 3600,
         filename: str | None = None,
+        inline: bool = False,
     ) -> str:
         """
-        Generate a presigned URL for downloading a file.
+        Generate a presigned URL for a file.
 
         Args:
             key: S3 object key
             expires_in: URL expiry in seconds (default: 1 hour)
-            filename: If provided, sets Content-Disposition: attachment so the
-                      browser downloads the file without a CORS fetch.
+            filename: If provided, sets Content-Disposition filename.
+            inline: If True, sets Content-Disposition: inline (browser renders).
+                    If False with filename, sets Content-Disposition: attachment.
 
         Returns:
             Presigned URL string
@@ -91,7 +93,11 @@ class S3Service:
         client = self._get_client()
 
         params: dict = {"Bucket": settings.S3_BUCKET, "Key": key}
-        if filename:
+        if inline:
+            disposition = f'inline; filename="{filename}"' if filename else "inline"
+            params["ResponseContentDisposition"] = disposition
+            params["ResponseContentType"] = "application/pdf"
+        elif filename:
             params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
 
         try:
