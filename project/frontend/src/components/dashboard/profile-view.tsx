@@ -829,7 +829,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                   };
                   handleChange("certifications", [...(profile.certifications || []), newCert]);
                 }}
-                className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
+                className="bg-amber-600 hover:bg-amber-700"
               >
                 Add Manually
               </Button>
@@ -845,7 +845,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             </div>
           ) : (
             profile.certifications.map((cert, idx) => (
-              <div key={idx} className="p-4 border rounded-lg space-y-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950">
+              <div key={idx} className="p-4 border rounded-lg space-y-4 bg-amber-50 dark:bg-amber-950">
                 <div className="flex justify-between items-start">
                   <h4 className="font-semibold text-foreground">Certification {idx + 1}</h4>
                   <Button
@@ -949,7 +949,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             <Button
               onClick={handleRefreshRepos}
               disabled={ingesting}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              className="bg-green-600 hover:bg-green-700"
             >
               {ingesting ? (
                 <>

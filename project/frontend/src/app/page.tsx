@@ -38,7 +38,7 @@ export default function HomePage() {
       <header className="relative z-10 border-b border-border/40 bg-card/70 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
+            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/25">
               <Sparkles className="h-4.5 w-4.5 text-primary-foreground" aria-hidden="true" />
             </div>
             <span className="font-bold text-lg tracking-tight">CareerForge</span>
@@ -124,28 +124,24 @@ export default function HomePage() {
             icon={<FileText className="h-5 w-5" />}
             title="Resume Generator"
             description="LaTeX resumes grounded in your actual projects. ATS-optimised, zero hallucination."
-            gradient="from-primary/10 to-primary/5"
             iconBg="bg-primary/10 text-primary"
           />
           <FeatureCard
             icon={<BarChart3 className="h-5 w-5" />}
             title="Skill Gap Analysis"
             description="Radar chart showing exactly where you stand vs. any role or job description."
-            gradient="from-[hsl(var(--accent))]/10 to-[hsl(var(--accent))]/5"
             iconBg="bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]"
           />
           <FeatureCard
             icon={<BookOpen className="h-5 w-5" />}
             title="LearnWeave"
             description="Personalised learning roadmap to close every gap with projects and resources."
-            gradient="from-[hsl(var(--success))]/10 to-[hsl(var(--success))]/5"
             iconBg="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]"
           />
           <FeatureCard
             icon={<Briefcase className="h-5 w-5" />}
             title="Job Scout"
             description="Curated job matches scored against your skill profile &mdash; not just keywords."
-            gradient="from-primary/10 to-primary/5"
             iconBg="bg-primary/10 text-primary"
           />
         </div>
@@ -181,7 +177,6 @@ export default function HomePage() {
       <section className="relative z-10 border-t border-border/40">
         <div className="container mx-auto px-6 py-24 text-center">
           <div className="relative max-w-2xl mx-auto">
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-primary/5 via-[hsl(var(--accent))]/5 to-primary/5 blur-2xl" />
             <div className="relative">
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
                 Ready to forge your career?
@@ -214,18 +209,15 @@ function FeatureCard({
   icon,
   title,
   description,
-  gradient,
   iconBg,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
-  gradient: string;
   iconBg: string;
 }) {
   return (
     <div className="group relative rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1.5">
-      <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
       <div className="relative">
         <div className={`inline-flex items-center justify-center rounded-xl ${iconBg} p-2.5 mb-4 transition-transform duration-300 group-hover:scale-110`}>
           {icon}

@@ -149,7 +149,7 @@ function TemplateCard({
   return (
     <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
       {/* Preview */}
-      <div className="h-48 bg-gradient-to-b from-muted to-muted/50 flex items-center justify-center border-b">
+      <div className="h-48 bg-muted flex items-center justify-center border-b">
         {template.preview_image ? (
           <img
             src={template.preview_image}
