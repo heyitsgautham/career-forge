@@ -374,23 +374,67 @@ class GitHubIngestionService:
         Returns:
             Detailed repository data
         """
-        gh = self._get_github_client(encrypted_token)
-        repo = gh.get_repo(full_name)
+        logger.info("fetch_repo_details start", full_name=full_name)
+        try:
+            gh = self._get_github_client(encrypted_token)
+            logger.info("fetch_repo_details: PyGithub client created", full_name=full_name)
+            repo = gh.get_repo(full_name)
+            logger.info(
+                "fetch_repo_details: repo object retrieved",
+                full_name=full_name,
+                private=repo.private,
+                fork=repo.fork,
+                archived=repo.archived,
+                default_branch=repo.default_branch,
+                language=repo.language,
+            )
+        except Exception as e:
+            logger.error(
+                "fetch_repo_details: FAILED to get repo object",
+                full_name=full_name,
+                error_type=type(e).__name__,
+                error=str(e),
+            )
+            raise
         
         # Get basic info
-        data = self._repo_to_dict(repo)
+        try:
+            data = self._repo_to_dict(repo)
+            logger.info("fetch_repo_details: _repo_to_dict OK", full_name=full_name)
+        except Exception as e:
+            logger.error("fetch_repo_details: _repo_to_dict FAILED", full_name=full_name, error=str(e))
+            raise
         
         # Fetch README
-        data["readme_content"] = await self._fetch_readme(repo)
+        try:
+            data["readme_content"] = await self._fetch_readme(repo)
+            logger.info(
+                "fetch_repo_details: README fetched",
+                full_name=full_name,
+                readme_len=len(data["readme_content"] or ""),
+            )
+        except Exception as e:
+            logger.warning("fetch_repo_details: README fetch failed (non-fatal)", full_name=full_name, error=str(e))
+            data["readme_content"] = None
         
         # Extract tech stack from dependency files
-        data["extracted_tech"] = await self._extract_tech_stack(repo)
+        try:
+            data["extracted_tech"] = await self._extract_tech_stack(repo)
+            logger.info("fetch_repo_details: tech stack extracted", full_name=full_name, tech=data["extracted_tech"])
+        except Exception as e:
+            logger.warning("fetch_repo_details: tech stack extraction failed (non-fatal)", full_name=full_name, error=str(e))
+            data["extracted_tech"] = []
         
         # Fetch root dirs as fallback when no README
         data["root_dirs"] = []
         if not data["readme_content"]:
-            data["root_dirs"] = await self._fetch_root_dirs(repo)
+            try:
+                data["root_dirs"] = await self._fetch_root_dirs(repo)
+                logger.info("fetch_repo_details: root_dirs fetched (no README fallback)", full_name=full_name, dirs=data["root_dirs"])
+            except Exception as e:
+                logger.warning("fetch_repo_details: root_dirs fetch failed (non-fatal)", full_name=full_name, error=str(e))
         
+        logger.info("fetch_repo_details done", full_name=full_name)
         return data
     
     def _repo_to_dict(self, repo: Repository) -> Dict[str, Any]:
@@ -567,17 +611,35 @@ class GitHubIngestionService:
         Returns:
             Project data with structured summary, md content, technologies, highlights
         """
-        summary = await self._generate_structured_summary(
-            name=repo_data["name"],
-            description=repo_data.get("description", ""),
-            languages=repo_data.get("languages", {}),
-            topics=repo_data.get("topics", []),
-            stars=repo_data.get("stars", 0),
-            readme=repo_data.get("readme_content"),
-            root_dirs=repo_data.get("root_dirs", []),
+        name = repo_data["name"]
+        logger.info(
+            "create_project_from_repo: calling _generate_structured_summary",
+            repo=name,
+            languages=list(repo_data.get("languages", {}).keys()),
+            readme_len=len(repo_data.get("readme_content") or ""),
             dep_tech=repo_data.get("extracted_tech", []),
         )
-        md_content = self._render_summary_md(repo_data["name"], summary)
+        try:
+            summary = await self._generate_structured_summary(
+                name=name,
+                description=repo_data.get("description", ""),
+                languages=repo_data.get("languages", {}),
+                topics=repo_data.get("topics", []),
+                stars=repo_data.get("stars", 0),
+                readme=repo_data.get("readme_content"),
+                root_dirs=repo_data.get("root_dirs", []),
+                dep_tech=repo_data.get("extracted_tech", []),
+            )
+            logger.info(
+                "create_project_from_repo: Bedrock summary OK",
+                repo=name,
+                oneLiner=summary.get("oneLiner", "")[:80],
+                highlights_count=len(summary.get("highlights", [])),
+            )
+        except Exception as e:
+            logger.error("create_project_from_repo: Bedrock summary FAILED", repo=name, error=str(e))
+            raise
+        md_content = self._render_summary_md(name, summary)
         return {
             "summary":        summary,
             "summaryMd":      md_content,
@@ -633,15 +695,19 @@ RULES:
 3. Return ONLY the JSON object, no markdown fences"""
 
         try:
+            logger.info("_generate_structured_summary: calling Bedrock generate_json", repo=name)
             result = await bedrock_client.generate_json(
                 prompt=prompt,
                 system_instruction="You are a technical resume analyst. Produce accurate, grounded project summaries. Never invent information.",
                 temperature=0.2,
             )
             if isinstance(result, dict):
+                logger.info("_generate_structured_summary: Bedrock OK", repo=name, keys=list(result.keys()))
                 return result
+            else:
+                logger.warning("_generate_structured_summary: Bedrock returned non-dict", repo=name, type=type(result).__name__, value=str(result)[:200])
         except Exception as e:
-            logger.error(f"Structured summary failed for {name}: {e}")
+            logger.error(f"_generate_structured_summary: Bedrock FAILED for {name}: {type(e).__name__}: {e}")
         
         # Fallback: minimal summary
         return {
@@ -708,11 +774,17 @@ RULES:
 
         # 1. Upload .md summary to S3
         s3_key = f"{user_id}/{name}-summary.md"
-        await s3_service.upload_file(
-            key=s3_key,
-            data=md_content.encode("utf-8"),
-            content_type="text/markdown",
-        )
+        logger.info("ingest_and_embed_repo: uploading to S3", repo=name, s3_key=s3_key)
+        try:
+            await s3_service.upload_file(
+                key=s3_key,
+                data=md_content.encode("utf-8"),
+                content_type="text/markdown",
+            )
+            logger.info("ingest_and_embed_repo: S3 upload OK", repo=name, s3_key=s3_key)
+        except Exception as e:
+            logger.error("ingest_and_embed_repo: S3 upload FAILED", repo=name, s3_key=s3_key, error=str(e))
+            raise
 
         # 2. Write structured item to DynamoDB
         summary = project_data["summary"]
@@ -742,10 +814,23 @@ RULES:
             "createdAt":      now,
             "updatedAt":      now,
         }
-        await dynamo_service.put_item(
-            table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
-            item=project_item,
+        logger.info(
+            "ingest_and_embed_repo: writing to DynamoDB",
+            repo=name,
+            project_id=project_id,
+            technologies=project_data["technologies"],
+            highlights_count=len(project_data["highlights"]),
         )
+        try:
+            await dynamo_service.put_item(
+                table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+                item=project_item,
+            )
+            logger.info("ingest_and_embed_repo: DynamoDB write OK", repo=name, project_id=project_id)
+        except Exception as e:
+            logger.error("ingest_and_embed_repo: DynamoDB write FAILED", repo=name, project_id=project_id, error=str(e))
+            raise
+
         logger.info("Ingested repo to DynamoDB + S3", repo=name, project_id=project_id)
         return project_id
 
