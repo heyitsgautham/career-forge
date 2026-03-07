@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,7 +29,7 @@ import {
   Linkedin,
   CheckCircle2,
 } from 'lucide-react';
-import { jobMatchApi, tailorApi, resumesApi, userApi, type Job, type TrackingStatuses } from '@/lib/api';
+import { jobMatchApi, tailorApi, resumesApi, userApi, applicationsApi, type Job, type TrackingStatuses, type Application } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 // ── Category filter labels ───────────────────────────────────────────────────
@@ -71,6 +71,9 @@ const TRACKING_COLORS: Record<string, string> = {
 };
 
 const ROWS_PER_PAGE = 25;
+
+// Statuses that exist in the Apply & Track Kanban pipeline
+const KANBAN_STATUSES = new Set(['applied', 'interviewing', 'offered', 'rejected']);
 
 // ── Source filter options ────────────────────────────────────────────────────
 
@@ -268,6 +271,18 @@ function StatCard({
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
+function getUserId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return '';
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub || '';
+  } catch {
+    return '';
+  }
+}
+
 export function JobScoutShell() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -347,14 +362,65 @@ export function JobScoutShell() {
     queryFn: async () => (await jobMatchApi.getTracking()).data,
   });
 
+  // ── Applications query (for cross-page sync) ───────────────────────────
+
+  const userId = typeof window !== 'undefined' ? getUserId() : '';
+
+  const { data: applications = [] } = useQuery<Application[]>({
+    queryKey: ['applications', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      return (await applicationsApi.list(userId)).data;
+    },
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
+
+  // jobId → existing Application record (for upsert logic)
+  const appByJobId = useMemo(() => {
+    const m: Record<string, Application> = {};
+    for (const a of applications) m[a.jobId] = a;
+    return m;
+  }, [applications]);
+
+  // Keep refs so the async onSuccess closure always sees fresh data
+  const appByJobIdRef = useRef(appByJobId);
+  useEffect(() => { appByJobIdRef.current = appByJobId; }, [appByJobId]);
+  const jobsRef = useRef(jobs);
+  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+
   // ── Tracking mutation ──────────────────────────────────────────────────
 
   const trackMutation = useMutation({
     mutationFn: async ({ jobId, status }: { jobId: string; status: string }) => {
       await jobMatchApi.track(jobId, status);
     },
-    onSuccess: () => {
+    onSuccess: async (_, { jobId, status }) => {
       queryClient.invalidateQueries({ queryKey: ['jobs', 'tracking'] });
+
+      // Sync to Apply & Track pipeline for kanban-visible statuses
+      if (KANBAN_STATUSES.has(status)) {
+        const existingApp = appByJobIdRef.current[jobId];
+        try {
+          if (existingApp) {
+            await applicationsApi.update(existingApp.applicationId, {
+              status: status as Application['status'],
+            });
+          } else {
+            const job = jobsRef.current.find((j) => j.jobId === jobId);
+            await applicationsApi.create({
+              jobId,
+              companyName: job?.company,
+              roleTitle: job?.title,
+              url: job?.url,
+              status,
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ['applications'] });
+        } catch {
+          // sync failure is non-critical — pipeline stays eventually consistent
+        }
+      }
     },
     onError: () => {
       toast({ title: 'Failed to update status', variant: 'destructive' });

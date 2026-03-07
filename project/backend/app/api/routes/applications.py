@@ -44,6 +44,7 @@ class ApplicationCreate(BaseModel):
     roleTitle: Optional[str] = None
     notes: Optional[str] = ""
     url: Optional[str] = None
+    status: Optional[str] = "applied"
 
 
 class ApplicationUpdate(BaseModel):
@@ -231,6 +232,8 @@ async def create_application(
     now = dynamo_service.now_iso()
     application_id = dynamo_service.generate_id()
 
+    initial_status = body.status if body.status in VALID_STATUSES else "applied"
+
     item = {
         "userId": user_id,
         "applicationId": application_id,
@@ -238,7 +241,7 @@ async def create_application(
         "companyName": company,
         "roleTitle": role,
         "resumeId": body.resumeId or "",
-        "status": "applied",
+        "status": initial_status,
         "appliedAt": now,
         "updatedAt": now,
         "notes": body.notes or "",
