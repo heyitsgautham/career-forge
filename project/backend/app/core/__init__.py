@@ -8,6 +8,8 @@ from app.core.security import (
     create_access_token,
     decode_access_token,
     token_encryptor,
+    KmsTokenEncryptor,
+    TokenEncryptor,
 )
 
 __all__ = [
@@ -20,4 +22,6 @@ __all__ = [
     "create_access_token",
     "decode_access_token",
     "token_encryptor",
+    "KmsTokenEncryptor",
+    "TokenEncryptor",
 ]

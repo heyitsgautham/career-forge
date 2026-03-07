@@ -2,17 +2,36 @@
 Application Configuration
 =========================
 Centralized settings management using Pydantic Settings.
+
+Secret loading order (highest priority wins):
+1. AWS Secrets Manager  — fetched at startup for JWT_SECRET_KEY, SECRET_KEY,
+                          GITHUB_APP_CLIENT_SECRET, COGNITO_APP_CLIENT_SECRET
+2. Environment variables / .env file
+3. Hard-coded defaults   — only safe for non-secret config; never for prod secrets
 """
 
 from typing import List, Optional
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from functools import lru_cache
+import logging
 import os
+
+logger = logging.getLogger(__name__)
+
+
+def _fetch_secret(sm_client, secret_name: str) -> Optional[str]:
+    """Fetch a single secret string from AWS Secrets Manager. Returns None on failure."""
+    try:
+        return sm_client.get_secret_value(SecretId=secret_name)["SecretString"]
+    except Exception as exc:
+        logger.warning("Secrets Manager: could not load '%s': %s", secret_name, exc)
+        return None
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
-    
+
     # Application
     APP_NAME: str = "careerforge"
     APP_ENV: str = "development"
@@ -25,6 +44,15 @@ class Settings(BaseSettings):
     
     # AWS Configuration
     AWS_REGION: str = "us-east-1"
+
+    # AWS KMS — token encryption at rest
+    KMS_KEY_ID: str = "alias/careerforge-tokens"
+
+    # AWS Secrets Manager — secret names (not the secret values themselves)
+    SM_JWT_SECRET_NAME: str = "careerforge/jwt-secret-key"
+    SM_APP_SECRET_NAME: str = "careerforge/app-secret-key"
+    SM_GITHUB_CLIENT_SECRET_NAME: str = "careerforge/github-app-client-secret"
+    SM_COGNITO_CLIENT_SECRET_NAME: str = "careerforge/cognito-app-client-secret"
     
     # AWS Bedrock
     BEDROCK_MODEL_ID: str = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
@@ -112,12 +140,58 @@ class Settings(BaseSettings):
             self.GEMINI_API_KEY_6,
         ]
         return [k for k in keys if k]
-    
+
     @property
     def max_upload_size_bytes(self) -> int:
         """Get max upload size in bytes."""
         return self.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-    
+
+    @model_validator(mode="after")
+    def _load_secrets_manager(self) -> "Settings":
+        """
+        Override secret fields with values from AWS Secrets Manager.
+        Runs after env/default values are set, so SM always wins over .env defaults
+        but env vars still serve as fallback when SM is unavailable (e.g. local dev
+        without AWS credentials).
+        """
+        _SENTINEL = "change-me-in-production"
+
+        try:
+            import boto3
+            sm = boto3.client("secretsmanager", region_name=self.AWS_REGION)
+
+            # JWT signing key
+            if self.JWT_SECRET_KEY == _SENTINEL:
+                val = _fetch_secret(sm, self.SM_JWT_SECRET_NAME)
+                if val:
+                    object.__setattr__(self, "JWT_SECRET_KEY", val)
+
+            # App / Fernet fallback key
+            if self.SECRET_KEY == _SENTINEL:
+                val = _fetch_secret(sm, self.SM_APP_SECRET_NAME)
+                if val:
+                    object.__setattr__(self, "SECRET_KEY", val)
+
+            # GitHub App client secret
+            if not self.GITHUB_APP_CLIENT_SECRET:
+                val = _fetch_secret(sm, self.SM_GITHUB_CLIENT_SECRET_NAME)
+                if val:
+                    object.__setattr__(self, "GITHUB_APP_CLIENT_SECRET", val)
+
+            # Cognito App client secret
+            _COGNITO_DEFAULT = "REDACTED_COGNITO_SECRET"
+            if self.COGNITO_APP_CLIENT_SECRET == _COGNITO_DEFAULT:
+                val = _fetch_secret(sm, self.SM_COGNITO_CLIENT_SECRET_NAME)
+                if val:
+                    object.__setattr__(self, "COGNITO_APP_CLIENT_SECRET", val)
+
+            logger.debug("Secrets Manager: secret overrides applied")
+
+        except Exception as exc:
+            logger.warning("Secrets Manager unavailable, using env/defaults: %s", exc)
+
+        return self
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
