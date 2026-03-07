@@ -21,7 +21,7 @@ import {
   ChevronRight,
   FileText,
 } from 'lucide-react';
-import { jobMatchApi, type Job, type TrackingStatuses } from '@/lib/api';
+import { jobMatchApi, tailorApi, type Job, type TrackingStatuses } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 // ── Category filter labels ───────────────────────────────────────────────────
@@ -231,6 +231,41 @@ export function JobScoutShell() {
     },
   });
 
+  // ── Tailor mutation ─────────────────────────────────────────────────────
+
+  const [tailoringJobId, setTailoringJobId] = useState<string | null>(null);
+
+  const tailorMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      setTailoringJobId(jobId);
+      return (await tailorApi.generate(jobId)).data;
+    },
+    onSuccess: (data) => {
+      setTailoringJobId(null);
+      if (data.compilationError) {
+        toast({
+          title: 'Resume tailored but PDF compilation failed',
+          description: 'LaTeX source saved. Try again or check the Apply tab.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (data.pdfUrl) {
+        window.open(data.pdfUrl, '_blank', 'noopener');
+      }
+      toast({
+        title: 'Tailored resume generated!',
+        description: data.matchKeywords?.length
+          ? `Keywords: ${data.matchKeywords.slice(0, 5).join(', ')}`
+          : 'Resume ready for download.',
+      });
+    },
+    onError: () => {
+      setTailoringJobId(null);
+      toast({ title: 'Failed to generate tailored resume', variant: 'destructive' });
+    },
+  });
+
   // ── Countdown ──────────────────────────────────────────────────────────
 
   const countdown = useCountdown(scheduler?.nextRunTime ?? null);
@@ -401,6 +436,8 @@ export function JobScoutShell() {
                     onTrack={(status) =>
                       trackMutation.mutate({ jobId: job.jobId, status })
                     }
+                    onTailor={() => tailorMutation.mutate(job.jobId)}
+                    isTailoring={tailoringJobId === job.jobId}
                   />
                 ))
               )}
@@ -447,10 +484,14 @@ function JobRow({
   job,
   trackingStatus,
   onTrack,
+  onTailor,
+  isTailoring,
 }: {
   job: Job;
   trackingStatus: string;
   onTrack: (status: string) => void;
+  onTailor: () => void;
+  isTailoring: boolean;
 }) {
   return (
     <tr className="group transition-colors hover:bg-muted/30">
@@ -510,12 +551,21 @@ function JobRow({
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-2 whitespace-nowrap">
           <button
-            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-muted-foreground opacity-50 cursor-not-allowed"
-            title="Coming in M5 — Tailored Apply"
-            disabled
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition ${
+              isTailoring
+                ? 'text-muted-foreground opacity-60 cursor-wait'
+                : 'text-primary hover:bg-primary/10 cursor-pointer'
+            }`}
+            title="Generate tailored resume for this job"
+            disabled={isTailoring}
+            onClick={onTailor}
           >
-            <FileText className="h-3 w-3" />
-            Resume
+            {isTailoring ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <FileText className="h-3 w-3" />
+            )}
+            {isTailoring ? 'Tailoring…' : 'Resume'}
           </button>
           {job.url && (
             <a

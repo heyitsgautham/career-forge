@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { resumesApi, jobsApi, templatesApi, api } from '@/lib/api';
+import { resumesApi, jobsApi, templatesApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   FileText, Download, Edit, Trash2, Clock, CheckCircle, XCircle,
-  Loader2, Plus, X, Sparkles, Eye, RefreshCw, AlertTriangle, ExternalLink,
+  Loader2, Plus, X, Sparkles, Eye, RefreshCw, AlertTriangle, ExternalLink, List,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
@@ -77,44 +77,49 @@ export function ResumesList() {
     },
   });
 
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+
+  const deleteAll = async () => {
+    if (!resumes || resumes.length === 0) return;
+    if (!confirm(`Delete all ${resumes.length} resume${resumes.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setIsDeletingAll(true);
+    try {
+      await Promise.all(resumes.map((r) => resumesApi.delete(r.id)));
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      toast({ title: `Deleted ${resumes.length} resume${resumes.length !== 1 ? 's' : ''}` });
+    } catch {
+      toast({ title: 'Some resumes could not be deleted', variant: 'destructive' });
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   const downloadPdf = async (resume: Resume) => {
     if (!resume.pdf_path) {
       toast({ title: 'PDF not available', variant: 'destructive' });
       return;
     }
     try {
-      const response = await api.get(`/api/resumes/${resume.id}/pdf`, {
-        responseType: 'blob',
-        maxRedirects: 0,
-        validateStatus: (s) => s < 400,
-      });
+      // Use pdf-url to get the pre-signed S3 URL as JSON.
+      // Fetching /pdf directly sends the Authorization header through the axios
+      // interceptor; when the backend redirects to S3, AWS rejects the request
+      // with 403 because a pre-signed URL and an Authorization header cannot
+      // coexist.  By obtaining the URL separately and fetching S3 with plain
+      // fetch (no auth headers) we avoid that conflict.
+      const { data } = await resumesApi.getPdfUrl(resume.id);
+      const presignedUrl = data.url;
 
-      // Handle redirect (presigned URL)
-      if (response.status >= 300 && response.status < 400) {
-        const redirectUrl = response.headers['location'];
-        if (redirectUrl) {
-          window.open(redirectUrl, '_blank');
-          return;
-        }
-      }
-
-      // Download blob
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Navigate directly to the pre-signed URL. S3 returns
+      // Content-Disposition: attachment (set server-side) so the browser
+      // downloads the file without a CORS preflight fetch.
       const link = document.createElement('a');
-      link.href = url;
-      const date = new Date(resume.created_at).toISOString().split('T')[0];
-      link.setAttribute('download', `resume-${date}.pdf`);
+      link.href = presignedUrl;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
     } catch {
-      // For redirects, the browser may have already downloaded
-      // Try opening the PDF endpoint directly
-      window.open(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/resumes/${resume.id}/pdf`,
-        '_blank'
-      );
+      toast({ title: 'Failed to download PDF', variant: 'destructive' });
     }
   };
 
@@ -137,19 +142,19 @@ export function ResumesList() {
   // Loading skeleton
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="h-10 bg-muted/40 rounded-lg w-48 animate-pulse" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-lg border divide-y">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="h-5 bg-muted rounded w-3/4" />
-                <div className="h-4 bg-muted rounded w-1/2 mt-2" />
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted rounded w-full" />
-              </CardContent>
-            </Card>
+            <div key={i} className="flex items-center gap-4 px-4 py-3 animate-pulse">
+              <div className="h-8 w-8 bg-muted rounded-full shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-muted rounded w-1/3" />
+                <div className="h-3 bg-muted rounded w-1/4" />
+              </div>
+              <div className="h-6 bg-muted rounded w-16" />
+              <div className="h-8 bg-muted rounded w-24" />
+            </div>
           ))}
         </div>
       </div>
@@ -166,13 +171,31 @@ export function ResumesList() {
             {resumes?.length || 0} resume{resumes?.length !== 1 ? 's' : ''} generated
           </p>
         </div>
-        <Button
-          onClick={() => setShowGenerator(true)}
-          className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all"
-        >
-          <Sparkles className="h-4 w-4" />
-          Generate Resume
-        </Button>
+        <div className="flex items-center gap-2">
+          {resumes && resumes.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+              onClick={deleteAll}
+              disabled={isDeletingAll}
+            >
+              {isDeletingAll ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Delete All
+            </Button>
+          )}
+          <Button
+            onClick={() => setShowGenerator(true)}
+            className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all"
+          >
+            <Sparkles className="h-4 w-4" />
+            Generate Resume
+          </Button>
+        </div>
       </div>
 
       {/* Generator modal */}
@@ -221,33 +244,28 @@ export function ResumesList() {
           </Card>
         )}
 
-        {/* Resume grid */}
+        {/* Resume list */}
         {resumes && resumes.length > 0 && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-lg border divide-y overflow-hidden">
             {resumes.map((resume) => {
               const status = statusConfig[resume.status] || statusConfig.draft;
               const StatusIcon = status.icon;
               const isProcessing = resume.status === 'generating' || resume.status === 'compiling';
 
               return (
-                <Card
+                <div
                   key={resume.id}
-                  className="group hover:shadow-md transition-all duration-200 border-l-4 border-l-violet-500/60"
+                  className="group flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
                 >
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="text-base font-medium line-clamp-1">
-                        {resume.name}
-                      </CardTitle>
-                      <Badge
-                        variant="secondary"
-                        className={`shrink-0 text-xs font-medium gap-1 ${status.color}`}
-                      >
-                        <StatusIcon className={`h-3 w-3 ${isProcessing ? 'animate-spin' : ''}`} />
-                        {status.text}
-                      </Badge>
-                    </div>
-                    <CardDescription className="text-xs">
+                  {/* Icon */}
+                  <div className="shrink-0 h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                  </div>
+
+                  {/* Name + date */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{resume.name}</p>
+                    <p className="text-xs text-muted-foreground">
                       {new Date(resume.updated_at).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
@@ -255,76 +273,72 @@ export function ResumesList() {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
+                    </p>
                     {resume.error_message && (
-                      <div className="flex items-start gap-2 p-2 mb-3 rounded-md bg-red-50 dark:bg-red-950/30 text-sm">
-                        <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-red-700 dark:text-red-400 line-clamp-2 text-xs">
-                            {resume.error_message}
-                          </p>
-                          <p className="text-red-500/70 dark:text-red-400/50 text-xs mt-1">
-                            Try re-importing your repos first
-                          </p>
-                        </div>
-                      </div>
+                      <p className="text-xs text-red-500 truncate mt-0.5">{resume.error_message}</p>
                     )}
+                  </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-1.5">
-                        {(resume.status === 'compiled' || resume.status === 'generated') && resume.pdf_path && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1 h-8 text-xs"
-                              onClick={() => setPreviewResume(resume)}
-                            >
-                              <Eye className="h-3 w-3" />
-                              Preview
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="gap-1 h-8 text-xs"
-                              onClick={() => downloadPdf(resume)}
-                            >
-                              <Download className="h-3 w-3" />
-                              PDF
-                            </Button>
-                            {resume.tex_s3_key && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1 h-8 text-xs"
-                                onClick={() => downloadTex(resume.id, `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.tex`)}
-                              >
-                                <FileText className="h-3 w-3" />
-                                .tex
-                              </Button>
-                            )}
-                          </>
+                  {/* Status badge */}
+                  <Badge
+                    variant="secondary"
+                    className={`shrink-0 text-xs font-medium gap-1 ${status.color}`}
+                  >
+                    <StatusIcon className={`h-3 w-3 ${isProcessing ? 'animate-spin' : ''}`} />
+                    {status.text}
+                  </Badge>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {(resume.status === 'compiled' || resume.status === 'generated') && resume.pdf_path && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 h-7 text-xs"
+                          onClick={() => setPreviewResume(resume)}
+                        >
+                          <Eye className="h-3 w-3" />
+                          Preview
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="gap-1 h-7 text-xs"
+                          onClick={() => downloadPdf(resume)}
+                        >
+                          <Download className="h-3 w-3" />
+                          PDF
+                        </Button>
+                        {resume.tex_s3_key && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 h-7 text-xs"
+                            onClick={() => downloadTex(resume.id, `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.tex`)}
+                          >
+                            <FileText className="h-3 w-3" />
+                            .tex
+                          </Button>
                         )}
-                        {resume.status === 'generated' && !resume.pdf_path && (
-                          <CompileButton resumeId={resume.id} />
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => {
-                          if (confirm('Delete this resume?')) {
-                            deleteMutation.mutate(resume.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                      </>
+                    )}
+                    {resume.status === 'generated' && !resume.pdf_path && (
+                      <CompileButton resumeId={resume.id} />
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        if (confirm('Delete this resume?')) {
+                          deleteMutation.mutate(resume.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
               );
             })}
           </div>
