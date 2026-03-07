@@ -1125,8 +1125,38 @@ def _escape_latex(text: str) -> str:
     return text
 
 
+def _coerce_dict(val) -> dict:
+    """Ensure val is a dict; parse JSON strings; return {} otherwise."""
+    if isinstance(val, dict):
+        return val
+    if isinstance(val, str):
+        import json as _json
+        try:
+            parsed = _json.loads(val)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _coerce_list(val) -> list:
+    """Ensure val is a list; parse JSON strings; return [] otherwise."""
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str):
+        import json as _json
+        try:
+            parsed = _json.loads(val)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+    return []
+
+
 def _build_header(header: dict) -> str:
     """Build the centered header block."""
+    if not isinstance(header, dict):
+        header = {}
     name = _escape_latex(header.get("name", ""))
     parts = []
 
@@ -1167,8 +1197,12 @@ def _build_education(education: list) -> str:
     """Build the Education section."""
     if not education:
         return ""
+    if not isinstance(education, list):
+        return ""
     entries = []
     for edu in education:
+        if not isinstance(edu, dict):
+            continue
         school = _escape_latex(edu.get("school", ""))
         metric = _escape_latex(edu.get("metric", ""))
         degree = _escape_latex(edu.get("degree", ""))
@@ -1191,8 +1225,12 @@ def _build_experience(experience: list) -> str:
     """Build the Experience section."""
     if not experience:
         return ""
+    if not isinstance(experience, list):
+        return ""
     entries = []
     for exp in experience:
+        if not isinstance(exp, dict):
+            continue
         title = _escape_latex(exp.get("title", ""))
         dates = _escape_latex(exp.get("dates", ""))
         company = _escape_latex(exp.get("company", ""))
@@ -1227,8 +1265,12 @@ def _build_projects(projects: list) -> str:
     """Build the Projects section."""
     if not projects:
         return ""
+    if not isinstance(projects, list):
+        return ""
     entries = []
     for proj in projects:
+        if not isinstance(proj, dict):
+            continue
         name = _escape_latex(proj.get("name", ""))
         url = proj.get("url", "")
         techs = _escape_latex(proj.get("technologies", ""))
@@ -1268,8 +1310,12 @@ def _build_skills(skills: list) -> str:
     """Build the Technical Skills section."""
     if not skills:
         return ""
+    if not isinstance(skills, list):
+        return ""
     skill_lines = []
     for i, skill in enumerate(skills):
+        if not isinstance(skill, dict):
+            continue
         cat = _escape_latex(skill.get("category", ""))
         items = _escape_latex(skill.get("items", ""))
         suffix = " \\\\" if i < len(skills) - 1 else ""
@@ -1310,31 +1356,31 @@ def _fill_jakes_template(data: dict) -> str:
     parts = [JAKES_PREAMBLE.strip(), "", "\\begin{document}", ""]
 
     # Header (always present)
-    header = data.get("header", {})
+    header = _coerce_dict(data.get("header", {}))
     parts.append(_build_header(header))
 
     # Education
-    edu = _build_education(data.get("education", []))
+    edu = _build_education(_coerce_list(data.get("education", [])))
     if edu:
         parts.append(edu)
 
     # Experience
-    exp = _build_experience(data.get("experience", []))
+    exp = _build_experience(_coerce_list(data.get("experience", [])))
     if exp:
         parts.append(exp)
 
     # Projects
-    proj = _build_projects(data.get("projects", []))
+    proj = _build_projects(_coerce_list(data.get("projects", [])))
     if proj:
         parts.append(proj)
 
     # Technical Skills
-    skills = _build_skills(data.get("skills", []))
+    skills = _build_skills(_coerce_list(data.get("skills", [])))
     if skills:
         parts.append(skills)
 
     # Achievements
-    ach = _build_achievements(data.get("achievements", []))
+    ach = _build_achievements(_coerce_list(data.get("achievements", [])))
     if ach:
         parts.append(ach)
 

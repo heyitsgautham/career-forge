@@ -9,10 +9,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 import uuid
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_admin
 from app.services.matching_engine import matching_engine, MatchScore
 from app.services.embedding_service import embedding_service
 from app.services.vector_store import vector_store, VectorStoreService
@@ -101,6 +102,23 @@ class JobStatsResponse(BaseModel):
     averageMatch: Optional[float]
     topCategories: List[dict]
     matchDistribution: dict
+    newToday: int = 0
+    lastScrape: Optional[dict] = None
+
+
+class TrackingStatusUpdate(BaseModel):
+    status: str  # "saved", "applied", "interviewing", "offered", "rejected", "ignored"
+    notes: Optional[str] = None
+
+
+class BlacklistRequest(BaseModel):
+    companyName: str
+
+
+class SchedulerStatusResponse(BaseModel):
+    running: bool
+    nextRunTime: Optional[str]
+    lastScrape: Optional[dict]
 
 
 def _scout_response_from_dynamo(job: dict) -> ScoutJobResponse:
@@ -145,58 +163,22 @@ def _jd_response_from_dynamo(jd: dict) -> JobDescriptionResponse:
 
 
 # ---------------------------------------------------------------------------
-# Job Scout endpoints (M4)
+# Job Scout endpoints (M4) — shared jobs, no userId filter
 # ---------------------------------------------------------------------------
 
-@router.post("/scrape", response_model=List[ScoutJobResponse])
-async def trigger_scrape(
-    req: ScrapeRequest,
+@router.get("/scheduler/status", response_model=SchedulerStatusResponse)
+async def get_scheduler_status(
     current_user=Depends(get_current_user),
 ):
-    """Trigger a manual job scrape. Scrapes, analyzes, and scores jobs."""
-    from app.services.job_scraper import job_scraper
-    from app.services.jd_analyzer import jd_analyzer
-    from app.services.match_scorer import match_scorer
+    """Return scheduler state: running, next run time, last scrape info."""
+    from app.services.scheduler import get_scheduler_status
 
-    user_id = str(current_user.id)
-
-    # 1. Scrape
-    stored_jobs = await job_scraper.scrape_and_store(
-        user_id=user_id,
-        search_term=req.search_term,
-        location=req.location,
-        sites=req.sites,
-        results_wanted=req.results_wanted,
+    s = get_scheduler_status()
+    return SchedulerStatusResponse(
+        running=s["running"],
+        nextRunTime=s.get("next_run_time"),
+        lastScrape=s.get("last_scrape"),
     )
-
-    if not stored_jobs:
-        return []
-
-    # 2. Analyze with Bedrock
-    await jd_analyzer.analyze_and_store(stored_jobs)
-
-    # 3. Re-fetch analyzed jobs
-    from app.services.dynamo_service import dynamo_service
-    from boto3.dynamodb.conditions import Attr
-
-    all_jobs = await dynamo_service.scan(
-        "Jobs",
-        filter_expression=Attr("userId").eq(user_id),
-    )
-
-    # 4. Score against user profile
-    user_skills = await _get_user_skills(user_id)
-    analyzed_jobs = [j for j in all_jobs if j.get("isAnalyzed")]
-    if analyzed_jobs:
-        await match_scorer.score_all_jobs(user_id, user_skills, analyzed_jobs)
-
-    # 5. Re-fetch with scores and return
-    final_jobs = await dynamo_service.scan(
-        "Jobs",
-        filter_expression=Attr("userId").eq(user_id),
-    )
-    final_jobs.sort(key=lambda j: j.get("matchScore") or 0, reverse=True)
-    return [_scout_response_from_dynamo(j) for j in final_jobs]
 
 
 @router.get("/matches", response_model=List[ScoutJobResponse])
@@ -204,18 +186,21 @@ async def list_matched_jobs(
     current_user=Depends(get_current_user),
     role: Optional[str] = Query(None, description="Filter by category"),
     min_match: Optional[float] = Query(None, alias="minMatch", description="Minimum match %"),
-    sort_by: Optional[str] = Query("match", description="Sort: match, date, company"),
-    limit: int = Query(50, le=100),
+    sort_by: Optional[str] = Query("date", description="Sort: match, date, company"),
+    limit: int = Query(200, le=500),
 ):
-    """List all scraped jobs sorted by match score for the authenticated user."""
+    """List all scraped jobs (shared). Sorted by date by default."""
     from app.services.dynamo_service import dynamo_service
-    from boto3.dynamodb.conditions import Attr
 
-    user_id = str(current_user.id)
-    jobs = await dynamo_service.scan(
-        "Jobs",
-        filter_expression=Attr("userId").eq(user_id),
-    )
+    jobs = await dynamo_service.scan("Jobs")
+
+    # Exclude blacklisted companies
+    try:
+        blacklisted = await dynamo_service.scan("BlacklistedCompanies")
+        bl_names = {b["companyName"].lower() for b in blacklisted}
+        jobs = [j for j in jobs if (j.get("company") or "").lower() not in bl_names]
+    except Exception:
+        pass
 
     # Apply filters
     if role:
@@ -226,12 +211,12 @@ async def list_matched_jobs(
         jobs = [j for j in jobs if (j.get("matchScore") or 0) >= min_match]
 
     # Sort
-    if sort_by == "date":
-        jobs.sort(key=lambda j: j.get("datePosted") or "", reverse=True)
+    if sort_by == "match":
+        jobs.sort(key=lambda j: j.get("matchScore") or 0, reverse=True)
     elif sort_by == "company":
         jobs.sort(key=lambda j: (j.get("company") or "").lower())
-    else:  # default: match score
-        jobs.sort(key=lambda j: j.get("matchScore") or 0, reverse=True)
+    else:  # default: date
+        jobs.sort(key=lambda j: j.get("createdAt") or j.get("datePosted") or "", reverse=True)
 
     return [_scout_response_from_dynamo(j) for j in jobs[:limit]]
 
@@ -240,18 +225,21 @@ async def list_matched_jobs(
 async def get_job_stats(
     current_user=Depends(get_current_user),
 ):
-    """Summary stats: total jobs, avg match, top categories."""
+    """Summary stats: total jobs, new today, last scrape, top categories."""
     from app.services.dynamo_service import dynamo_service
-    from boto3.dynamodb.conditions import Attr
+    from app.services.scheduler import get_scheduler_status
 
-    user_id = str(current_user.id)
-    jobs = await dynamo_service.scan(
-        "Jobs",
-        filter_expression=Attr("userId").eq(user_id),
-    )
+    jobs = await dynamo_service.scan("Jobs")
 
     total = len(jobs)
     analyzed = sum(1 for j in jobs if j.get("isAnalyzed"))
+
+    # New today
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    new_today = sum(
+        1 for j in jobs
+        if (j.get("createdAt") or "").startswith(today)
+    )
 
     # Average match
     scores = [j.get("matchScore") for j in jobs if j.get("matchScore") is not None]
@@ -281,38 +269,108 @@ async def get_job_stats(
         else:
             dist["75-100"] += 1
 
+    # Last scrape info
+    sched = get_scheduler_status()
+
     return JobStatsResponse(
         totalJobs=total,
         analyzedJobs=analyzed,
         averageMatch=avg_match,
         topCategories=top_categories,
         matchDistribution=dist,
+        newToday=new_today,
+        lastScrape=sched.get("last_scrape"),
     )
 
 
-async def _get_user_skills(user_id: str) -> List[str]:
-    """Fetch user's skills from profile + ingested projects."""
+# ── Application tracking ─────────────────────────────────────────────────────
+
+@router.post("/scout/{job_id}/track")
+async def track_job(
+    job_id: str,
+    body: TrackingStatusUpdate,
+    current_user=Depends(get_current_user),
+):
+    """Set or update user's tracking status for a job."""
     from app.services.dynamo_service import dynamo_service
-    from boto3.dynamodb.conditions import Attr
 
-    skills: set = set()
+    user_id = str(current_user.id)
+    now = dynamo_service.now_iso()
 
-    # From user profile
-    user = await dynamo_service.get_item("Users", {"userId": user_id})
-    if user:
-        for s in (user.get("skills") or []):
-            skills.add(s)
+    item = {
+        "userId": user_id,
+        "jobId": job_id,
+        "status": body.status,
+        "notes": body.notes or "",
+        "updatedAt": now,
+    }
+    await dynamo_service.put_item("UserJobStatuses", item)
+    return {"message": "Status updated", "status": body.status}
 
-    # From projects
-    projects = await dynamo_service.scan(
-        "Projects",
-        filter_expression=Attr("userId").eq(user_id),
-    )
-    for proj in projects:
-        for tech in (proj.get("technologies") or proj.get("skills") or []):
-            skills.add(tech)
 
-    return list(skills)
+@router.get("/tracking")
+async def get_tracking_statuses(
+    current_user=Depends(get_current_user),
+):
+    """Get all job tracking statuses for the current user."""
+    from app.services.dynamo_service import dynamo_service
+
+    user_id = str(current_user.id)
+    try:
+        statuses = await dynamo_service.query(
+            "UserJobStatuses",
+            pk_name="userId",
+            pk_value=user_id,
+        )
+    except Exception:
+        statuses = []
+
+    return {s["jobId"]: {"status": s["status"], "notes": s.get("notes", "")} for s in statuses}
+
+
+# ── Blacklist management (admin only) ────────────────────────────────────────
+
+@router.get("/blacklist")
+async def list_blacklist(
+    current_user=Depends(require_admin),
+):
+    """List all blacklisted companies."""
+    from app.services.dynamo_service import dynamo_service
+
+    try:
+        items = await dynamo_service.scan("BlacklistedCompanies")
+    except Exception:
+        items = []
+    return items
+
+
+@router.post("/blacklist")
+async def add_to_blacklist(
+    body: BlacklistRequest,
+    current_user=Depends(require_admin),
+):
+    """Add a company to the blacklist."""
+    from app.services.dynamo_service import dynamo_service
+
+    item = {
+        "companyName": body.companyName,
+        "addedBy": str(current_user.id),
+        "createdAt": dynamo_service.now_iso(),
+    }
+    await dynamo_service.put_item("BlacklistedCompanies", item)
+    return {"message": f"'{body.companyName}' blacklisted"}
+
+
+@router.delete("/blacklist/{company_name}")
+async def remove_from_blacklist(
+    company_name: str,
+    current_user=Depends(require_admin),
+):
+    """Remove a company from the blacklist."""
+    from app.services.dynamo_service import dynamo_service
+
+    await dynamo_service.delete_item("BlacklistedCompanies", {"companyName": company_name})
+    return {"message": f"'{company_name}' removed from blacklist"}
 
 
 @router.get("/scout/{job_id}", response_model=ScoutJobResponse)
@@ -320,11 +378,11 @@ async def get_scout_job_detail(
     job_id: str,
     current_user=Depends(get_current_user),
 ):
-    """Full job detail + JD analysis + match breakdown for Job Scout."""
+    """Full job detail for Job Scout (shared — no ownership check)."""
     from app.services.dynamo_service import dynamo_service
 
     job = await dynamo_service.get_item("Jobs", {"jobId": job_id})
-    if not job or job.get("userId") != str(current_user.id):
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return _scout_response_from_dynamo(job)
 
@@ -332,13 +390,13 @@ async def get_scout_job_detail(
 @router.delete("/scout/{job_id}")
 async def delete_scout_job(
     job_id: str,
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_admin),
 ):
-    """Delete a scraped job from Job Scout."""
+    """Delete a scraped job (admin only)."""
     from app.services.dynamo_service import dynamo_service
 
     job = await dynamo_service.get_item("Jobs", {"jobId": job_id})
-    if not job or job.get("userId") != str(current_user.id):
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
     await dynamo_service.delete_item("Jobs", {"jobId": job_id})

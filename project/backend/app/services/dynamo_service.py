@@ -321,6 +321,48 @@ class DynamoService:
         """Get current UTC timestamp in ISO format."""
         return datetime.utcnow().isoformat() + "Z"
 
+    async def ensure_job_scout_tables(self):
+        """Create UserJobStatuses and BlacklistedCompanies tables if they don't exist."""
+        client = self._get_resource().meta.client
+        try:
+            existing = client.list_tables()["TableNames"]
+        except ClientError:
+            existing = []
+
+        tables = {
+            "UserJobStatuses": {
+                "KeySchema": [
+                    {"AttributeName": "userId", "KeyType": "HASH"},
+                    {"AttributeName": "jobId", "KeyType": "RANGE"},
+                ],
+                "AttributeDefinitions": [
+                    {"AttributeName": "userId", "AttributeType": "S"},
+                    {"AttributeName": "jobId", "AttributeType": "S"},
+                ],
+            },
+            "BlacklistedCompanies": {
+                "KeySchema": [
+                    {"AttributeName": "companyName", "KeyType": "HASH"},
+                ],
+                "AttributeDefinitions": [
+                    {"AttributeName": "companyName", "AttributeType": "S"},
+                ],
+            },
+        }
+
+        for name, schema in tables.items():
+            if name not in existing:
+                try:
+                    client.create_table(
+                        TableName=name,
+                        BillingMode="PAY_PER_REQUEST",
+                        **schema,
+                    )
+                    logger.info(f"Created DynamoDB table: {name}")
+                except ClientError as e:
+                    if e.response["Error"]["Code"] != "ResourceInUseException":
+                        logger.error(f"Failed to create table {name}: {e}")
+
 
 # Global instance
 dynamo_service = DynamoService()
