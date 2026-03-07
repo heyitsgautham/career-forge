@@ -156,11 +156,15 @@ const api = axios.create({
   },
 });
 
-// Inject auth token
+// Inject auth token + bypass browser HTTP cache on GETs (React Query handles caching)
 api.interceptors.request.use((config) => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (config.method === 'get') {
+    config.headers['Cache-Control'] = 'no-cache';
+    config.headers['Pragma'] = 'no-cache';
   }
   return config;
 });
@@ -196,7 +200,7 @@ export const authApi = {
       console.error('NEXT_PUBLIC_GITHUB_CLIENT_ID is not configured');
       return;
     }
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001').replace(/\/$/, '');
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/callback/github`);
     const scope = encodeURIComponent('read:user user:email repo');
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
@@ -255,9 +259,11 @@ export const projectsApi = {
 
   delete: (id: string) => api.delete(`/api/projects/${id}`),
 
-  importGithub: (fullName: string) =>
+  deleteAll: () => api.delete('/api/projects/all'),
+
+  importGithub: (fullNames: string[]) =>
     api.post('/api/projects/ingest/github', {
-      full_names: [fullName]
+      full_names: fullNames
     }),
 
   syncAllGithub: () =>
