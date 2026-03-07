@@ -155,41 +155,109 @@ export function ProjectsList() {
   });
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [importingRepos, setImportingRepos] = useState<string[]>([]);
+  const [importProgress, setImportProgress] = useState<Array<{ name: string; fullName: string; status: 'queued' | 'processing' | 'done' | 'failed' }>>([]);
+  // Holds the visual simulation interval so it can be cancelled when real results arrive
+  const simulationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Import mutation (lifted to parent so loading overlay survives modal close) ──
   const importMutation = useMutation({
     mutationFn: (fullNames: string[]) => projectsApi.importGithub(fullNames),
     onMutate: () => {
-      // importingRepos already set before calling mutate
+      // importProgress already set before calling mutate
     },
     onSuccess: (response) => {
+      // Stop simulation — real results drive the state from here
+      if (simulationIntervalRef.current) {
+        clearInterval(simulationIntervalRef.current);
+        simulationIntervalRef.current = null;
+      }
+
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       const results: Array<{ full_name?: string; status?: string; error?: string }> = response.data?.results ?? [];
-      const failed = results.filter(r => r.status === 'error');
-      const succeeded = results.filter(r => r.status === 'success');
-      if (succeeded.length > 0 && failed.length === 0) {
-        toast({ title: `${succeeded.length} project${succeeded.length !== 1 ? 's' : ''} imported successfully` });
-      } else if (succeeded.length > 0 && failed.length > 0) {
-        toast({ title: `${succeeded.length} imported, ${failed.length} failed`, description: `Failed: ${failed.map(f => f.full_name).join(', ')}` });
-      } else if (failed.length > 0) {
-        toast({ title: `Import failed for ${failed.length} project${failed.length !== 1 ? 's' : ''}`, description: failed[0].error ?? 'Unknown error', variant: 'destructive' });
-      } else {
-        toast({ title: 'Import completed' });
-      }
+
+      // Reveal done/failed one by one — 650ms stagger so cards appear sequentially
+      results.forEach((result, idx) => {
+        setTimeout(() => {
+          setImportProgress(prev => prev.map(repo => {
+            if (repo.fullName === result.full_name || (!result.full_name && idx === prev.indexOf(prev.find(r => r.status !== 'done' && r.status !== 'failed')!))) {
+              return { ...repo, status: result.status === 'success' ? 'done' : 'failed' };
+            }
+            return repo;
+          }));
+        }, idx * 650);
+      });
+
+      const allDoneDelay = results.length * 650;
+
+      // Toast after the last card flips
+      setTimeout(() => {
+        const failed = results.filter(r => r.status === 'error');
+        const succeeded = results.filter(r => r.status === 'success');
+        if (succeeded.length > 0 && failed.length === 0) {
+          toast({ title: `${succeeded.length} project${succeeded.length !== 1 ? 's' : ''} imported successfully` });
+        } else if (succeeded.length > 0 && failed.length > 0) {
+          toast({ title: `${succeeded.length} imported, ${failed.length} failed`, description: `Failed: ${failed.map(f => f.full_name).join(', ')}` });
+        } else if (failed.length > 0) {
+          toast({ title: `Import failed for ${failed.length} project${failed.length !== 1 ? 's' : ''}`, description: failed[0].error ?? 'Unknown error', variant: 'destructive' });
+        } else {
+          toast({ title: 'Import completed' });
+        }
+      }, allDoneDelay);
+
+      // Clear skeleton cards after real cards have had time to load via polling
+      setTimeout(() => setImportProgress([]), allDoneDelay + 3500);
+
+      // A5: Poll for 30s to catch delayed DB writes
+      const pollId = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+      }, 5000);
+      setTimeout(() => clearInterval(pollId), 30_000);
     },
     onError: (error: any) => {
+      if (simulationIntervalRef.current) {
+        clearInterval(simulationIntervalRef.current);
+        simulationIntervalRef.current = null;
+      }
+      // Mark all as failed, then clear after a short delay
+      setImportProgress(prev => prev.map(repo => ({ ...repo, status: 'failed' })));
       toast({ title: 'Failed to import repositories', description: error.response?.data?.detail || error.message || 'Unknown error', variant: 'destructive' });
+      setTimeout(() => setImportProgress([]), 4000);
     },
     onSettled: () => {
-      setImportingRepos([]);
+      // cleanup handled per-path in onSuccess / onError
     },
   });
 
   const handleStartImport = (fullNames: string[]) => {
-    setImportingRepos(fullNames.map(fn => fn.split('/').pop() || fn));
+    // Initialize — first repo immediately processing, rest queued
+    const progressItems = fullNames.map((fn, idx) => ({
+      name: fn.split('/').pop() || fn,
+      fullName: fn,
+      status: (idx === 0 ? 'processing' : 'queued') as 'queued' | 'processing' | 'done' | 'failed',
+    }));
+    setImportProgress(progressItems);
     setShowGithubModal(false);
     importMutation.mutate(fullNames);
+
+    // Advance the "processing" indicator along the queue while waiting for the API
+    if (fullNames.length > 1) {
+      let currentIdx = 1;
+      simulationIntervalRef.current = setInterval(() => {
+        if (currentIdx < fullNames.length) {
+          setImportProgress(prev => prev.map((item, i) => {
+            if (i < currentIdx) return item.status === 'queued' ? { ...item, status: 'processing' as const } : item;
+            if (i === currentIdx) return { ...item, status: 'processing' as const };
+            return item;
+          }));
+          currentIdx++;
+        } else {
+          if (simulationIntervalRef.current) {
+            clearInterval(simulationIntervalRef.current);
+            simulationIntervalRef.current = null;
+          }
+        }
+      }, 3000);
+    }
   };
 
   // ── GitHub sync banner (always visible at top) ────────────────────────
@@ -199,7 +267,7 @@ export function ProjectsList() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Github className="h-5 w-5 text-primary" />
-            <CardTitle className="text-base">GitHub Sync</CardTitle>
+            <span className="text-base font-semibold leading-none tracking-tight">GitHub Sync</span>
             {syncStatus === 'done' || syncStatus === 'completed' ? (
               <Badge className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-0">
                 {syncSummary ? `${syncSummary.processed} imported` : 'Synced'}
@@ -258,22 +326,18 @@ export function ProjectsList() {
       )}
     </Card>
   );
-  // ───────────────────────────────────────────────────────────────────────
 
-  // ── Import loading overlay ────────────────────────────────────────────
-  if (importingRepos.length > 0) {
-    return (
-      <>
-        {syncBanner}
-        <ImportLoadingOverlay repoNames={importingRepos} />
-      </>
-    );
-  }
+  // ── Non-blocking import progress banner ─────────────────────────────────
+  const importBanner = importProgress.length > 0 ? (
+    <ImportProgressBanner importProgress={importProgress} />
+  ) : null;
+  // ───────────────────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
       <>
         {syncBanner}
+        {importBanner}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
@@ -294,10 +358,13 @@ export function ProjectsList() {
     );
   }
 
-  if (!projects || projects.length === 0) {
+  // If an import is actively running, skip the empty state and fall through to the grid
+  // so skeleton cards are visible even before the first real project lands.
+  if ((!projects || projects.length === 0) && importProgress.length === 0) {
     return (
       <>
         {syncBanner}
+        {importBanner}
         <Card className="text-center py-12">
           <CardContent>
             <Github className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -324,7 +391,7 @@ export function ProjectsList() {
         </Card>
 
         {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
-        {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} />}
+        {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} projectsLoading={isLoading} />}
       </>
     );
   }
@@ -332,6 +399,7 @@ export function ProjectsList() {
   return (
     <>
       {syncBanner}
+      {importBanner}
       <div className="flex justify-end gap-2 mb-4">
         <Button variant="outline" className="gap-2 border-primary/30 hover:bg-primary/5" onClick={() => setShowGithubModal(true)}>
           <Github className="h-4 w-4" />
@@ -349,7 +417,12 @@ export function ProjectsList() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {projects.map((project) => (
+        {/* Skeleton placeholder cards for in-flight imports */}
+        {importProgress.map((item) => (
+          <ImportSkeletonCard key={`skeleton-${item.fullName}`} item={item} />
+        ))}
+        {/* Real project cards */}
+        {(projects ?? []).map((project) => (
           <Card key={project.id} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-[hsl(var(--success))]">
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -426,7 +499,7 @@ export function ProjectsList() {
       </div>
 
       {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
-      {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} />}
+      {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} projectsLoading={isLoading} />}
       {selectedProject && <ProjectDetailsModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
@@ -642,11 +715,22 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onClose: () => void; onStartImport: (fullNames: string[]) => void; importedRepoNames: Set<string> }) {
+function GithubImportModal({ 
+  onClose, 
+  onStartImport, 
+  importedRepoNames,
+  projectsLoading = false,
+}: { 
+  onClose: () => void; 
+  onStartImport: (fullNames: string[]) => void; 
+  importedRepoNames: Set<string>;
+  projectsLoading?: boolean;
+}) {
   const [repoUrl, setRepoUrl] = useState('');
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [importMode, setImportMode] = useState<'select' | 'url'>('select');
+  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
 
   // Fetch user's GitHub repositories
   const { data: userRepos, isLoading: loadingRepos, error: reposError } = useQuery({
@@ -670,8 +754,13 @@ function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onCl
     gcTime: 30 * 60 * 1000,     // 30 min
   });
 
-  // Filter repos based on search query
+  // Filter repos based on search query and visibility
   const filteredRepos = userRepos?.filter(repo => {
+    // Apply visibility filter first
+    if (visibilityFilter === 'public' && repo.is_private) return false;
+    if (visibilityFilter === 'private' && !repo.is_private) return false;
+    
+    // Then apply search query
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -681,6 +770,10 @@ function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onCl
       repo.language?.toLowerCase().includes(query)
     );
   });
+
+  // Compute visibility counts from full userRepos list
+  const publicCount = userRepos?.filter(r => !r.is_private).length ?? 0;
+  const privateCount = userRepos?.filter(r => r.is_private).length ?? 0;
 
   const isAlreadyImported = (repo: { name: string }) => importedRepoNames.has(repo.name);
 
@@ -804,6 +897,44 @@ function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onCl
                     </p>
                   </div>
 
+                  {/* Visibility Filter Toggle */}
+                  <div className="flex gap-1">
+                    <Button
+                      variant={visibilityFilter === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setVisibilityFilter('all')}
+                      className="text-xs h-8"
+                    >
+                      All ({userRepos.length})
+                    </Button>
+                    <Button
+                      variant={visibilityFilter === 'public' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setVisibilityFilter('public')}
+                      className="text-xs h-8 gap-1"
+                    >
+                      <Globe className="h-3 w-3" />
+                      Public ({publicCount})
+                    </Button>
+                    <Button
+                      variant={visibilityFilter === 'private' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setVisibilityFilter('private')}
+                      className="text-xs h-8 gap-1"
+                    >
+                      <Lock className="h-3 w-3" />
+                      Private ({privateCount})
+                    </Button>
+                  </div>
+
+                  {/* Projects loading warning banner (A2) */}
+                  {projectsLoading && (
+                    <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Loading your imported projects…
+                    </div>
+                  )}
+
                   {/* Select All / Deselect All */}
                   <div className="flex items-center gap-2">
                     <Button
@@ -922,7 +1053,142 @@ function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onCl
   );
 }
 
-// ── Creative import loading overlay ─────────────────────────────────────
+// ── Compact non-blocking import progress banner (A4) ─────────────────────
+type ImportProgressItem = { name: string; fullName: string; status: 'queued' | 'processing' | 'done' | 'failed' };
+
+// ── Skeleton card shown in the grid while a repo is being imported ────────
+function ImportSkeletonCard({ item }: { item: ImportProgressItem }) {
+  const isProcessing = item.status === 'processing';
+  const isDone = item.status === 'done';
+  const isFailed = item.status === 'failed';
+
+  return (
+    <Card
+      className={`border-l-4 transition-all duration-500 ${
+        isDone    ? 'border-l-[hsl(var(--success))]' :
+        isFailed  ? 'border-l-destructive' :
+        isProcessing ? 'border-l-destructive' :
+                    'border-l-muted'
+      }`}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Github className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <span className="font-medium text-sm truncate">{item.name}</span>
+          </div>
+          {isProcessing && <RefreshCw className="h-6 w-6 text-destructive animate-spin flex-shrink-0" />}
+          {isDone && (
+            <div className="h-3.5 w-3.5 rounded-full bg-[hsl(var(--success))] flex-shrink-0" />
+          )}
+          {isFailed && <X className="h-3.5 w-3.5 text-destructive flex-shrink-0" />}
+          {item.status === 'queued' && (
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
+          )}
+        </div>
+        {/* fake description lines */}
+        <div className={`h-3 bg-muted rounded mt-2 ${isProcessing ? 'animate-pulse' : 'opacity-50'}`} style={{ width: '78%' }} />
+        <div className={`h-3 bg-muted rounded mt-1 ${isProcessing ? 'animate-pulse' : 'opacity-50'}`} style={{ width: '52%' }} />
+      </CardHeader>
+      <CardContent className="pb-4">
+        {/* fake tech badges */}
+        <div className="flex gap-2 mb-3">
+          {[64, 48, 56].map((w, i) => (
+            <div
+              key={i}
+              className={`h-5 rounded bg-muted ${isProcessing ? 'animate-pulse' : 'opacity-50'}`}
+              style={{ width: w }}
+            />
+          ))}
+        </div>
+        <p className={`text-xs font-medium ${
+          isDone       ? 'text-[hsl(var(--success))]' :
+          isFailed     ? 'text-destructive' :
+          isProcessing ? 'text-destructive' :
+                         'text-muted-foreground'
+        }`}>
+          {item.status === 'queued'     ? 'Waiting in queue…'    :
+           item.status === 'processing' ? 'Analyzing with AI…'   :
+           item.status === 'done'       ? 'Import complete ✓'    :
+                                          'Import failed'}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ImportProgressBanner({ importProgress }: { importProgress: ImportProgressItem[] }) {
+  const doneCount = importProgress.filter(r => r.status === 'done').length;
+  const failedCount = importProgress.filter(r => r.status === 'failed').length;
+  const processingCount = importProgress.filter(r => r.status === 'processing').length;
+  const queuedCount = importProgress.filter(r => r.status === 'queued').length;
+  
+  const allDone = doneCount + failedCount === importProgress.length;
+  const currentRepo = importProgress.find(r => r.status === 'processing');
+
+  return (
+    <Card className={`mb-4 border-l-4 ${allDone ? (failedCount > 0 ? 'border-l-destructive' : 'border-l-[hsl(var(--success))]') : 'border-l-destructive'} bg-card`}>
+      <CardContent className="py-3 px-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {allDone ? (
+              failedCount > 0 ? (
+                <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                  <X className="h-4 w-4 text-destructive" />
+                </div>
+              ) : (
+                <div className="h-8 w-8 rounded-lg bg-[hsl(var(--success))]/10 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-[hsl(var(--success))]" />
+                </div>
+              )
+            ) : (
+              <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center">
+                <RefreshCw className="h-5 w-5 text-destructive animate-spin" />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium">
+                {allDone 
+                  ? (failedCount > 0 
+                    ? `Import completed with ${failedCount} failure${failedCount !== 1 ? 's' : ''}`
+                    : `Successfully imported ${doneCount} project${doneCount !== 1 ? 's' : ''}`)
+                  : `Importing ${importProgress.length} repositor${importProgress.length !== 1 ? 'ies' : 'y'}…`
+                }
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {allDone 
+                  ? `${doneCount} succeeded${failedCount > 0 ? `, ${failedCount} failed` : ''}`
+                  : currentRepo 
+                    ? `Analyzing ${currentRepo.name}…`
+                    : `${processingCount} processing, ${queuedCount} queued`
+                }
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Progress indicators */}
+            <div className="flex gap-1">
+              {importProgress.map((item) => (
+                <div
+                  key={item.fullName}
+                  className={`h-2 w-2 rounded-full transition-colors ${
+                    item.status === 'done' ? 'bg-[hsl(var(--success))]' :
+                    item.status === 'failed' ? 'bg-destructive' :
+                    item.status === 'processing' ? 'bg-destructive animate-pulse' :
+                    'bg-muted'
+                  }`}
+                  title={`${item.name}: ${item.status}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Creative import loading overlay with per-repo progress ─────────────
 const LOADING_PHRASES = [
   'Cloning repository data...',
   'Scanning source files...',
@@ -934,7 +1200,7 @@ const LOADING_PHRASES = [
   'Almost there...',
 ];
 
-function ImportLoadingOverlay({ repoNames }: { repoNames: string[] }) {
+function ImportLoadingOverlay({ importProgress }: { importProgress: ImportProgressItem[] }) {
   const [phraseIdx, setPhraseIdx] = useState(0);
   const [visibleRepos, setVisibleRepos] = useState(0);
 
@@ -946,11 +1212,29 @@ function ImportLoadingOverlay({ repoNames }: { repoNames: string[] }) {
   }, []);
 
   useEffect(() => {
-    if (visibleRepos < repoNames.length) {
+    if (visibleRepos < importProgress.length) {
       const timer = setTimeout(() => setVisibleRepos(prev => prev + 1), 400);
       return () => clearTimeout(timer);
     }
-  }, [visibleRepos, repoNames.length]);
+  }, [visibleRepos, importProgress.length]);
+
+  const doneCount = importProgress.filter(r => r.status === 'done').length;
+  const failedCount = importProgress.filter(r => r.status === 'failed').length;
+  const processingCount = importProgress.filter(r => r.status === 'processing').length;
+
+  const getStatusInfo = (status: ImportProgressItem['status']) => {
+    switch (status) {
+      case 'done':
+        return { text: 'Done!', color: 'text-[hsl(var(--success))]', bgColor: 'bg-[hsl(var(--success))]/10' };
+      case 'failed':
+        return { text: 'Failed', color: 'text-destructive', bgColor: 'bg-destructive/10' };
+      case 'processing':
+        return { text: 'Analyzing...', color: 'text-primary animate-pulse', bgColor: 'bg-primary/10' };
+      case 'queued':
+      default:
+        return { text: 'Queued', color: 'text-muted-foreground', bgColor: 'bg-muted' };
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -965,56 +1249,88 @@ function ImportLoadingOverlay({ repoNames }: { repoNames: string[] }) {
         <div className="absolute inset-6 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" style={{ animationDuration: '1s' }} />
         {/* Center icon */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30 animate-pulse">
+          <div className="w-12 h-12 bg-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30 animate-pulse">
             <Code2 className="h-6 w-6 text-white" />
           </div>
         </div>
       </div>
 
       {/* Title */}
-      <h3 className="text-xl font-bold bg-gradient-to-r from-violet-600 via-purple-500 to-blue-500 bg-clip-text text-transparent mb-2">
-        Importing {repoNames.length} {repoNames.length === 1 ? 'Repository' : 'Repositories'}
+      <h3 className="text-xl font-bold text-violet-600 mb-2">
+        Importing {importProgress.length} {importProgress.length === 1 ? 'Repository' : 'Repositories'}
       </h3>
+
+      {/* Progress summary */}
+      <div className="flex gap-3 mb-4 text-xs">
+        {processingCount > 0 && (
+          <span className="text-primary">{processingCount} processing</span>
+        )}
+        {doneCount > 0 && (
+          <span className="text-[hsl(var(--success))]">{doneCount} done</span>
+        )}
+        {failedCount > 0 && (
+          <span className="text-destructive">{failedCount} failed</span>
+        )}
+      </div>
 
       {/* Animated status text */}
       <p className="text-sm text-muted-foreground mb-8 h-5 transition-opacity duration-500">
         {LOADING_PHRASES[phraseIdx]}
       </p>
 
-      {/* Repo cards being "built" */}
+      {/* Repo cards with progress status */}
       <div className="w-full max-w-lg space-y-3">
-        {repoNames.slice(0, visibleRepos).map((name, idx) => (
-          <div
-            key={name}
-            className="flex items-center gap-3 p-3 rounded-lg border bg-card animate-in slide-in-from-bottom-2 fade-in duration-500"
-            style={{ animationDelay: `${idx * 100}ms` }}
-          >
-            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/50 dark:to-purple-900/50 flex items-center justify-center">
-              {idx % 3 === 0 ? (
-                <GitBranch className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              ) : idx % 3 === 1 ? (
-                <FileCode className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              ) : (
-                <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{name}</p>
-              <div className="flex gap-2 mt-1">
-                <div className="h-2 bg-muted rounded-full overflow-hidden flex-1 max-w-[180px]">
-                  <div
-                    className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full animate-pulse"
-                    style={{ width: '100%', animationDuration: `${1.5 + idx * 0.3}s` }}
-                  />
+        {importProgress.slice(0, visibleRepos).map((item, idx) => {
+          const statusInfo = getStatusInfo(item.status);
+          return (
+            <div
+              key={item.fullName}
+              className={`flex items-center gap-3 p-3 rounded-lg border bg-card animate-in slide-in-from-bottom-2 fade-in duration-500 ${
+                item.status === 'done' ? 'border-[hsl(var(--success))]/30' :
+                item.status === 'failed' ? 'border-destructive/30' :
+                item.status === 'processing' ? 'border-primary/30' : ''
+              }`}
+              style={{ animationDelay: `${idx * 100}ms` }}
+            >
+              <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${statusInfo.bgColor}`}>
+                {item.status === 'done' ? (
+                  <Sparkles className="h-4 w-4 text-[hsl(var(--success))]" />
+                ) : item.status === 'failed' ? (
+                  <X className="h-4 w-4 text-destructive" />
+                ) : item.status === 'processing' ? (
+                  <RefreshCw className="h-4 w-4 text-primary animate-spin" />
+                ) : idx % 3 === 0 ? (
+                  <GitBranch className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                ) : idx % 3 === 1 ? (
+                  <FileCode className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                ) : (
+                  <Code2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{item.name}</p>
+                <div className="flex gap-2 mt-1 items-center">
+                  {item.status === 'processing' ? (
+                    <>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden flex-1 max-w-[180px]">
+                        <div
+                          className="h-full bg-violet-600 rounded-full animate-pulse"
+                          style={{ width: '100%', animationDuration: '1.5s' }}
+                        />
+                      </div>
+                      <span className={`text-[10px] whitespace-nowrap ${statusInfo.color}`}>{statusInfo.text}</span>
+                    </>
+                  ) : (
+                    <span className={`text-[10px] whitespace-nowrap ${statusInfo.color}`}>{statusInfo.text}</span>
+                  )}
                 </div>
-                <span className="text-[10px] text-muted-foreground whitespace-nowrap animate-pulse">analyzing...</span>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Ghost cards for repos not yet shown */}
-        {visibleRepos < repoNames.length && (
+        {visibleRepos < importProgress.length && (
           <div className="flex items-center gap-3 p-3 rounded-lg border border-dashed bg-muted/30 animate-pulse">
             <div className="w-8 h-8 rounded-lg bg-muted" />
             <div className="flex-1 space-y-2">
