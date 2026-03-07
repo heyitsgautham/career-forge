@@ -36,6 +36,8 @@ export function TemplatesList() {
       const res = await templatesApi.list();
       return res.data as Template[];
     },
+    staleTime: 30 * 60 * 1000,   // 30 min — templates rarely change
+    gcTime: 60 * 60 * 1000,      // 60 min
   });
 
   const deleteMutation = useMutation({
@@ -300,6 +302,8 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
       const res = await templatesApi.get(template.id);
       return res.data;
     },
+    staleTime: 30 * 60 * 1000,   // 30 min
+    gcTime: 60 * 60 * 1000,      // 60 min
   });
 
   // Parse LaTeX to simple HTML preview

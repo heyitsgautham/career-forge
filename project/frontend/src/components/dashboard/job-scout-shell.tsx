@@ -295,7 +295,8 @@ function StatsBar() {
       const res = await jobMatchApi.stats();
       return res.data;
     },
-    staleTime: 30_000,
+    staleTime: 30_000,          // 30s — polling-like
+    gcTime: 10 * 60 * 1000,    // 10 min
   });
 
   if (!stats || stats.totalJobs === 0) return null;
@@ -442,7 +443,8 @@ export function JobScoutShell() {
       const res = await jobMatchApi.list();
       return res.data;
     },
-    staleTime: 30_000,
+    staleTime: 30_000,          // 30s — polling-like
+    gcTime: 10 * 60 * 1000,    // 10 min
   });
 
   // Scan mutation
