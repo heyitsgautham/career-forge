@@ -49,3 +49,19 @@ Thumbs.db
 *.swo
 project/backend/latex_agent.db
 *.tsbuildinfo
+
+# Local Enhancements & AI Assets
+local_enhancements/
+upscale_env/
+9fps_processed/
+9fps_upscaled/
+old_9fps_processed/
+3fps_png/
+3fps_png_processed/
+3fpx_png_upscaled/
+
+*.mp4
+*.pth
+weights/
+checkpoint/
+project/frontend/public/sequence/

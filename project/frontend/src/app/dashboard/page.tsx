@@ -33,7 +33,7 @@ import { SkillGapShell } from '@/components/dashboard/skill-gap-shell';
 import { JobScoutShell } from '@/components/dashboard/job-scout-shell';
 import { ApplyTrackShell } from '@/components/dashboard/apply-shell';
 import { useToast } from '@/hooks/use-toast';
-import { userApi, authApi, projectsApi, resumesApi, templatesApi, jobsApi, jobMatchApi } from '@/lib/api';
+import { userApi, authApi, projectsApi, resumesApi, templatesApi, jobsApi, jobMatchApi, skillGapApi } from '@/lib/api';
 import type { User as UserType } from '@/lib/api';
 
 /* ─── Tab definitions ────────────────────────────────────────────────────── */
@@ -152,6 +152,11 @@ function DashboardInner() {
       queryFn: () => jobsApi.list().then(r => r.data),
       staleTime: 2 * 60 * 1000,
     });
+    queryClient.prefetchQuery({
+      queryKey: ['skill-gap-roles'],
+      queryFn: () => skillGapApi.getRoles().then(r => r.data.roles || []),
+      staleTime: 60 * 60 * 1000,
+    });
   }, [queryClient]);
 
   const handleLogout = () => {
@@ -174,6 +179,9 @@ function DashboardInner() {
         break;
       case 'templates':
         queryClient.prefetchQuery({ queryKey: ['templates'], queryFn: () => templatesApi.list().then(r => r.data), staleTime: 30 * 60 * 1000 });
+        break;
+      case 'skill-gap':
+        queryClient.prefetchQuery({ queryKey: ['skill-gap-roles'], queryFn: () => skillGapApi.getRoles().then(r => r.data.roles || []), staleTime: 60 * 60 * 1000 });
         break;
       case 'job-scout':
         queryClient.prefetchQuery({ queryKey: ['job-scout-matches'], queryFn: () => jobMatchApi.list().then(r => r.data), staleTime: 30_000 });
