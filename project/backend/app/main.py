@@ -12,7 +12,7 @@ import structlog
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api.routes import projects, resumes, templates, jobs, auth, health, github
+from app.api.routes import projects, resumes, templates, jobs, auth, health, github, skill_gap
 
 
 # Configure structured logging
@@ -84,6 +84,7 @@ app.include_router(projects.router, prefix="/api/projects", tags=["Projects"])
 app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["Job Descriptions"])
 app.include_router(resumes.router, prefix="/api/resumes", tags=["Resumes"])
+app.include_router(skill_gap.router, prefix="/api/skill-gap", tags=["Skill Gap & Roadmap"])
 
 
 @app.get("/")

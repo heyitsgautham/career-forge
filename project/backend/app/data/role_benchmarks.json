@@ -1,0 +1,132 @@
+{
+  "roles": [
+    {
+      "roleId": "backend-sde",
+      "role": "Backend SDE",
+      "icon": "Server",
+      "description": "Builds scalable server-side applications, APIs, and distributed systems.",
+      "skills": {
+        "Programming Languages": 90,
+        "System Design": 75,
+        "Databases / SQL": 85,
+        "API Design": 90,
+        "Cloud / DevOps": 60,
+        "Testing": 70,
+        "Data Structures & Algorithms": 80,
+        "Version Control": 85
+      }
+    },
+    {
+      "roleId": "frontend-sde",
+      "role": "Frontend SDE",
+      "icon": "Monitor",
+      "description": "Creates responsive, accessible web interfaces with modern frameworks.",
+      "skills": {
+        "Programming Languages": 85,
+        "Frontend Frameworks": 90,
+        "UI/UX Design": 75,
+        "CSS & Styling": 85,
+        "API Integration": 80,
+        "Testing": 70,
+        "Performance Optimization": 70,
+        "Version Control": 85
+      }
+    },
+    {
+      "roleId": "fullstack-dev",
+      "role": "Full-Stack Developer",
+      "icon": "Layers",
+      "description": "Works across the entire stack—frontend, backend, and infrastructure.",
+      "skills": {
+        "Programming Languages": 85,
+        "Frontend Frameworks": 75,
+        "Backend Development": 80,
+        "Databases / SQL": 75,
+        "API Design": 80,
+        "Cloud / DevOps": 65,
+        "Testing": 65,
+        "System Design": 65
+      }
+    },
+    {
+      "roleId": "ml-ai-engineer",
+      "role": "ML / AI Engineer",
+      "icon": "Brain",
+      "description": "Designs, trains, and deploys machine learning models and AI systems.",
+      "skills": {
+        "Programming Languages": 85,
+        "Machine Learning": 90,
+        "Deep Learning": 80,
+        "Data Processing": 85,
+        "Mathematics & Statistics": 80,
+        "MLOps & Deployment": 65,
+        "Cloud / DevOps": 55,
+        "Research & Experimentation": 75
+      }
+    },
+    {
+      "roleId": "data-scientist",
+      "role": "Data Scientist",
+      "icon": "BarChart3",
+      "description": "Extracts insights from data using statistical analysis and ML techniques.",
+      "skills": {
+        "Programming Languages": 80,
+        "Statistics & Probability": 90,
+        "Machine Learning": 80,
+        "Data Visualization": 85,
+        "Data Processing": 85,
+        "SQL & Databases": 75,
+        "Domain Knowledge": 70,
+        "Communication & Storytelling": 75
+      }
+    },
+    {
+      "roleId": "devops-cloud",
+      "role": "DevOps / Cloud Engineer",
+      "icon": "Cloud",
+      "description": "Manages CI/CD pipelines, infrastructure, and cloud-native deployments.",
+      "skills": {
+        "Cloud Platforms (AWS/GCP/Azure)": 90,
+        "CI/CD Pipelines": 85,
+        "Infrastructure as Code": 80,
+        "Containerization (Docker/K8s)": 85,
+        "Scripting & Automation": 80,
+        "Monitoring & Observability": 75,
+        "Networking & Security": 70,
+        "Version Control": 85
+      }
+    },
+    {
+      "roleId": "mobile-dev",
+      "role": "Mobile Developer",
+      "icon": "Smartphone",
+      "description": "Builds native and cross-platform mobile applications.",
+      "skills": {
+        "Programming Languages": 85,
+        "Mobile Frameworks": 90,
+        "UI/UX Design": 80,
+        "API Integration": 80,
+        "State Management": 75,
+        "Testing": 70,
+        "Performance Optimization": 75,
+        "App Store Deployment": 65
+      }
+    },
+    {
+      "roleId": "cybersecurity-analyst",
+      "role": "Cybersecurity Analyst",
+      "icon": "Shield",
+      "description": "Protects systems and data from cyber threats through analysis and defense.",
+      "skills": {
+        "Network Security": 85,
+        "Vulnerability Assessment": 90,
+        "Incident Response": 80,
+        "Security Tools (SIEM/IDS)": 80,
+        "Scripting & Automation": 70,
+        "Compliance & Governance": 75,
+        "Cloud Security": 70,
+        "Cryptography": 65
+      }
+    }
+  ]
+}

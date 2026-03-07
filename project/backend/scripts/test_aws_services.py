@@ -49,7 +49,7 @@ def main():
     print("\n=== Test 3: DynamoDB Tables ===")
     try:
         dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
-        tables = ["Users", "Projects", "Resumes", "Jobs", "Applications", "Roadmaps"]
+        tables = ["Users", "Projects", "Resumes", "Jobs", "Applications", "Roadmaps", "SkillGapReports"]
         for table_name in tables:
             table = dynamodb.Table(table_name)
             table.load()

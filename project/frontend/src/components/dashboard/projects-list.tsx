@@ -59,26 +59,9 @@ export function ProjectsList() {
     } catch { stopPoll(); setSyncing(false); }
   }, [stopPoll, queryClient, toast]);
 
-  // On mount: load current ingestion status — do NOT auto-trigger, only resume polling
-  // if a sync is actively in-progress.
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await githubApi.getIngestStatus();
-        const s = res.data.status as string;
-        setSyncStatus(s);
-        setSyncSummary(res.data.summary);
-        // Only resume polling if a sync is already running (not just pending)
-        if (s === 'in_progress') {
-          setSyncing(true);
-          pollRef.current = setInterval(pollStatus, 3000);
-          pollStatus();
-        }
-      } catch { /* ignore */ }
-    })();
-    return () => stopPoll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Cleanup polling on unmount only — no auto-sync on page load.
+  // Sync is triggered exclusively by the user clicking "Sync All Repos".
+  useEffect(() => () => stopPoll(), [stopPoll]);
 
   const handleSyncAll = async () => {
     setSyncing(true);

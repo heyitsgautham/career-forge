@@ -18,7 +18,7 @@ Users select target career roles and receive a visual skill gap analysis (radar 
 
 ### 3.1 — Role Benchmark Definitions
 
-- [ ] Define skill vectors for 6–8 career roles:
+- [x] Define skill vectors for 6–8 career roles:
   - Backend SDE
   - Frontend SDE
   - Full-Stack Developer
@@ -27,7 +27,7 @@ Users select target career roles and receive a visual skill gap analysis (radar 
   - DevOps / Cloud Engineer
   - Mobile Developer
   - Cybersecurity Analyst
-- [ ] Each role = list of 8–10 skill domains with expected proficiency (0–100):
+- [x] Each role = list of 8–10 skill domains with expected proficiency (0–100):
   ```json
   {
     "role": "Backend SDE",
@@ -43,88 +43,88 @@ Users select target career roles and receive a visual skill gap analysis (radar 
     }
   }
   ```
-- [ ] Store as JSON file or DynamoDB `RoleBenchmarks` table
-- [ ] These are static — handcraft them based on industry norms
+- [x] Store as JSON file or DynamoDB `RoleBenchmarks` table
+- [x] These are static — handcraft them based on industry norms
 
 ### 3.2 — Skill Gap Analysis Engine
 
-- [ ] Create `app/services/gap_analysis.py`
-- [ ] Input: user's skill profile (from repo ingestion) + selected role(s)
-- [ ] Method:
+- [x] Create `app/services/gap_analysis.py`
+- [x] Input: user's skill profile (from repo ingestion) + selected role(s)
+- [x] Method:
   1. Send user's extracted skills to Claude with prompt:
      > "Score this developer's proficiency in each of these 8 domains (0–100) based solely on their GitHub projects: [project summaries]. Domains: [role skill domains]. Return JSON."
   2. Compare AI-scored profile vs. role benchmark
   3. Compute gap = benchmark - user score per domain
   4. Classify gaps: High (>30), Medium (15–30), Low (<15)
-- [ ] Output: gap scores per domain + list of missing skills with priority
-- [ ] Test: real GitHub profile → scores look reasonable → gaps make sense
+- [x] Output: gap scores per domain + list of missing skills with priority
+- [x] Test: real GitHub profile → scores look reasonable → gaps make sense
 
 ### 3.3 — Skill Gap API Endpoints
 
-- [ ] `GET /api/roles` — list available career roles
-- [ ] `POST /api/gap-analysis` — compute gap for user + role
+- [x] `GET /api/roles` — list available career roles
+- [x] `POST /api/gap-analysis` — compute gap for user + role
   - Input: `{ userId, roleId }`
   - Output: `{ userScores: {...}, benchmarkScores: {...}, gaps: [...], overallFitPercent: 72 }`
-- [ ] `GET /api/gap-analysis/{userId}` — fetch cached gap results
-- [ ] Cache results in DynamoDB — don't re-compute on every page load
+- [x] `GET /api/gap-analysis/{userId}` — fetch cached gap results
+- [x] Cache results in DynamoDB — don't re-compute on every page load
 
 ### 3.4 — Frontend: Wire Skill Gap Tab (Shell + static SVG built in M1.5)
 
 > The Skill Gap tab, static SVG radar placeholder, and skeleton exist from M1.5. This section replaces them with real data and a live Recharts chart.
 
-- [ ] Enable "Analyse a Job Description" button (remove `disabled` stub)
-- [ ] Add role/JD input: textarea or role-picker dropdown (card grid with role icons)
-- [ ] Wire `POST /api/skill-gap/analyse` → on success: replace static SVG with live Recharts `RadarChart`
+- [x] Enable "Analyse a Job Description" button (remove `disabled` stub)
+- [x] Add role/JD input: textarea or role-picker dropdown (card grid with role icons)
+- [x] Wire `POST /api/skill-gap/analyse` → on success: replace static SVG with live Recharts `RadarChart`
   - Overlay: user scores (blue fill) vs. role benchmark (orange dashed line)
   - `animate-on-render` via Recharts animation props
   - `aria-label="Skill gap radar chart"` preserved from shell
-- [ ] Replace skeleton gap rows with real gap table:
+- [x] Replace skeleton gap rows with real gap table:
   | Domain | Your Score | Required | Gap | Priority |
   |--------|-----------|----------|-----|----------|
-- [ ] Overall fit percentage displayed prominently: `font-variant-numeric: tabular-nums`
-- [ ] "Missing skills" badges: use existing match-score color system from M1.5 (green/amber/red)
+- [x] Overall fit percentage displayed prominently: `font-variant-numeric: tabular-nums`
+- [x] "Missing skills" badges: use existing match-score color system from M1.5 (green/amber/red)
 
 ### 3.5 — LearnWeave Roadmap Generator
 
-- [ ] Create `app/services/roadmap_generator.py`
-- [ ] Single Claude call with prompt:
+- [x] Create `app/services/roadmap_generator.py`
+- [x] Single Claude call with prompt:
   > "Based on these skill gaps [gap report], create a 4-week project-based learning plan. For each week: 1 project to build, required tech stack, estimated hours, 3 curated resource links (docs, repos, or tutorials). Format as JSON."
-- [ ] Parse Claude's JSON response into structured roadmap
-- [ ] Store roadmap in DynamoDB `Roadmaps` table
+- [x] Parse Claude's JSON response into structured roadmap
+- [x] Store roadmap in DynamoDB `Roadmaps` table
 
 ### 3.6 — LearnWeave API Endpoints
 
-- [ ] `POST /api/roadmap/generate` — generate roadmap from gap analysis
+- [x] `POST /api/roadmap/generate` — generate roadmap from gap analysis
   - Input: `{ userId, roleId, gaps }`
   - Output: `{ roadmapId, weeks: [...] }`
-- [ ] `GET /api/roadmap/{roadmapId}` — fetch roadmap
-- [ ] `PATCH /api/roadmap/{roadmapId}/milestone/{weekNumber}` — mark milestone complete
+- [x] `GET /api/roadmap/{roadmapId}` — fetch roadmap
+- [x] `PATCH /api/roadmap/{roadmapId}/milestone/{weekNumber}` — mark milestone complete
   - Updates `completedAt` timestamp in DynamoDB
-- [ ] `GET /api/roadmap/user/{userId}` — list all roadmaps for user
+- [x] `GET /api/roadmap/user/{userId}` — list all roadmaps for user
 
 ### 3.7 — Frontend: LearnWeave Roadmap UI (new section in Skill Gap tab)
 
 > Add a collapsible "Learning Roadmap" section below the gap report within the existing Skill Gap tab.
 
-- [ ] "Generate Learning Roadmap" button below gap report (only enabled once a gap report exists)
-- [ ] Wire `POST /api/roadmap/generate` → vertical timeline layout, one card per week
-- [ ] Each card: week number + project title, tech stack chips, estimated hours, 3 resource `<a>` links
+- [x] "Generate Learning Roadmap" button below gap report (only enabled once a gap report exists)
+- [x] Wire `POST /api/roadmap/generate` → vertical timeline layout, one card per week
+- [x] Each card: week number + project title, tech stack chips, estimated hours, 3 resource `<a>` links
   - Resource links: `rel="noopener noreferrer"` + `target="_blank"` + descriptive `aria-label`
-- [ ] Progress bar at top: "2 of 4 weeks completed — 50%" with `font-variant-numeric: tabular-nums`
-- [ ] "Mark Complete" checkbox: wire `PATCH /api/roadmap/{roadmapId}/milestone/{week}` on change
-- [ ] Completed weeks: green checkmark + `line-through` text style
-- [ ] Roadmap state persists across sessions (DynamoDB-backed, reloads on mount)
+- [x] Progress bar at top: "2 of 4 weeks completed — 50%" with `font-variant-numeric: tabular-nums`
+- [x] "Mark Complete" checkbox: wire `PATCH /api/roadmap/{roadmapId}/milestone/{week}` on change
+- [x] Completed weeks: green checkmark + `line-through` text style
+- [x] Roadmap state persists across sessions (DynamoDB-backed, reloads on mount)
 
 ---
 
 ## Verification Checklist
 
-- [ ] Select "Backend SDE" → radar chart shows user vs. benchmark
-- [ ] Gap scores are reasonable (not random numbers)
-- [ ] Overall fit percentage displayed correctly
-- [ ] "Generate Roadmap" → 4-week plan appears with projects + resources
-- [ ] Mark a milestone complete → refreshes correctly → DynamoDB updated
-- [ ] Roadmap persists across sessions (logout + login → still there)
+- [x] Select "Backend SDE" → radar chart shows user vs. benchmark
+- [x] Gap scores are reasonable (not random numbers)
+- [x] Overall fit percentage displayed correctly
+- [x] "Generate Roadmap" → 4-week plan appears with projects + resources
+- [x] Mark a milestone complete → refreshes correctly → DynamoDB updated
+- [x] Roadmap persists across sessions (logout + login → still there)
 
 ---
 
