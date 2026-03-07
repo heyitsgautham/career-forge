@@ -48,6 +48,12 @@ async def lifespan(app: FastAPI):
     
     if settings.USE_DYNAMO:
         logger.info("Using DynamoDB for data storage")
+        # Ensure Job Scout tables exist
+        from app.services.dynamo_service import dynamo_service
+        await dynamo_service.ensure_job_scout_tables()
+        # Start hourly scrape scheduler
+        from app.services.scheduler import start_scheduler
+        start_scheduler()
     else:
         await init_db()
         logger.info("SQLite database initialized")
@@ -55,6 +61,9 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
+    if settings.USE_DYNAMO:
+        from app.services.scheduler import stop_scheduler
+        stop_scheduler()
     logger.info("Shutting down CareerForge")
 
 

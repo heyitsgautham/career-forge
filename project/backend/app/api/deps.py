@@ -264,6 +264,10 @@ class DynamoUser:
         return self._data.get("certifications")
     
     @property
+    def role(self):
+        return self._data.get("role", "user")
+    
+    @property
     def is_active(self):
         return self._data.get("isActive", True)
     
@@ -287,3 +291,16 @@ class DynamoUser:
     
     def to_dict(self):
         return self._data
+
+
+async def require_admin(
+    user=Depends(get_current_user),
+):
+    """Dependency that requires admin role."""
+    role = user.role if isinstance(user, DynamoUser) else user.get("role", "user")
+    if role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user

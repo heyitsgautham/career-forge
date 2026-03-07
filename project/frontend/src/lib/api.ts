@@ -107,6 +107,7 @@ export interface Job {
   isAnalyzed?: boolean;
   description?: string;
   postedAt?: string; // alias for datePosted
+  createdAt?: string;
 }
 
 export interface Application {
@@ -455,10 +456,34 @@ export const roadmapApi = {
     api.patch<Roadmap>(`/api/skill-gap/roadmap/${roadmapId}/milestone/${weekNumber}`),
 };
 
-// ─── Job Matching API (M4 — Job Scout) ───────────────────────────────────────
+// ─── New interfaces for Job Scout v2 ──────────────────────────────────────────
+
+export interface SchedulerStatus {
+  running: boolean;
+  nextRunTime: string | null;
+  lastScrape: {
+    timestamp: string | null;
+    total_jobs: number;
+    new_jobs: number;
+    status: string | null;
+    message: string | null;
+  } | null;
+}
+
+export interface TrackingStatuses {
+  [jobId: string]: { status: string; notes: string };
+}
+
+export interface BlacklistedCompany {
+  companyName: string;
+  addedBy?: string;
+  createdAt?: string;
+}
+
+// ─── Job Matching API (M4 — Job Scout v2) ────────────────────────────────────
 
 export const jobMatchApi = {
-  /** List all scraped jobs sorted by match score */
+  /** List all shared jobs (sorted by date) */
   list: () => api.get<Job[]>('/api/jobs/matches'),
 
   /** List with filters */
@@ -470,17 +495,10 @@ export const jobMatchApi = {
   }) =>
     api.get<Job[]>('/api/jobs/matches', { params: { ...params } }),
 
-  /** Trigger a new scrape + analysis + scoring */
-  scan: (data?: {
-    search_term?: string;
-    location?: string;
-    results_wanted?: number;
-  }) => api.post<Job[]>('/api/jobs/scrape', data || { search_term: 'Software Developer' }),
-
   /** Get full detail for one job */
   get: (jobId: string) => api.get<Job>(`/api/jobs/scout/${jobId}`),
 
-  /** Get summary stats */
+  /** Get summary stats (includes newToday & lastScrape) */
   stats: () =>
     api.get<{
       totalJobs: number;
@@ -488,10 +506,34 @@ export const jobMatchApi = {
       averageMatch: number | null;
       topCategories: Array<{ category: string; count: number }>;
       matchDistribution: Record<string, number>;
+      newToday: number;
+      lastScrape: SchedulerStatus['lastScrape'];
     }>('/api/jobs/stats'),
 
-  /** Delete a scraped job */
+  /** Delete a scraped job (admin only) */
   delete: (jobId: string) => api.delete(`/api/jobs/scout/${jobId}`),
+
+  /** Scheduler status */
+  schedulerStatus: () =>
+    api.get<SchedulerStatus>('/api/jobs/scheduler/status'),
+
+  /** Track a job (set status) */
+  track: (jobId: string, status: string, notes?: string) =>
+    api.post(`/api/jobs/scout/${jobId}/track`, { status, notes }),
+
+  /** Get all user tracking statuses */
+  getTracking: () =>
+    api.get<TrackingStatuses>('/api/jobs/tracking'),
+
+  /** Blacklist CRUD (admin) */
+  getBlacklist: () =>
+    api.get<BlacklistedCompany[]>('/api/jobs/blacklist'),
+
+  addBlacklist: (companyName: string) =>
+    api.post('/api/jobs/blacklist', { companyName }),
+
+  removeBlacklist: (companyName: string) =>
+    api.delete(`/api/jobs/blacklist/${encodeURIComponent(companyName)}`),
 };
 
 // ─── Applications API (Stubs — real in M5) ────────────────────────────────────
