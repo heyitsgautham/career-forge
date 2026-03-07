@@ -684,6 +684,7 @@ export const applicationsApi = {
     roleTitle?: string;
     notes?: string;
     url?: string;
+    status?: string;
   }) => api.post<Application>('/api/applications', data),
 
   /** Update application status or notes */
