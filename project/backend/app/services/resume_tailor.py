@@ -76,6 +76,7 @@ async def tailor_resume_for_job(
     experience: Optional[List[Dict[str, Any]]] = None,
     skills: Optional[List[str]] = None,
     certifications: Optional[List[Dict[str, Any]]] = None,
+    achievements: Optional[List[str]] = None,
 ) -> TailorResult:
     """
     Generate a tailored resume for a specific job.
@@ -109,6 +110,7 @@ async def tailor_resume_for_job(
         experience=experience,
         skills=skills,
         certifications=certifications,
+        achievements=achievements,
     )
 
     # 4. Re-upload under tailored/ S3 prefix (keyed by job_id for overwrite)

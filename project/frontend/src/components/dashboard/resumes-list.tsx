@@ -57,7 +57,6 @@ const statusConfig = {
 
 export function ResumesList() {
   const [showGenerator, setShowGenerator] = useState(false);
-  const [previewResume, setPreviewResume] = useState<Resume | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -97,26 +96,31 @@ export function ResumesList() {
     }
   };
 
+  const previewPdf = async (resume: Resume) => {
+    if (!resume.pdf_path) {
+      toast({ title: 'PDF not available', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { data } = await resumesApi.getPdfUrl(resume.id);
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast({ title: 'Failed to open PDF', variant: 'destructive' });
+    }
+  };
+
   const downloadPdf = async (resume: Resume) => {
     if (!resume.pdf_path) {
       toast({ title: 'PDF not available', variant: 'destructive' });
       return;
     }
     try {
-      // Use pdf-url to get the pre-signed S3 URL as JSON.
-      // Fetching /pdf directly sends the Authorization header through the axios
-      // interceptor; when the backend redirects to S3, AWS rejects the request
-      // with 403 because a pre-signed URL and an Authorization header cannot
-      // coexist.  By obtaining the URL separately and fetching S3 with plain
-      // fetch (no auth headers) we avoid that conflict.
-      const { data } = await resumesApi.getPdfUrl(resume.id);
-      const presignedUrl = data.url;
-
-      // Navigate directly to the pre-signed URL. S3 returns
-      // Content-Disposition: attachment (set server-side) so the browser
-      // downloads the file without a CORS preflight fetch.
+      // Use the /pdf endpoint which returns a redirect to a presigned URL
+      // with Content-Disposition: attachment so the browser saves the file.
+      const { data } = await resumesApi.getPdfDownloadUrl(resume.id);
       const link = document.createElement('a');
-      link.href = presignedUrl;
+      link.href = data.url;
+      link.setAttribute('download', `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -211,14 +215,6 @@ export function ResumesList() {
         />
       )}
 
-      {/* PDF Preview modal */}
-      {previewResume && (
-        <PdfPreviewModal
-          resume={previewResume}
-          onClose={() => setPreviewResume(null)}
-          onDownload={() => downloadPdf(previewResume)}
-        />
-      )}
 
       {/* Result area with aria-live for screen readers */}
       <div aria-live="polite" role="status">
@@ -298,7 +294,7 @@ export function ResumesList() {
                           size="sm"
                           variant="outline"
                           className="gap-1 h-7 text-xs"
-                          onClick={() => setPreviewResume(resume)}
+                          onClick={() => previewPdf(resume)}
                         >
                           <Eye className="h-3 w-3" />
                           Preview

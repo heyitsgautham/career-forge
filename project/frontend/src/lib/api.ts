@@ -400,9 +400,13 @@ export const resumesApi = {
   downloadPdf: (id: string) =>
     api.get(`/api/resumes/${id}/pdf`, { responseType: 'blob' }),
 
-  /** Get presigned S3 URL for PDF preview (no redirect) */
+  /** Get presigned S3 URL for PDF preview (no Content-Disposition) */
   getPdfUrl: (id: string) =>
     api.get<{ url: string }>(`/api/resumes/${id}/pdf-url`),
+
+  /** Get presigned S3 URL with Content-Disposition: attachment for download */
+  getPdfDownloadUrl: (id: string) =>
+    api.get<{ url: string }>(`/api/resumes/${id}/pdf-url?download=true`),
 
   downloadTex: (id: string) =>
     api.get(`/api/resumes/${id}/tex`, { responseType: 'blob' }),

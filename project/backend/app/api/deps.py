@@ -262,6 +262,10 @@ class DynamoUser:
     @property
     def certifications(self):
         return self._data.get("certifications")
+
+    @property
+    def achievements(self):
+        return self._data.get("achievements")
     
     @property
     def role(self):

@@ -66,6 +66,10 @@ class User(Base):
     # Certifications array (stored as JSON)
     # Format: [{"name": str, "issuer": str, "date": str, "credential_id": str, "url": str}]
     certifications: Mapped[Optional[list]] = mapped_column(JSON(), nullable=True)
+
+    # Achievements array (stored as JSON)
+    # Format: [str]  — each string is a self-contained bullet point for the resume
+    achievements: Mapped[Optional[list]] = mapped_column(JSON(), nullable=True)
     
     # Account status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -143,7 +143,7 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
     "website_url": "https://example.com",
     "website_display": "example.com"
   },
-  "professional_summary": "2-3 sentence professional summary highlighting key strengths, technologies, and career focus. Tailored to the JD if provided. Must be grounded in actual data from summaries and profile.",
+  "professional_summary": "4-5 sentence professional summary highlighting key strengths, technologies, and career focus. Tailored to the JD if provided. Must be grounded in actual data from summaries and profile. Should span 4-5 lines when rendered.",
   "education": [
     {
       "school": "University Name",
@@ -168,7 +168,7 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
     {
       "name": "Project Name",
       "url": "https://github.com/user/repo",
-      "technologies": "Python, FastAPI, Docker",
+      "technologies": "Python, FastAPI, Docker, PostgreSQL, Redis, AWS S3, GitHub Actions",
       "highlights": [
         "First bullet MUST describe what the project does (product description)",
         "Technical implementation detail with metric",
@@ -181,6 +181,11 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
     {"category": "Frameworks", "items": "FastAPI, React, LangChain"},
     {"category": "Developer Tools", "items": "Docker, AWS, Git"},
     {"category": "Relevant Coursework", "items": "Operating Systems, Computer Networks, Distributed Systems"}
+  ],
+  "achievements": [
+    "100% Merit Scholarship Recipient, University Name (Full tuition waiver, 4 years)",
+    "Smart India Hackathon 2025 Finalist -- India's premier national innovation challenge",
+    "National Hackathon Finalist: HackIO, GenAIVersity, Hack Hustle"
   ]
 }
 ```
@@ -192,19 +197,26 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
    - Max 3 bullet points per project
    - Select 3-4 projects based on whether experience exists
    - Keep experience bullets to 3-4 per role
-   - Professional summary: 2-3 concise sentences
+   - Professional summary: 4-5 sentences (minimum 4 lines of text)
 3. **PLAIN TEXT ONLY**: All string values must be plain text. NO LaTeX commands (no \textbf, no \href, no \\, no \%). The template engine adds all formatting. The ONLY exception: use -- (double hyphen) for date ranges.
 4. **PROFESSIONAL SUMMARY**: 
-   - 2-3 sentences highlighting key strengths and career focus
-   - Tailored to JD if provided (embed key JD terms naturally)
+   - 4-5 sentences highlighting key strengths and career focus (MINIMUM 4 sentences — a 2-3 sentence summary is a FAILURE)
+   - Must span 4-5 lines of text when rendered on the resume
+   - Sentence 1: Role identity + years/level + core domain (e.g., "Software engineer with X years...")
+   - Sentence 2: Key technical strengths and primary technology stack
+   - Sentence 3: Notable achievement, project, or impact from their work
+   - Sentence 4-5: JD-alignment — embed key JD terms and explain fit
    - Must be grounded in actual skills/projects from the data
-   - Start with role identity (e.g., "Software engineer with experience in...")
 5. **BULLET LENGTH — HARD CONSTRAINT (THIS IS NOT OPTIONAL)**:
-   - Every single bullet point (project AND experience) MUST be between 90 and 115 characters inclusive.
-   - Count characters carefully BEFORE outputting. If a bullet is under 90 chars, ADD more technical detail. If over 115 chars, SHORTEN it.
-   - NEVER write a bullet shorter than 90 characters. NEVER write a bullet longer than 115 characters.
+   - Every single bullet point (project AND experience) MUST be between 95 and 110 characters inclusive.
+   - Count characters carefully BEFORE outputting. If a bullet is under 95 chars, EXPAND with more technical detail, specific numbers, or technology names until it reaches 95+. If over 110 chars, SHORTEN it.
+   - NEVER write a bullet shorter than 95 characters. NEVER write a bullet longer than 110 characters.
    - A bullet that wraps to 2 lines in a PDF is TOO LONG. A bullet that looks visually short is TOO SHORT.
-   - This is the #1 most common failure. Double-check EVERY bullet before finalizing.
+   - Example of TOO SHORT (reject): "Built REST API with Flask and deployed to AWS." (46 chars — UNACCEPTABLE)
+   - Example of TOO SHORT (reject): "Developed a multi-domain RAG system for hospitals." (50 chars — UNACCEPTABLE)
+   - Example of CORRECT length: "Engineered a REST API with Flask serving 500+ users, deployed on AWS ECS with Terraform IaC." (93 chars)
+   - Example of CORRECT length: "Developed multi-domain RAG pipeline with LangChain and Pinecone, achieving 92\% retrieval accuracy." (99 chars)
+   - Before finalizing, count each bullet character-by-character. Reject and rewrite any that fall outside 95–110.
 6. **BULLET QUALITY**:
    - Start with strong action verbs (Developed, Architected, Implemented, Integrated, Optimized, Designed, Engineered, Built)
    - Use DIFFERENT action verbs for each bullet — never repeat within same section
@@ -228,8 +240,17 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
 9. **EXPERIENCE HANDLING**:
    - If experience data is provided, include it and select 3 projects
    - If NO experience data, select 4 projects to compensate
-10. **SECTIONS ORDER**: Header → Professional Summary → Education → Experience (if provided) → Projects → Technical Skills
+10. **SECTIONS ORDER**: Header → Professional Summary → Education → Experience (if provided) → Projects → Technical Skills → Achievements (if provided)
 11. **OMIT EMPTY SECTIONS**: If no education/experience data available, use empty arrays []. Do not invent data.
+14. **ACHIEVEMENTS SECTION**:
+   - ONLY include achievements if the user's profile provides achievement data under "## Achievements".
+   - If no achievement data is provided, output `"achievements": []` — do NOT fabricate awards or competitions.
+   - Copy the achievements EXACTLY as given (do not rephrase or shorten them).
+   - Each achievement is a plain text string (no LaTeX, no backslashes).
+   - The section renders as a flat bulleted list (\resumeItem per entry) at the end of the resume.
+15. **PROJECT FORMATTING**:
+   - Project `"name"` MUST be in Title Case (e.g., "Career Forge", "Sticky Net", "Academia Sync"). Never use the raw repo slug (e.g., "career-forge", "sticky-net"). Convert kebab-case/snake_case to Title Case words.
+   - `"technologies"` MUST list a MINIMUM of 7 technologies (e.g., "TypeScript, Node.js 20, Next.js 14, Express, PostgreSQL, Docker, AWS"). Include every major language, framework, database, cloud service used in the project.
 12. **SKILL CATEGORIZATION**:
    - Group skills into meaningful categories (4-6 categories).
    - Common categories: Languages, Frameworks, Cloud & Infrastructure, Developer Tools, Libraries, Relevant Coursework
@@ -411,7 +432,8 @@ def _build_header(header: dict) -> str:
 
     website_url = header.get("website_url", "")
     website_display = header.get("website_display", "")
-    if website_url and website_display:
+    # Skip website if it's a GitHub URL (already shown above) to avoid duplicates
+    if website_url and website_display and "github.com" not in website_url.lower():
         parts.append(f"\\href{{{website_url}}}{{\\faGlobe\\ {_escape_latex(website_display)}}}")
 
     contact_line = " \\quad\n    ".join(parts)
@@ -493,7 +515,8 @@ def _build_experience(experience: list) -> str:
         )
     if not entries:
         return ""
-    body = "\n\n".join(entries)
+    # Add \vspace{6pt} between experience entries for visual breathing room
+    body = "\n\n  \\vspace{6pt}\n".join(entries)
     return (
         "\\section{Experience}\n"
         "\\resumeSubHeadingListStart\n\n"
@@ -622,7 +645,7 @@ def _validate_and_fix_resume_data(data: dict) -> dict:
             )
             exp["highlights"] = []
 
-    # Bullet length enforcement for projects and experience
+    # Bullet length enforcement for projects and experience (strict 95-110 chars)
     def _enforce_bullet_length(highlights: list, section_name: str) -> list:
         fixed = []
         for bullet in highlights:
@@ -630,9 +653,9 @@ def _validate_and_fix_resume_data(data: dict) -> dict:
                 continue
             bullet = bullet.strip()
             length = len(bullet)
-            if length > 120:
-                # Attempt to truncate at last word boundary before 115 chars
-                truncated = bullet[:112]
+            if length > 110:
+                # Truncate at last word boundary at or before 108 chars
+                truncated = bullet[:108]
                 last_space = truncated.rfind(" ")
                 if last_space > 80:
                     truncated = truncated[:last_space]
@@ -642,6 +665,13 @@ def _validate_and_fix_resume_data(data: dict) -> dict:
                     section=section_name,
                     original_len=length,
                     new_len=len(bullet),
+                )
+            elif length < 95:
+                logger.warning(
+                    "Short bullet (under 95 chars) — Claude should have written longer",
+                    section=section_name,
+                    bullet_len=length,
+                    bullet_preview=bullet[:60],
                 )
             fixed.append(bullet)
         return fixed
@@ -657,6 +687,27 @@ def _validate_and_fix_resume_data(data: dict) -> dict:
             exp["highlights"] = _enforce_bullet_length(
                 exp["highlights"], f"experience:{exp.get('company', '?')}"
             )
+
+    # Project name title-casing and tech stack minimum enforcement
+    for proj in _coerce_list(data.get("projects", [])):
+        if not isinstance(proj, dict):
+            continue
+        # Title-case project names (e.g. "career-forge" → "Career Forge", "sticky-net" → "Sticky Net")
+        raw_name = proj.get("name", "")
+        if raw_name:
+            # Replace hyphens/underscores with spaces, then title-case each word
+            spaced = raw_name.replace("-", " ").replace("_", " ")
+            proj["name"] = " ".join(w.capitalize() for w in spaced.split())
+        # Ensure technologies has at least 7 items
+        techs_str = proj.get("technologies", "")
+        if isinstance(techs_str, str):
+            tech_items = [t.strip() for t in techs_str.split(",") if t.strip()]
+            if len(tech_items) < 7:
+                logger.warning(
+                    "Project tech stack has fewer than 7 items",
+                    project=proj.get("name", ""),
+                    count=len(tech_items),
+                )
 
     # Skill category item count enforcement (max 8 items) + line length enforcement
     for skill in _coerce_list(data.get("skills", [])):
@@ -771,6 +822,146 @@ async def list_project_summaries(user_id: str) -> List[str]:
 # Main generation pipeline
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _check_page_count(log: str) -> int:
+    """Extract page count from pdflatex log. Returns 1 if undetermined."""
+    match = re.search(r'Output written on .+?\((\d+) page', log)
+    if match:
+        return int(match.group(1))
+    return 1
+
+
+def _trim_resume_for_one_page(data: dict, attempt: int) -> dict:
+    """Reduce resume content to fit on one page.
+
+    attempt=1: remove last bullet from each project, shorten summary to 3 sentences.
+    attempt=2: also remove last bullet from each experience role, drop achievements.
+    """
+    import copy
+    data = copy.deepcopy(data)
+
+    if attempt >= 1:
+        for proj in _coerce_list(data.get("projects", [])):
+            if isinstance(proj, dict) and len(proj.get("highlights", [])) > 2:
+                proj["highlights"] = proj["highlights"][:-1]
+        summary = data.get("professional_summary", "")
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', summary) if s.strip()]
+        if len(sentences) > 3:
+            data["professional_summary"] = " ".join(sentences[:3])
+
+    if attempt >= 2:
+        for exp in _coerce_list(data.get("experience", [])):
+            if isinstance(exp, dict) and len(exp.get("highlights", [])) > 2:
+                exp["highlights"] = exp["highlights"][:-1]
+        data["achievements"] = []
+
+    return data
+
+
+async def _expand_short_bullets(resume_data: dict) -> dict:
+    """Second-pass AI call: expand any bullet < 95 chars to the 95–110 char range."""
+    import copy
+
+    # Collect short bullets with location paths
+    short_items = []  # {"path_type": "projects"|"experience", "sec_idx": int, "bul_idx": int, "text": str, "context": str}
+
+    for i, proj in enumerate(_coerce_list(resume_data.get("projects", []))):
+        if not isinstance(proj, dict):
+            continue
+        name = proj.get("name", f"Project {i}")
+        for j, bullet in enumerate(proj.get("highlights", [])):
+            if isinstance(bullet, str) and len(bullet.strip()) < 95:
+                short_items.append({"path_type": "projects", "sec_idx": i, "bul_idx": j,
+                                    "text": bullet.strip(), "context": f"Project: {name}"})
+
+    for i, exp in enumerate(_coerce_list(resume_data.get("experience", []))):
+        if not isinstance(exp, dict):
+            continue
+        role = f"{exp.get('title', '')} at {exp.get('company', '')}" .strip(" at")
+        for j, bullet in enumerate(exp.get("highlights", [])):
+            if isinstance(bullet, str) and len(bullet.strip()) < 95:
+                short_items.append({"path_type": "experience", "sec_idx": i, "bul_idx": j,
+                                    "text": bullet.strip(), "context": f"Role: {role}"})
+
+    if not short_items:
+        logger.info("All bullets meet 95-char minimum — no expansion needed")
+        return resume_data
+
+    logger.info("Expanding short bullets via second AI pass", count=len(short_items))
+
+    bullets_text = ""
+    for idx, item in enumerate(short_items, 1):
+        bullets_text += f'{idx}. [{item["context"]}] "{item["text"]}" ({len(item["text"])} chars)\n'
+
+    expand_prompt = f"""Expand each resume bullet point to be between 95 and 110 characters.
+
+Rules:
+- Each expanded bullet MUST be exactly 95-110 characters (count carefully before outputting)
+- Add specific technical details, metrics, tools, or methodology to reach the minimum
+- Preserve the core meaning — do NOT invent new facts or outcomes
+- Return ONLY a valid JSON array in exactly this format:
+[
+  {{"original": "<original text>", "expanded": "<expanded text>"}},
+  ...
+]
+
+Bullets to expand:
+{bullets_text}"""
+
+    try:
+        response = await bedrock_client.generate(
+            prompt=expand_prompt,
+            system_prompt="You are a resume bullet point expander. Return ONLY a valid JSON array where each element has \"original\" and \"expanded\" keys. No prose, no markdown fences.",
+            max_tokens=2048,
+            temperature=0.2,
+        )
+
+        # Extract JSON array from response
+        json_match = re.search(r'\[.*?\]', response, re.DOTALL)
+        if not json_match:
+            logger.warning("Bullet expansion: could not parse JSON from response")
+            return resume_data
+
+        expansions = _json.loads(json_match.group(0))
+
+        # Build original-text → expanded-text map
+        expansion_map: dict[str, str] = {}
+        for item in expansions:
+            if isinstance(item, dict) and "original" in item and "expanded" in item:
+                original = item["original"].strip()
+                expanded = item["expanded"].strip()
+                # Only accept if expansion actually meets the minimum
+                if len(expanded) >= 90:
+                    expansion_map[original] = expanded
+                else:
+                    logger.warning("Expanded bullet still too short", text=expanded[:60], length=len(expanded))
+
+        # Apply expansions back into a deep copy of resume_data
+        data = copy.deepcopy(resume_data)
+
+        for proj in _coerce_list(data.get("projects", [])):
+            if not isinstance(proj, dict):
+                continue
+            proj["highlights"] = [
+                expansion_map.get(b.strip(), b) if isinstance(b, str) else b
+                for b in proj.get("highlights", [])
+            ]
+
+        for exp in _coerce_list(data.get("experience", [])):
+            if not isinstance(exp, dict):
+                continue
+            exp["highlights"] = [
+                expansion_map.get(b.strip(), b) if isinstance(b, str) else b
+                for b in exp.get("highlights", [])
+            ]
+
+        logger.info("Bullet expansion complete", replaced=len(expansion_map))
+        return data
+
+    except Exception as exc:
+        logger.warning("Bullet expansion failed — using original data", error=str(exc))
+        return resume_data
+
+
 async def generate_resume_from_summaries(
     user_id: str,
     jd: Optional[str] = None,
@@ -779,6 +970,7 @@ async def generate_resume_from_summaries(
     experience: Optional[List[Dict[str, Any]]] = None,
     skills: Optional[List[str]] = None,
     certifications: Optional[List[Dict[str, Any]]] = None,
+    achievements: Optional[List[str]] = None,
 ) -> M2GenerationResult:
     """
     Full pipeline: S3 summaries → Claude analysis + JSON → template fill → compile → upload.
@@ -791,6 +983,7 @@ async def generate_resume_from_summaries(
         experience: List of experience dicts
         skills: List of skill strings
         certifications: List of cert dicts
+        achievements: List of achievement strings
 
     Returns:
         M2GenerationResult with latex, analysis, and URLs
@@ -824,6 +1017,7 @@ async def generate_resume_from_summaries(
             experience=experience,
             skills=skills,
             certifications=certifications,
+            achievements=achievements,
         )
 
         # Cache the result (limit cache size to 50 entries)
@@ -832,11 +1026,14 @@ async def generate_resume_from_summaries(
             del _analysis_cache[oldest_key]
         _analysis_cache[cache_key] = {"analysis": analysis, "resume_data": resume_data}
 
+    # 3b. Expand any bullets that are under 95 chars via targeted AI pass
+    resume_data = await _expand_short_bullets(resume_data)
+
     # 4. Build LaTeX from JSON
     latex_content = _fill_jakes_template(resume_data)
     logger.info("Template filled", latex_len=len(latex_content))
 
-    # 5. Compile LaTeX → PDF
+    # 5. Compile LaTeX → PDF (with 1-page enforcement: up to 2 trim retries)
     resume_id = dynamo_service.generate_id()
     output_filename = f"resume_{resume_id[:8]}"
 
@@ -845,6 +1042,32 @@ async def generate_resume_from_summaries(
         output_filename=output_filename,
         use_docker=False,
     )
+
+    # 1-page enforcement: if compiled PDF has > 1 page, trim and recompile
+    if compilation_result.success:
+        page_count = _check_page_count(compilation_result.log)
+        for trim_attempt in range(1, 3):
+            if page_count <= 1:
+                break
+            logger.warning(
+                "Resume exceeds 1 page — trimming",
+                page_count=page_count,
+                attempt=trim_attempt,
+            )
+            trimmed_data = _trim_resume_for_one_page(resume_data, trim_attempt)
+            latex_content = _fill_jakes_template(trimmed_data)
+            output_filename_trimmed = f"{output_filename}_t{trim_attempt}"
+            compilation_result = await latex_service.compile_latex(
+                latex_content=latex_content,
+                output_filename=output_filename_trimmed,
+                use_docker=False,
+            )
+            if compilation_result.success:
+                page_count = _check_page_count(compilation_result.log)
+                resume_data = trimmed_data
+                logger.info("Recompiled after trim", page_count=page_count, attempt=trim_attempt)
+            else:
+                break
 
     pdf_url = None
     tex_url = None
@@ -910,6 +1133,7 @@ async def _call_claude_for_resume(
     experience: Optional[List[Dict[str, Any]]],
     skills: Optional[List[str]],
     certifications: Optional[List[Dict[str, Any]]],
+    achievements: Optional[List[str]] = None,
 ) -> tuple:
     """Call Claude with all context and return (analysis, resume_data) tuple."""
 
@@ -990,6 +1214,12 @@ async def _call_claude_for_resume(
         cert_lines = [f"  - {c.get('name', '')} ({c.get('issuer', '')})" for c in certifications if isinstance(c, dict)]
         if cert_lines:
             extra_context_parts.append("## Certifications\n" + "\n".join(cert_lines))
+
+    if achievements:
+        ach_list = [a for a in achievements if isinstance(a, str) and a.strip()]
+        if ach_list:
+            ach_lines = "\n".join(f"  - {a}" for a in ach_list)
+            extra_context_parts.append("## Achievements\n" + ach_lines)
 
     extra_context = "\n\n".join(extra_context_parts)
 

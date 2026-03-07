@@ -124,6 +124,7 @@ async def tailor_resume(
     experience = _parse_json(_safe("experience", None))
     skills = _parse_json(_safe("skills", None))
     certifications = _parse_json(_safe("certifications", None))
+    achievements = _parse_json(_safe("achievements", None))
 
     try:
         result = await tailor_resume_for_job(
@@ -134,6 +135,7 @@ async def tailor_resume(
             experience=experience,
             skills=skills,
             certifications=certifications,
+            achievements=achievements,
         )
 
         return TailorResponse(
