@@ -18,12 +18,10 @@ import {
   Kanban,
   Plus,
   FileText,
-  ArrowRight,
   CheckCircle2,
   XCircle,
   PhoneCall,
   Loader2,
-  Download,
   Trash2,
   Calendar,
   Building2,
@@ -33,11 +31,9 @@ import {
 } from 'lucide-react';
 import {
   applicationsApi,
-  tailorApi,
   jobMatchApi,
   type Application,
   type Job,
-  type TailorResponse,
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -99,9 +95,9 @@ function ApplicationCard({
         >
           <div className="flex items-start justify-between gap-1">
             <div className="min-w-0 flex-1">
-              <h4 className="text-xs font-semibold truncate">{app.roleTitle}</h4>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
-                <Building2 className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+              <h4 className="text-sm font-semibold truncate">{app.roleTitle}</h4>
+              <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                <Building2 className="h-3 w-3 shrink-0" aria-hidden="true" />
                 {app.companyName}
               </p>
             </div>
@@ -119,21 +115,21 @@ function ApplicationCard({
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-0.5">
-              <Calendar className="h-2.5 w-2.5" aria-hidden="true" />
+              <Calendar className="h-3 w-3" aria-hidden="true" />
               {formatDate(app.appliedAt)}
             </span>
             {app.resumeId && (
               <span className="flex items-center gap-0.5 text-primary">
-                <FileText className="h-2.5 w-2.5" aria-hidden="true" />
+                <FileText className="h-3 w-3" aria-hidden="true" />
                 Resume
               </span>
             )}
           </div>
 
           {app.notes && (
-            <p className="text-[10px] text-muted-foreground line-clamp-2">{app.notes}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2">{app.notes}</p>
           )}
         </div>
       )}
@@ -163,13 +159,13 @@ function KanbanColumn({
   return (
     <div className="flex-1 min-w-[200px]">
       <div className="flex items-center gap-2 mb-3 px-1">
-        <div className={`flex items-center justify-center h-5 w-5 rounded ${bg}`}>
-          <Icon className={`h-3 w-3 ${color}`} aria-hidden="true" />
+        <div className={`flex items-center justify-center h-6 w-6 rounded ${bg}`}>
+          <Icon className={`h-3.5 w-3.5 ${color}`} aria-hidden="true" />
         </div>
-        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm font-semibold">{label}</span>
         <Badge
           variant="secondary"
-          className="ml-auto text-[10px] px-1.5 font-mono"
+          className="ml-auto text-xs px-1.5 font-mono"
           style={{ fontVariantNumeric: 'tabular-nums' }}
         >
           {apps.length}
@@ -192,7 +188,7 @@ function KanbanColumn({
             ))}
             {provided.placeholder}
             {apps.length === 0 && !snapshot.isDraggingOver && (
-              <p className="text-[10px] text-muted-foreground text-center py-6">
+              <p className="text-xs text-muted-foreground text-center py-6">
                 Drag applications here
               </p>
             )}
@@ -218,11 +214,11 @@ function StatsBar({ applications }: { applications: Application[] }) {
 
   return (
     <div
-      className="flex flex-wrap gap-3 text-xs"
+      className="flex flex-wrap gap-3 text-sm"
       style={{ fontVariantNumeric: 'tabular-nums' }}
     >
       <div className="flex items-center gap-1.5">
-        <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+        <BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <span className="text-muted-foreground">Total:</span>
         <span className="font-semibold">{applications.length}</span>
       </div>
@@ -404,206 +400,6 @@ function AddApplicationModal({
   );
 }
 
-/* ─── Tailored Resume Panel ──────────────────────────────────────────────── */
-
-function TailoredResumePanel({
-  jobs,
-}: {
-  jobs: Job[];
-}) {
-  const { toast } = useToast();
-  const [selectedJobId, setSelectedJobId] = useState('');
-  const [tailorResult, setTailorResult] = useState<TailorResponse | null>(null);
-
-  const tailorMutation = useMutation({
-    mutationFn: (jobId: string) => tailorApi.generate(jobId),
-    onSuccess: (res) => {
-      setTailorResult(res.data);
-      toast({
-        title: 'Tailored resume generated!',
-        description: `Keywords: ${res.data.matchKeywords.slice(0, 5).join(', ')}`,
-      });
-    },
-    onError: (err: any) => {
-      toast({
-        title: 'Tailoring failed',
-        description: err?.response?.data?.detail || 'Could not generate tailored resume',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const selectedJob = useMemo(
-    () => jobs.find((j) => j.jobId === selectedJobId),
-    [jobs, selectedJobId]
-  );
-
-  return (
-    <Card className="lg:col-span-2">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
-          Tailored Resume
-        </CardTitle>
-        <CardDescription>
-          Select a job from Job Scout to auto-generate a resume tailored to the role
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Job selection */}
-        <div>
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="tailor-job-select">
-            Select Job
-          </label>
-          <select
-            id="tailor-job-select"
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={selectedJobId}
-            onChange={(e) => {
-              setSelectedJobId(e.target.value);
-              setTailorResult(null);
-            }}
-          >
-            <option value="">Choose a job...</option>
-            {jobs.map((j) => (
-              <option key={j.jobId} value={j.jobId}>
-                {j.company} — {j.title} {j.matchScore ? `(${Math.round(j.matchScore)}%)` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Selected job info */}
-        {selectedJob && !tailorResult && (
-          <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
-            <p className="text-sm font-medium">{selectedJob.title}</p>
-            <p className="text-xs text-muted-foreground">{selectedJob.company} · {selectedJob.location}</p>
-            {selectedJob.requiredSkills && selectedJob.requiredSkills.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {selectedJob.requiredSkills.slice(0, 8).map((s) => (
-                  <Badge key={s} variant="secondary" className="text-[10px] px-1.5 py-0">
-                    {s}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Generate button */}
-        {!tailorResult && (
-          <Button
-            className="w-full gap-2"
-            disabled={!selectedJobId || tailorMutation.isPending}
-            onClick={() => tailorMutation.mutate(selectedJobId)}
-          >
-            {tailorMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                Tailoring resume...
-              </>
-            ) : (
-              <>
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Generate Tailored Resume
-                <ArrowRight className="h-4 w-4 ml-auto" aria-hidden="true" />
-              </>
-            )}
-          </Button>
-        )}
-
-        {/* Result: PDF preview */}
-        {tailorResult && (
-          <div className="space-y-3">
-            {tailorResult.pdfUrl ? (
-              <div className="rounded-md border overflow-hidden">
-                <iframe
-                  src={tailorResult.pdfUrl}
-                  title="Tailored resume preview"
-                  className="w-full h-[400px]"
-                  style={{ border: 'none' }}
-                />
-              </div>
-            ) : (
-              <div className="rounded-md border border-[hsl(var(--accent))]/30 bg-[hsl(var(--accent))]/5 p-4">
-                <p className="text-sm text-[hsl(var(--accent))]">
-                  {tailorResult.compilationError || 'PDF compilation failed — LaTeX source saved.'}
-                </p>
-              </div>
-            )}
-
-            {/* Diff summary */}
-            {tailorResult.diffSummary && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Changes from base resume:</p>
-                <div className="flex flex-wrap gap-1">
-                  {tailorResult.diffSummary.skillsReordered && (
-                    <Badge variant="outline" className="text-[10px]">Skills Reordered</Badge>
-                  )}
-                  {tailorResult.diffSummary.bulletsRewritten && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {tailorResult.diffSummary.bulletsRewritten} Bullets Rewritten
-                    </Badge>
-                  )}
-                  {tailorResult.diffSummary.sectionsModified?.map((s) => (
-                    <Badge key={s} variant="outline" className="text-[10px] capitalize">{s} Modified</Badge>
-                  ))}
-                </div>
-                {tailorResult.matchKeywords.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Injected Keywords</p>
-                    <div className="flex flex-wrap gap-1">
-                      {tailorResult.matchKeywords.map((kw) => (
-                        <Badge key={kw} variant="secondary" className="text-[10px] px-1.5 py-0 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20">
-                          {kw}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex gap-2">
-              {tailorResult.pdfUrl && (
-                <Button size="sm" variant="outline" className="gap-1.5" asChild>
-                  <a
-                    href={tailorResult.pdfUrl}
-                    download={`resume-${selectedJob?.company || 'tailored'}-${new Date().toISOString().slice(0, 10)}.pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Download PDF
-                  </a>
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-1.5"
-                onClick={() => {
-                  setTailorResult(null);
-                  setSelectedJobId('');
-                }}
-              >
-                Tailor Another
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {jobs.length === 0 && (
-          <p className="text-xs text-center text-muted-foreground">
-            No jobs found. Scan for jobs in the Job Scout tab first.
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 
 export function ApplyTrackShell() {
@@ -699,13 +495,16 @@ export function ApplyTrackShell() {
     },
   });
 
-  // DnD handler — optimistic update
+  // DnD handler — optimistic update + sync to Job Scout tracking
   const handleDragEnd = useCallback(
     (result: DropResult) => {
       const { draggableId, source, destination } = result;
       if (!destination || destination.droppableId === source.droppableId) return;
 
       const newStatus = destination.droppableId;
+
+      // Find the dragged application to get its jobId for cross-page sync
+      const draggedApp = applications.find((a) => a.applicationId === draggableId);
 
       // Optimistic update in cache
       queryClient.setQueryData(
@@ -720,10 +519,17 @@ export function ApplyTrackShell() {
         }
       );
 
-      // Persist to API
+      // Persist application status to API
       updateMutation.mutate({ applicationId: draggableId, status: newStatus });
+
+      // Sync tracking status back to Job Scout (fire-and-forget)
+      if (draggedApp && !draggedApp.jobId.startsWith('manual-')) {
+        jobMatchApi.track(draggedApp.jobId, newStatus)
+          .then(() => queryClient.invalidateQueries({ queryKey: ['jobs', 'tracking'] }))
+          .catch(() => { /* sync failure is non-critical */ });
+      }
     },
-    [queryClient, userId, updateMutation]
+    [queryClient, userId, updateMutation, applications]
   );
 
   const handleDelete = useCallback(
@@ -740,7 +546,7 @@ export function ApplyTrackShell() {
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Apply &amp; Track</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Generate tailored resumes and track your application pipeline
+            Track your job applications and manage your pipeline
           </p>
         </div>
         <Button
@@ -757,53 +563,47 @@ export function ApplyTrackShell() {
       {/* Stats bar */}
       <StatsBar applications={applications} />
 
-      {/* Two-panel layout */}
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Left panel — Tailored resume generator */}
-        <TailoredResumePanel jobs={jobs} />
+      {/* Application Pipeline — full-width Kanban */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Kanban className="h-4 w-4 text-primary" aria-hidden="true" />
+            Application Pipeline
+          </CardTitle>
+          <CardDescription>
+            Drag applications between columns to update status · synced with Job Scout
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {COLUMNS.map((col) => (
+                <KanbanColumn
+                  key={col.key}
+                  columnKey={col.key}
+                  label={col.label}
+                  icon={col.icon}
+                  color={col.color}
+                  bg={col.bg}
+                  apps={columnApps[col.key] || []}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          </DragDropContext>
 
-        {/* Right panel — Kanban board */}
-        <Card className="lg:col-span-3">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Kanban className="h-4 w-4 text-primary" aria-hidden="true" />
-              Application Pipeline
-            </CardTitle>
-            <CardDescription>
-              Drag applications between columns to update status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                {COLUMNS.map((col) => (
-                  <KanbanColumn
-                    key={col.key}
-                    columnKey={col.key}
-                    label={col.label}
-                    icon={col.icon}
-                    color={col.color}
-                    bg={col.bg}
-                    apps={columnApps[col.key] || []}
-                    onDelete={handleDelete}
-                  />
-                ))}
+          {!isLoading && applications.length === 0 && (
+            <div className="mt-6 flex flex-col items-center gap-2 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Briefcase className="h-5 w-5 text-primary" aria-hidden="true" />
               </div>
-            </DragDropContext>
-
-            {!isLoading && applications.length === 0 && (
-              <div className="mt-6 flex flex-col items-center gap-2 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <Briefcase className="h-5 w-5 text-primary" aria-hidden="true" />
-                </div>
-                <p className="text-sm text-muted-foreground max-w-sm">
-                  Your application tracker is empty. Add applications manually or generate tailored resumes from Job Scout.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Your application tracker is empty. Add applications manually or track jobs from Job Scout.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Add Application Modal */}
       <AddApplicationModal
