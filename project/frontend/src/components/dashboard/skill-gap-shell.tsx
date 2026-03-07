@@ -33,9 +33,9 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
 
 /* ─── Priority color helper ──────────────────────────────────────────────── */
 function priorityColor(p: string) {
-  if (p === 'high') return 'bg-red-500/10 text-red-600 border-red-500/20';
-  if (p === 'medium') return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
-  return 'bg-green-500/10 text-green-600 border-green-500/20';
+  if (p === 'high') return 'bg-destructive/10 text-destructive border-destructive/20';
+  if (p === 'medium') return 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))] border-[hsl(var(--accent))]/20';
+  return 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20';
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
@@ -163,9 +163,9 @@ export function SkillGapShell() {
               <button
                 key={role.roleId}
                 onClick={() => setSelectedRole(role.roleId)}
-                className={`group relative flex flex-col items-center gap-2 rounded-lg border p-4 text-center transition-all hover:border-primary/50 hover:bg-primary/5 ${
+                className={`group relative flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all duration-200 hover:border-primary/50 hover:bg-primary/5 hover:-translate-y-0.5 hover:shadow-sm ${
                   selectedRole === role.roleId
-                    ? 'border-primary bg-primary/10 ring-2 ring-primary/20'
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/20 shadow-sm'
                     : 'border-border'
                 }`}
               >
@@ -212,7 +212,7 @@ export function SkillGapShell() {
                   Skill Radar — {report.roleName}
                 </CardTitle>
                 <CardDescription>
-                  Your profile (blue) vs. role benchmark (orange)
+                  Your profile (indigo) vs. role benchmark (amber)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -240,8 +240,8 @@ export function SkillGapShell() {
                       <Radar
                         name="Benchmark"
                         dataKey="benchmark"
-                        stroke="hsl(25 95% 53%)"
-                        fill="hsl(25 95% 53%)"
+                        stroke="hsl(var(--accent))"
+                        fill="hsl(var(--accent))"
                         fillOpacity={0.1}
                         strokeDasharray="5 5"
                         animationDuration={800}
@@ -423,7 +423,7 @@ export function SkillGapShell() {
                           {/* Timeline dot */}
                           <div className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 ${
                             done
-                              ? 'border-green-500 bg-green-500/10 text-green-600'
+                              ? 'border-[hsl(var(--success))] bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
                               : 'border-border bg-background text-muted-foreground'
                           }`}>
                             {done ? (
@@ -456,7 +456,7 @@ export function SkillGapShell() {
                                 </Button>
                               )}
                               {done && (
-                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                                <Badge variant="outline" className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20 text-xs">
                                   Done
                                 </Badge>
                               )}

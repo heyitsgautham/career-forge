@@ -198,16 +198,16 @@ function DashboardInner() {
       {/* ─── Sidebar ─────────────────────────────────────────────────────── */}
       <aside
         className={`${sidebarOpen ? 'w-64' : 'w-16'
-          } shrink-0 border-r bg-card/50 backdrop-blur-sm transition-[width] duration-200 relative flex flex-col`}
+          } shrink-0 border-r border-border/60 bg-card backdrop-blur-sm transition-all duration-300 relative flex flex-col`}
       >
         {/* Brand */}
-        <div className="flex h-14 items-center gap-2 border-b px-3">
+        <div className="flex h-14 items-center gap-2 border-b border-border/60 px-3">
           {sidebarOpen && (
             <Link
               href="/"
               className="group flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md shadow-primary/25 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105">
                 <Zap className="h-4 w-4" aria-hidden="true" />
               </span>
               <span className="font-bold text-sm tracking-tight">CareerForge</span>
@@ -240,7 +240,7 @@ function DashboardInner() {
         </nav>
 
         {/* Bottom actions */}
-        <div className="border-t p-2 space-y-0.5">
+        <div className="border-t border-border/60 p-2 space-y-0.5">
           <SidebarItem
             icon={<User className="h-4 w-4" aria-hidden="true" />}
             label="Profile"
@@ -266,7 +266,7 @@ function DashboardInner() {
       {/* ─── Main ────────────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col min-w-0" id="main-content">
         {/* Header bar */}
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/80 backdrop-blur-sm px-6">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b border-border/60 bg-card/80 backdrop-blur-xl px-6">
           <div className="min-w-0">
             <h1 className="text-lg font-semibold capitalize truncate">
               {activeTab === 'skill-gap'
@@ -299,7 +299,7 @@ function DashboardInner() {
             {githubConnected ? (
               <Badge
                 variant="outline"
-                className="gap-1.5 border-success/30 bg-success/5 text-success cursor-default"
+                className="gap-1.5 border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 text-[hsl(var(--success))] cursor-default"
               >
                 <Github className="h-3 w-3" aria-hidden="true" />
                 @{githubUsername}
@@ -319,7 +319,7 @@ function DashboardInner() {
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 animate-fade-in-up">
           {activeTab === 'resumes' && <ResumesList />}
           {activeTab === 'projects' && <ProjectsList />}
           {activeTab === 'jobs' && <JobsList />}
@@ -466,9 +466,9 @@ function SidebarItem({
     <button
       onClick={onClick}
       onMouseEnter={onMouseEnter}
-      className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${active
-          ? 'bg-primary/10 text-primary font-medium'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+      className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${active
+          ? 'bg-primary/10 text-primary font-medium shadow-sm border-l-2 border-primary'
+          : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground'
         }`}
       aria-current={active ? 'page' : undefined}
     >

@@ -110,7 +110,7 @@ export function JobsList() {
   return (
     <>
       <div className="flex justify-end mb-4">
-        <Button onClick={() => setShowAddModal(true)} className="bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 shadow-lg">
+        <Button onClick={() => setShowAddModal(true)} className="shadow-md shadow-primary/20 hover:shadow-lg">
           <Plus className="h-4 w-4 mr-2" />
           Add Job Description
         </Button>
@@ -118,7 +118,7 @@ export function JobsList() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {jobs.map((job) => (
-          <Card key={job.id} className="hover:shadow-lg transition-shadow duration-200 cursor-pointer border-l-4 border-l-warning" onClick={() => setSelectedJob(job)}>
+          <Card key={job.id} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border-l-4 border-l-[hsl(var(--accent))]" onClick={() => setSelectedJob(job)}>
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -215,8 +215,8 @@ export function JobsList() {
 
 function JobDetailsModal({ job, onClose }: { job: JobDescription; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-2xl font-bold">{job.title}</h2>
@@ -336,8 +336,8 @@ function AddJobModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Add Job Description</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>

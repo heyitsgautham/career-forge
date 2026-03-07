@@ -44,10 +44,10 @@ import { useToast } from '@/hooks/use-toast';
 /* ─── Constants ──────────────────────────────────────────────────────────── */
 
 const COLUMNS = [
-  { key: 'applied', label: 'Applied', icon: Send, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-  { key: 'interviewing', label: 'Interviewing', icon: PhoneCall, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  { key: 'offered', label: 'Offer', icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10' },
-  { key: 'rejected', label: 'Rejected', icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10' },
+  { key: 'applied', label: 'Applied', icon: Send, color: 'text-primary', bg: 'bg-primary/10' },
+  { key: 'interviewing', label: 'Interviewing', icon: PhoneCall, color: 'text-[hsl(var(--accent))]', bg: 'bg-[hsl(var(--accent))]/10' },
+  { key: 'offered', label: 'Offer', icon: CheckCircle2, color: 'text-[hsl(var(--success))]', bg: 'bg-[hsl(var(--success))]/10' },
+  { key: 'rejected', label: 'Rejected', icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
 ] as const;
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -93,8 +93,8 @@ function ApplicationCard({
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`rounded-lg border bg-card p-3 space-y-1.5 transition-shadow ${
-            snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : 'hover:shadow-sm'
+          className={`rounded-lg border bg-card p-3 space-y-1.5 transition-all duration-200 ${
+            snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30 -rotate-1' : 'hover:shadow-sm'
           }`}
         >
           <div className="flex items-start justify-between gap-1">
@@ -226,13 +226,13 @@ function StatsBar({ applications }: { applications: Application[] }) {
         <span className="text-muted-foreground">Total:</span>
         <span className="font-semibold">{applications.length}</span>
       </div>
-      <span className="text-blue-500 font-medium">{counts.applied} Applied</span>
+      <span className="text-primary font-medium">{counts.applied} Applied</span>
       <span className="text-muted-foreground">&middot;</span>
-      <span className="text-amber-500 font-medium">{counts.interviewing} Interviewing</span>
+      <span className="text-[hsl(var(--accent))] font-medium">{counts.interviewing} Interviewing</span>
       <span className="text-muted-foreground">&middot;</span>
-      <span className="text-green-500 font-medium">{counts.offered} Offer</span>
+      <span className="text-[hsl(var(--success))] font-medium">{counts.offered} Offer</span>
       <span className="text-muted-foreground">&middot;</span>
-      <span className="text-red-500 font-medium">{counts.rejected} Rejected</span>
+      <span className="text-destructive font-medium">{counts.rejected} Rejected</span>
     </div>
   );
 }
@@ -525,8 +525,8 @@ function TailoredResumePanel({
                 />
               </div>
             ) : (
-              <div className="rounded-md border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 p-4">
-                <p className="text-sm text-amber-600">
+              <div className="rounded-md border border-[hsl(var(--accent))]/30 bg-[hsl(var(--accent))]/5 p-4">
+                <p className="text-sm text-[hsl(var(--accent))]">
                   {tailorResult.compilationError || 'PDF compilation failed — LaTeX source saved.'}
                 </p>
               </div>
@@ -554,7 +554,7 @@ function TailoredResumePanel({
                     <p className="text-[10px] font-medium text-muted-foreground mb-1">Injected Keywords</p>
                     <div className="flex flex-wrap gap-1">
                       {tailorResult.matchKeywords.map((kw) => (
-                        <Badge key={kw} variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 border-green-500/20">
+                        <Badge key={kw} variant="secondary" className="text-[10px] px-1.5 py-0 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20">
                           {kw}
                         </Badge>
                       ))}

@@ -53,13 +53,13 @@ const TRACKING_OPTIONS = [
 ];
 
 const TRACKING_COLORS: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  saved: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  applied: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-  interviewing: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  offered: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  ignored: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  pending: 'bg-muted text-muted-foreground',
+  saved: 'bg-primary/10 text-primary',
+  applied: 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]',
+  interviewing: 'bg-primary/10 text-primary',
+  offered: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]',
+  rejected: 'bg-destructive/10 text-destructive',
+  ignored: 'bg-muted text-muted-foreground',
 };
 
 const ROWS_PER_PAGE = 25;
@@ -308,8 +308,8 @@ export function JobScoutShell() {
         <Card
           className={
             scheduler.lastScrape.status === 'success'
-              ? 'border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20'
-              : 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20'
+              ? 'border-[hsl(var(--success))]/20 bg-[hsl(var(--success))]/5'
+              : 'border-destructive/20 bg-destructive/5'
           }
         >
           <CardContent className="flex items-center gap-3 px-5 py-3">
@@ -453,12 +453,12 @@ function JobRow({
   onTrack: (status: string) => void;
 }) {
   return (
-    <tr className="group transition-colors hover:bg-muted/30">
+    <tr className="group transition-all duration-150 hover:bg-primary/[0.03]">
       {/* Title + salary */}
       <td className="px-4 py-3 w-72 max-w-[18rem]">
         <div className="font-medium leading-tight line-clamp-1 max-w-[17rem]" title={job.title}>{job.title}</div>
         {job.salary && (
-          <span className="text-xs text-emerald-600 dark:text-emerald-400">
+          <span className="text-xs text-[hsl(var(--success))]">
             {job.salary}
           </span>
         )}

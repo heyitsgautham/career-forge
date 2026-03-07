@@ -133,7 +133,7 @@ export default function ResumeEditorPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b bg-card px-4 py-3 flex justify-between items-center">
+      <header className="border-b border-border/60 bg-card/80 backdrop-blur-xl px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <Link href="/dashboard">
             <Button variant="ghost" size="icon">
@@ -194,8 +194,8 @@ export default function ResumeEditorPage() {
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Editor Panel */}
-        <div className="flex-1 border-r flex flex-col">
-          <div className="p-2 border-b bg-muted/50 flex items-center gap-2">
+        <div className="flex-1 border-r border-border/60 flex flex-col">
+          <div className="p-2 border-b border-border/60 bg-muted/50 flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">LaTeX Editor</span>
           </div>
@@ -220,19 +220,19 @@ export default function ResumeEditorPage() {
 
         {/* Preview Panel */}
         <div className="w-1/2 flex flex-col">
-          <div className="p-2 border-b bg-muted/50 flex items-center justify-between">
+          <div className="p-2 border-b border-border/60 bg-muted/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Eye className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">PDF Preview</span>
             </div>
             {resume?.status === 'compiled' && (
-              <span className="flex items-center gap-1 text-xs text-green-600">
+              <span className="flex items-center gap-1 text-xs text-[hsl(var(--success))]">
                 <CheckCircle className="h-3 w-3" />
                 Ready
               </span>
             )}
             {resume?.status === 'error' && (
-              <span className="flex items-center gap-1 text-xs text-red-600">
+              <span className="flex items-center gap-1 text-xs text-destructive">
                 <XCircle className="h-3 w-3" />
                 Error
               </span>

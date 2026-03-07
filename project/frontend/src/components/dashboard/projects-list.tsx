@@ -194,18 +194,18 @@ export function ProjectsList() {
 
   // ── GitHub sync banner (always visible at top) ────────────────────────
   const syncBanner = (
-    <Card className="mb-4 border-l-4 border-l-violet-500 bg-card">
+    <Card className="mb-4 border-l-4 border-l-primary bg-card">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Github className="h-5 w-5 text-violet-500" />
+            <Github className="h-5 w-5 text-primary" />
             <CardTitle className="text-base">GitHub Sync</CardTitle>
             {syncStatus === 'done' || syncStatus === 'completed' ? (
-              <Badge className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border-0">
+              <Badge className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-0">
                 {syncSummary ? `${syncSummary.processed} imported` : 'Synced'}
               </Badge>
             ) : syncStatus === 'in_progress' || syncStatus === 'pending' ? (
-              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-0 animate-pulse">
+              <Badge className="bg-primary/10 text-primary border-0 animate-pulse">
                 {syncStatus === 'pending' ? 'Pending…' : 'Importing…'}
               </Badge>
             ) : syncStatus === 'failed' ? (
@@ -218,7 +218,7 @@ export function ProjectsList() {
               onClick={handleSyncAll}
               disabled={busy}
               variant="outline"
-              className="gap-2 border-violet-400 dark:border-violet-600 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950"
+              className="gap-2 border-primary/40 text-primary hover:bg-primary/5"
             >
               {syncing ? (
                 <><RefreshCw className="h-4 w-4 animate-spin" />Syncing…</>
@@ -230,7 +230,7 @@ export function ProjectsList() {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
+                className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5"
                 onClick={() => setShowClearConfirm(true)}
                 disabled={deleteAllMutation.isPending}
               >
@@ -310,7 +310,7 @@ export function ProjectsList() {
                 <Github className="h-4 w-4" />
                 Import from GitHub
                 {githubReposCount !== undefined && githubReposCount > 0 && (
-                  <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                  <Badge variant="secondary" className="ml-1 bg-primary/10 text-primary">
                     {githubReposCount}
                   </Badge>
                 )}
@@ -333,16 +333,16 @@ export function ProjectsList() {
     <>
       {syncBanner}
       <div className="flex justify-end gap-2 mb-4">
-        <Button variant="outline" className="gap-2 border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950" onClick={() => setShowGithubModal(true)}>
+        <Button variant="outline" className="gap-2 border-primary/30 hover:bg-primary/5" onClick={() => setShowGithubModal(true)}>
           <Github className="h-4 w-4" />
           Import from GitHub
           {githubReposCount !== undefined && githubReposCount > 0 && (
-            <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+            <Badge variant="secondary" className="ml-1 bg-primary/10 text-primary">
               {githubReposCount}
             </Badge>
           )}
         </Button>
-        <Button onClick={() => setShowAddModal(true)} className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 shadow-lg">
+        <Button onClick={() => setShowAddModal(true)} className="shadow-md shadow-primary/20 hover:shadow-lg">
           <Plus className="h-4 w-4 mr-2" />
           Add Project
         </Button>
@@ -350,7 +350,7 @@ export function ProjectsList() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {projects.map((project) => (
-          <Card key={project.id} className="hover:shadow-lg transition-shadow duration-200 border-l-4 border-l-success">
+          <Card key={project.id} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-[hsl(var(--success))]">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2 min-w-0">
@@ -384,9 +384,9 @@ export function ProjectsList() {
             <CardContent>
               <div className="flex flex-wrap gap-1 mb-4">
                 {project.technologies?.slice(0, 5).map((tech, idx) => (
-                  <Badge key={tech} variant="secondary" className={`text-xs ${idx % 3 === 0 ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                    idx % 3 === 1 ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
-                      'bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200'
+                  <Badge key={tech} variant="secondary" className={`text-xs ${idx % 3 === 0 ? 'bg-primary/10 text-primary' :
+                    idx % 3 === 1 ? 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]' :
+                      'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
                     }`}>
                     {tech}
                   </Badge>
@@ -429,8 +429,8 @@ export function ProjectsList() {
       {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} />}
       {selectedProject && <ProjectDetailsModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
       {showClearConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg w-full max-w-sm">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2">Clear All Projects?</h2>
             <p className="text-sm text-muted-foreground mb-4">
               This will permanently delete all {projects?.length ?? 0} projects. You can re-import specific ones afterwards using "Import from GitHub".
@@ -453,8 +453,8 @@ export function ProjectsList() {
 
 function ProjectDetailsModal({ project, onClose }: { project: Project; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">{project.title}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -562,8 +562,8 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Add Project</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -731,8 +731,8 @@ function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onCl
   const allFilteredSelected = selectableFilteredRepos && selectableFilteredRepos.length > 0 && selectableFilteredRepos.every(r => selectedRepos.has(r.full_name));
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Import from GitHub</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -838,7 +838,7 @@ function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onCl
                             imported
                               ? 'opacity-50 cursor-not-allowed bg-muted/30'
                               : isSelected
-                                ? 'bg-violet-50 dark:bg-violet-950/30 cursor-pointer hover:bg-muted/50'
+                                ? 'bg-primary/5 cursor-pointer hover:bg-muted/50'
                                 : 'cursor-pointer hover:bg-muted/50'
                           }`}
                         >
@@ -852,7 +852,7 @@ function GithubImportModal({ onClose, onStartImport, importedRepoNames }: { onCl
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-sm truncate">{repo.full_name}</span>
-                              {imported && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Imported</Badge>}
+                              {imported && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]">Imported</Badge>}
                               {repo.is_private && <Badge variant="outline" className="text-[10px] px-1 py-0">Private</Badge>}
                               {repo.is_fork && <Badge variant="outline" className="text-[10px] px-1 py-0">Fork</Badge>}
                             </div>
