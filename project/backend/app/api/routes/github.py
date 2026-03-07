@@ -43,7 +43,7 @@ async def run_ingestion(
     await dynamo_service.update_item(
         table=f"{settings.DYNAMO_TABLE_PREFIX}Users",
         key={"userId": user_id},
-        updates={"ingestionStatus": "in_progress", "ingestionMode": mode},
+        updates={"ingestionStatus": "in_progress", "ingestionMode": mode, "ingestionStartedAt": datetime.utcnow().isoformat()},
     )
 
     try:
@@ -185,8 +185,22 @@ async def get_ingest_status(
     current_user: dict = Depends(get_current_user_dynamo),
 ):
     """Return ingestionStatus + ingestionSummary from Users table (for frontend polling)."""
+    status = current_user.get("ingestionStatus", "none")
+    # Detect stale in_progress: if ingestionStartedAt is missing (old record) or job
+    # has been running for more than 10 minutes, treat as stale so frontend stops polling.
+    if status == "in_progress":
+        started_at = current_user.get("ingestionStartedAt")
+        if not started_at:
+            status = "stale"
+        else:
+            try:
+                elapsed = (datetime.utcnow() - datetime.fromisoformat(started_at)).total_seconds()
+                if elapsed > 600:
+                    status = "stale"
+            except (ValueError, TypeError):
+                status = "stale"
     return {
-        "status": current_user.get("ingestionStatus", "none"),
+        "status": status,
         "summary": current_user.get("ingestionSummary"),
     }
 
