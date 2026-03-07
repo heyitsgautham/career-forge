@@ -9,6 +9,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 import uuid
+import hashlib
 from datetime import datetime, timezone
 
 from app.core.database import get_db
@@ -66,8 +67,12 @@ class AnalyzeResponse(BaseModel):
 class ScrapeRequest(BaseModel):
     search_term: str = "Software Developer"
     location: Optional[str] = "India"
+    # jobspy sites (global): "linkedin", "indeed"
     sites: Optional[List[str]] = None
     results_wanted: int = 20
+    # India-specific sources; None = scrape all
+    india_sources: Optional[List[str]] = None  # ["naukri", "unstop"]
+    include_india_sources: bool = True
 
 
 class ScoutJobResponse(BaseModel):
@@ -281,6 +286,121 @@ async def get_job_stats(
         newToday=new_today,
         lastScrape=sched.get("last_scrape"),
     )
+
+
+@router.post("/scout/scrape")
+async def trigger_scrape(
+    body: ScrapeRequest,
+    current_user=Depends(require_admin),
+):
+    """
+    Manually trigger a job scrape run (admin only).
+
+    Sources scraped:
+     - LinkedIn + Indeed (via jobspy)  — for the provided `search_term`
+     - Naukri, Unstop, Internshala    — when `include_india_sources=true`
+
+    Returns: total_found, new_jobs, duplicates_skipped counters.
+    """
+    from app.services.job_scraper import job_scraper
+    from app.services.jd_analyzer import jd_analyzer
+    from app.services.dynamo_service import dynamo_service
+
+    # 1. jobspy scrape for the requested term
+    jobspy_jobs = await job_scraper.scrape_and_store(
+        search_term=body.search_term,
+        location=body.location,
+        sites=body.sites,
+        results_wanted=body.results_wanted,
+    )
+
+    india_new = 0
+    if body.include_india_sources:
+        # 2. India-specific full scrape (all keywords across Naukri/Unstop/Internshala)
+        await job_scraper._load_existing_urls()
+        india_raw = await job_scraper.scrape_india_sources(sources=body.india_sources)
+        now = dynamo_service.now_iso()
+        for raw_job in india_raw:
+            url = raw_job.get("url", "")
+            if not url or url in job_scraper._existing_urls:
+                continue
+            job_id = hashlib.md5(url.encode()).hexdigest()
+            item = {
+                "jobId": job_id,
+                "title": raw_job["title"],
+                "company": raw_job.get("company", ""),
+                "location": raw_job.get("location", ""),
+                "description": raw_job.get("description", ""),
+                "url": url,
+                "source": raw_job.get("source", "unknown"),
+                "datePosted": raw_job.get("date_posted", ""),
+                "salary": raw_job.get("salary"),
+                "jobType": raw_job.get("job_type", ""),
+                "category": None,
+                "requiredSkills": [],
+                "preferredSkills": [],
+                "experienceLevel": None,
+                "atsKeywords": [],
+                "isAnalyzed": False,
+                "isPaid": None,
+                "searchTerm": "",
+                "createdAt": now,
+                "updatedAt": now,
+            }
+            try:
+                inserted = await dynamo_service.upsert_job(item)
+                job_scraper._existing_urls.add(url)
+                if inserted:
+                    india_new += 1
+            except Exception:
+                pass
+
+    # 3. Analyze newly stored jobs
+    try:
+        all_jobs = await dynamo_service.scan("Jobs")
+        unanalyzed = [j for j in all_jobs if not j.get("isAnalyzed")]
+        analyzed_count = await jd_analyzer.analyze_and_store(unanalyzed) if unanalyzed else 0
+    except Exception:
+        analyzed_count = 0
+
+    total_new = len(jobspy_jobs) + india_new
+    return {
+        "message": "Scrape complete",
+        "jobspy_new": len(jobspy_jobs),
+        "india_new": india_new,
+        "total_new": total_new,
+        "analyzed": analyzed_count,
+    }
+
+
+@router.post("/scout/scrape/all")
+async def trigger_full_scrape(
+    current_user=Depends(require_admin),
+):
+    """
+    Trigger a full scrape run across ALL search queries + ALL India sources.
+    Same action as the scheduled hourly cron.
+    Returns: total_found, new_jobs, duplicates_skipped.
+    """
+    from app.services.job_scraper import job_scraper
+    from app.services.jd_analyzer import jd_analyzer
+    from app.services.dynamo_service import dynamo_service
+
+    result = await job_scraper.scrape_all_queries(include_india_sources=True)
+
+    # Analyze new jobs
+    try:
+        all_jobs = await dynamo_service.scan("Jobs")
+        unanalyzed = [j for j in all_jobs if not j.get("isAnalyzed")]
+        analyzed_count = await jd_analyzer.analyze_and_store(unanalyzed) if unanalyzed else 0
+    except Exception:
+        analyzed_count = 0
+
+    return {
+        **result,
+        "analyzed": analyzed_count,
+        "sources": ["linkedin", "indeed", "naukri", "unstop"],
+    }
 
 
 # ── Application tracking ─────────────────────────────────────────────────────
