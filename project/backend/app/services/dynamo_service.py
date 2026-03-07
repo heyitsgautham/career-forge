@@ -422,6 +422,16 @@ class DynamoService:
                     {"AttributeName": "companyName", "AttributeType": "S"},
                 ],
             },
+            "ProjectRoadmaps": {
+                "KeySchema": [
+                    {"AttributeName": "userId", "KeyType": "HASH"},
+                    {"AttributeName": "projectRoadmapId", "KeyType": "RANGE"},
+                ],
+                "AttributeDefinitions": [
+                    {"AttributeName": "userId", "AttributeType": "S"},
+                    {"AttributeName": "projectRoadmapId", "AttributeType": "S"},
+                ],
+            },
         }
 
         for name, schema in tables.items():

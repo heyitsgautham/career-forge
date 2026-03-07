@@ -20,6 +20,7 @@ import {
   User,
   Upload,
   X,
+  Map,
 } from 'lucide-react';
 import { ProjectsList } from '@/components/dashboard/projects-list';
 import { JobsList } from '@/components/dashboard/jobs-list';
@@ -29,6 +30,7 @@ import { ProfileView } from '@/components/dashboard/profile-view';
 import { SkillGapShell } from '@/components/dashboard/skill-gap-shell';
 import { JobScoutShell } from '@/components/dashboard/job-scout-shell';
 import { ApplyTrackShell } from '@/components/dashboard/apply-shell';
+import { ProjectRoadmapShell } from '@/components/dashboard/project-roadmap-shell';
 import { useToast } from '@/hooks/use-toast';
 import { userApi, authApi, projectsApi, resumesApi, jobMatchApi, skillGapApi } from '@/lib/api';
 import type { User as UserType } from '@/lib/api';
@@ -37,6 +39,7 @@ import type { User as UserType } from '@/lib/api';
 const TABS = [
   { key: 'resumes', label: 'Resumes', icon: FileText },
   { key: 'projects', label: 'Projects', icon: FolderGit2 },
+  { key: 'roadmap', label: 'Roadmap', icon: Map },
   { key: 'skill-gap', label: 'Skill Gap', icon: Target },
   { key: 'job-scout', label: 'Job Scout', icon: Search },
   { key: 'apply', label: 'Apply & Track', icon: Send },
@@ -189,6 +192,7 @@ function DashboardInner() {
   const tabDescription: Record<TabKey, string> = {
     resumes: 'Generate and manage your LaTeX resumes',
     projects: 'Your imported projects and repositories',
+    roadmap: 'AI-generated project-based learning paths',
     jobs: 'Job descriptions to tailor resumes to',
     templates: 'LaTeX templates for your resumes',
     'skill-gap': 'AI-powered gap analysis against target roles',
@@ -277,7 +281,9 @@ function DashboardInner() {
                   ? 'Job Scout'
                   : activeTab === 'apply'
                     ? 'Apply & Track'
-                    : activeTab}
+                    : activeTab === 'roadmap'
+                      ? 'Project Roadmap'
+                      : activeTab}
             </h1>
             <p className="text-xs text-muted-foreground truncate hidden sm:block">
               {tabDescription[activeTab]}
@@ -329,6 +335,7 @@ function DashboardInner() {
           </div>
           {activeTab === 'jobs' && <JobsList />}
           {activeTab === 'templates' && <TemplatesList />}
+          {activeTab === 'roadmap' && <ProjectRoadmapShell />}
           {activeTab === 'skill-gap' && <SkillGapShell />}
           {activeTab === 'job-scout' && <JobScoutShell />}
           {activeTab === 'apply' && <ApplyTrackShell />}
