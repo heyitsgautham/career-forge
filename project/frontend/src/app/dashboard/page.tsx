@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +33,7 @@ import { SkillGapShell } from '@/components/dashboard/skill-gap-shell';
 import { JobScoutShell } from '@/components/dashboard/job-scout-shell';
 import { ApplyTrackShell } from '@/components/dashboard/apply-shell';
 import { useToast } from '@/hooks/use-toast';
-import { userApi, authApi } from '@/lib/api';
+import { userApi, authApi, projectsApi, resumesApi, templatesApi, jobsApi, jobMatchApi } from '@/lib/api';
 import type { User as UserType } from '@/lib/api';
 
 /* ─── Tab definitions ────────────────────────────────────────────────────── */
@@ -60,10 +61,34 @@ function DashboardInner() {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [githubConnected, setGithubConnected] = useState(false);
-  const [githubUsername, setGithubUsername] = useState('');
   const [profileRefreshKey, setProfileRefreshKey] = useState(0);
+  const queryClient = useQueryClient();
+
+  /* ── User profile via React Query (cached, persisted) ──────────────── */
+  const { data: currentUser } = useQuery({
+    queryKey: ['user-profile'],
+    queryFn: async () => {
+      const res = await userApi.getProfile();
+      return res.data as UserType;
+    },
+    staleTime: 10 * 60 * 1000,   // 10 min
+    gcTime: 30 * 60 * 1000,      // 30 min
+    retry: false,
+  });
+
+  const { data: githubStatusData } = useQuery({
+    queryKey: ['github-status'],
+    queryFn: async () => {
+      const res = await userApi.getGithubStatus();
+      return res.data as { connected: boolean; username?: string };
+    },
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: false,
+  });
+
+  const githubConnected = githubStatusData?.connected ?? false;
+  const githubUsername = githubStatusData?.username ?? '';
 
   /* URL-sync: update ?tab= when activeTab changes */
   const switchTab = useCallback(
@@ -99,36 +124,62 @@ function DashboardInner() {
 
   /* Load user + github status */
   useEffect(() => {
-    const load = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      try {
-        const [profileRes, ghRes] = await Promise.all([
-          userApi.getProfile(),
-          userApi.getGithubStatus(),
-        ]);
-        setCurrentUser(profileRes.data);
-        if (ghRes.data?.connected) {
-          setGithubConnected(true);
-          setGithubUsername(ghRes.data.username || '');
-        }
-      } catch {
-        /* 401 is handled by interceptor */
-      }
-    };
-
-    load();
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+    }
   }, [router]);
+
+  /* ── Prefetch all tab data on mount ─────────────────────────────────── */
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['resumes'],
+      queryFn: () => resumesApi.list().then(r => r.data),
+      staleTime: 2 * 60 * 1000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['projects'],
+      queryFn: () => projectsApi.list().then(r => r.data),
+      staleTime: 5 * 60 * 1000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['templates'],
+      queryFn: () => templatesApi.list().then(r => r.data),
+      staleTime: 30 * 60 * 1000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ['jobs'],
+      queryFn: () => jobsApi.list().then(r => r.data),
+      staleTime: 2 * 60 * 1000,
+    });
+  }, [queryClient]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     toast({ title: 'Logged out successfully' });
     router.push('/login');
   };
+
+  /* ── Hover-prefetch map: tab key → prefetch function ────────────────── */
+  const prefetchTab = useCallback((tab: string) => {
+    switch (tab) {
+      case 'resumes':
+        queryClient.prefetchQuery({ queryKey: ['resumes'], queryFn: () => resumesApi.list().then(r => r.data), staleTime: 2 * 60 * 1000 });
+        break;
+      case 'projects':
+        queryClient.prefetchQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data), staleTime: 5 * 60 * 1000 });
+        break;
+      case 'jobs':
+        queryClient.prefetchQuery({ queryKey: ['jobs'], queryFn: () => jobsApi.list().then(r => r.data), staleTime: 2 * 60 * 1000 });
+        break;
+      case 'templates':
+        queryClient.prefetchQuery({ queryKey: ['templates'], queryFn: () => templatesApi.list().then(r => r.data), staleTime: 30 * 60 * 1000 });
+        break;
+      case 'job-scout':
+        queryClient.prefetchQuery({ queryKey: ['job-scout-matches'], queryFn: () => jobMatchApi.list().then(r => r.data), staleTime: 30_000 });
+        break;
+    }
+  }, [queryClient]);
 
   /* Tab → Content mapping */
   const tabDescription: Record<TabKey, string> = {
@@ -182,6 +233,7 @@ function DashboardInner() {
               label={label}
               active={activeTab === key}
               onClick={() => switchTab(key)}
+              onMouseEnter={() => prefetchTab(key)}
               collapsed={!sidebarOpen}
             />
           ))}
@@ -334,8 +386,7 @@ function DashboardInner() {
                         description: `Extracted ${res.data.fields_updated} profile fields.`,
                       });
                       // Refresh user header + trigger ProfileView to re-fetch
-                      const profileRes = await userApi.getProfile();
-                      setCurrentUser(profileRes.data);
+                      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
                       setProfileRefreshKey(k => k + 1);
                       setShowSettings(false);
                     } catch {
@@ -401,17 +452,20 @@ function SidebarItem({
   label,
   active = false,
   onClick,
+  onMouseEnter,
   collapsed = false,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
   onClick: () => void;
+  onMouseEnter?: () => void;
   collapsed?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
       className={`w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${active
           ? 'bg-primary/10 text-primary font-medium'
           : 'text-muted-foreground hover:bg-accent hover:text-foreground'

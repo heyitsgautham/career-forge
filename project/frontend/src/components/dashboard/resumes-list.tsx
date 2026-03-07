@@ -65,6 +65,8 @@ export function ResumesList() {
       const res = await resumesApi.list();
       return res.data as Resume[];
     },
+    staleTime: 2 * 60 * 1000,   // 2 min
+    gcTime: 15 * 60 * 1000,     // 15 min
   });
 
   const deleteMutation = useMutation({
