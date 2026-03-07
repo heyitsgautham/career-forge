@@ -100,6 +100,7 @@ async def generate_resume_m2(
     experience = _parse_json(_safe("experience", None))
     skills = _parse_json(_safe("skills", None))
     certifications = _parse_json(_safe("certifications", None))
+    achievements = _parse_json(_safe("achievements", None))
 
     try:
         result = await generate_resume_from_summaries(
@@ -110,6 +111,7 @@ async def generate_resume_m2(
             experience=experience,
             skills=skills,
             certifications=certifications,
+            achievements=achievements,
         )
 
         return M2GenerateResponse(
@@ -826,9 +828,10 @@ async def download_pdf(
 @router.get("/{resume_id}/pdf-url")
 async def get_pdf_url(
     resume_id: str,
+    download: bool = False,
     current_user: User = Depends(get_current_user),
 ):
-    """Return presigned S3 URL as JSON for iframe preview (avoids redirect + auth header issues)."""
+    """Return presigned S3 URL as JSON. Pass ?download=true to add Content-Disposition: attachment."""
     if not settings.USE_DYNAMO:
         raise HTTPException(status_code=501, detail="Only available with DynamoDB backend")
 
@@ -847,7 +850,8 @@ async def get_pdf_url(
         raise HTTPException(status_code=400, detail="Local file preview not supported via URL")
 
     resume_name = item.get("name", "resume").replace(" ", "_")
-    url = await s3_service.get_presigned_url(pdf_key, filename=f"{resume_name}.pdf")
+    filename = f"{resume_name}.pdf" if download else None
+    url = await s3_service.get_presigned_url(pdf_key, filename=filename)
     return {"url": url}
     
     if not resume:

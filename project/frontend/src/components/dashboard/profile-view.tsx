@@ -34,6 +34,8 @@ interface CertificationEntry {
   url?: string;
 }
 
+
+
 interface ProfileData {
   id: string;
   email: string;
@@ -58,6 +60,7 @@ interface ProfileData {
   education?: EducationEntry[];
   skills?: string[];
   certifications?: CertificationEntry[];
+  achievements?: string[];
 }
 
 export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: number }) {
@@ -96,6 +99,9 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
     } catch { /* ignore */ }
   }, []);
 
+  const pollCountRef = useRef(0);
+  const MAX_POLLS = 40; // 40 × 3s = 2 minutes max
+
   const pollIngestionStatus = useCallback(async () => {
     try {
       const res = await githubApi.getIngestStatus();
@@ -108,10 +114,22 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         setIngesting(false);
         await loadProjects();
         toast({ title: "Import Complete", description: `${res.data.summary?.processed ?? 0} projects imported.` });
-      } else if (s === "failed") {
+      } else if (s === "failed" || s === "stale") {
         stopPolling();
         setIngesting(false);
-        toast({ title: "Import Failed", description: "Check your GitHub connection and try again.", variant: "destructive" });
+        if (s === "stale") {
+          toast({ title: "Import Timed Out", description: "The previous import did not complete. Please try again.", variant: "destructive" });
+        } else {
+          toast({ title: "Import Failed", description: "Check your GitHub connection and try again.", variant: "destructive" });
+        }
+      } else {
+        // Safety cap: stop polling after MAX_POLLS attempts
+        pollCountRef.current += 1;
+        if (pollCountRef.current >= MAX_POLLS) {
+          stopPolling();
+          setIngesting(false);
+          toast({ title: "Import Timed Out", description: "The import is taking too long. Please try again.", variant: "destructive" });
+        }
       }
     } catch {
       stopPolling();
@@ -121,6 +139,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
 
   const startPolling = useCallback(() => {
     stopPolling();
+    pollCountRef.current = 0;
     setIngesting(true);
     pollRef.current = setInterval(pollIngestionStatus, 3000);
     // Also poll immediately
@@ -203,6 +222,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         education: profile.education,
         skills: profile.skills,
         certifications: profile.certifications,
+        achievements: profile.achievements,
       });
       setProfile(response.data);
       toast({
@@ -1070,6 +1090,62 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               rows={4}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Achievements */}
+      <Card className="border-l-4 border-l-purple-500">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <span className="text-2xl">🌟</span>
+                Achievements
+              </CardTitle>
+              <CardDescription>Awards, honors, and notable accomplishments — each line becomes a bullet on your resume</CardDescription>
+            </div>
+            <Button
+              onClick={() => handleChange("achievements", [...(profile.achievements || []), ""])}
+              className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
+            >
+              Add Achievement
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(!profile.achievements || profile.achievements.length === 0) ? (
+            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+              <p className="text-sm font-medium mb-1">No achievements added yet.</p>
+              <p className="text-xs">
+                Each bullet should be self-contained, e.g.:<br />
+                <span className="italic">100% Merit Scholarship Recipient, Saveetha Engineering College (Full tuition waiver, 4 years)</span>
+              </p>
+            </div>
+          ) : (
+            profile.achievements.map((bullet, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <span className="text-muted-foreground text-lg leading-none mt-0.5">•</span>
+                <Input
+                  value={bullet}
+                  onChange={(e) => {
+                    const updated = [...profile.achievements!];
+                    updated[idx] = e.target.value;
+                    handleChange("achievements", updated);
+                  }}
+                  placeholder="e.g. Smart India Hackathon 2025 Finalist – India's premier national innovation challenge"
+                  className="flex-1"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleChange("achievements", profile.achievements!.filter((_, i) => i !== idx))}
+                  className="text-destructive hover:text-destructive/80 hover:bg-destructive/5 shrink-0"
+                >
+                  ×
+                </Button>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 
