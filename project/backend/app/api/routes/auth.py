@@ -389,7 +389,7 @@ async def github_callback(
                     "avatarUrl": github_user.get("avatar_url"),
                     "isActive": True,
                     "isVerified": True,
-                    "ingestionStatus": "pending",
+                    "ingestionStatus": "none",
                     "createdAt": now,
                     "updatedAt": now,
                 }
@@ -405,19 +405,6 @@ async def github_callback(
             if installation_id:
                 update_fields["githubInstallationId"] = installation_id
             await dynamo_service.update_item("Users", {"userId": user_id}, update_fields)
-
-        # Auto-trigger ingestion for new users (background task — don't await)
-        if is_new_user:
-            import asyncio
-            from app.api.routes.github import run_ingestion
-            asyncio.create_task(
-                run_ingestion(
-                    user_id=user_id,
-                    github_token=encrypted_token,
-                    installation_id=installation_id,
-                )
-            )
-            logger.info("Auto-triggered initial ingestion for new user", user_id=user_id)
 
         access_token = create_access_token(
             data={"sub": user_id},

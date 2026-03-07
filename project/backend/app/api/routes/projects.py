@@ -290,6 +290,26 @@ async def update_project(
     return _dynamo_to_response(refreshed or project)
 
 
+@router.delete("/all")
+async def delete_all_projects(
+    current_user: dict = Depends(get_current_user_dynamo),
+):
+    """Delete ALL projects for the current user from DynamoDB."""
+    items = await dynamo_service.query(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        pk_name="userId",
+        pk_value=current_user["userId"],
+    )
+    count = 0
+    for item in items:
+        await dynamo_service.delete_item(
+            table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+            key={"userId": current_user["userId"], "projectId": item["projectId"]},
+        )
+        count += 1
+    return {"message": f"Deleted {count} projects"}
+
+
 @router.delete("/{project_id}")
 async def delete_project(
     project_id: str,
