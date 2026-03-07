@@ -263,8 +263,7 @@ export function ProjectsList() {
   // ── GitHub sync banner (always visible at top) ────────────────────────
   const syncBanner = (
     <Card className="mb-4 border-l-4 border-l-primary bg-card">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
             <Github className="h-5 w-5 text-primary" />
             <span className="text-base font-semibold leading-none tracking-tight">GitHub Sync</span>
@@ -308,7 +307,6 @@ export function ProjectsList() {
             )}
           </div>
         </div>
-      </CardHeader>
       {(syncStatus === 'in_progress' || syncStatus === 'pending') && (
         <CardContent className="pt-0">
           <p className="text-sm text-muted-foreground animate-pulse">
