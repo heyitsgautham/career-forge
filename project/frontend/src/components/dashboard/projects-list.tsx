@@ -9,8 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select } from '@/components/ui/select';
-import { Github, ExternalLink, RefreshCw, Trash2, Calendar, Plus, X, Zap } from 'lucide-react';
+import { Github, ExternalLink, RefreshCw, Trash2, Calendar, Plus, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Project {
@@ -34,8 +33,7 @@ export function ProjectsList() {
 
   // ── GitHub bulk-ingestion state ─────────────────────────────────────────
   const [syncing, setSyncing] = useState(false);      // "Sync All Repos"
-  const [importing, setImporting] = useState(false);  // "Import All Repos"
-  const busy = syncing || importing;
+  const busy = syncing;
   const [syncStatus, setSyncStatus] = useState<string>('none');
   const [syncSummary, setSyncSummary] = useState<{ processed: number; failed: number; mode?: string; lastRunAt?: string } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -52,21 +50,18 @@ export function ProjectsList() {
       setSyncStatus(s);
       setSyncSummary(summary);
       if (s === 'done' || s === 'completed') {
-        stopPoll(); setSyncing(false); setImporting(false);
+        stopPoll(); setSyncing(false);
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         const count = summary?.processed ?? 0;
-        const isSync = summary?.mode === 'sync';
         toast({
-          title: isSync ? 'Sync complete' : 'Import complete',
-          description: isSync
-            ? `${count} existing project${count !== 1 ? 's' : ''} refreshed.`
-            : `${count} new project${count !== 1 ? 's' : ''} imported.`,
+          title: 'Sync complete',
+          description: `${count} existing project${count !== 1 ? 's' : ''} refreshed.`,
         });
       } else if (s === 'failed') {
-        stopPoll(); setSyncing(false); setImporting(false);
-        toast({ title: 'Operation failed', description: 'Check your GitHub connection and try again.', variant: 'destructive' });
+        stopPoll(); setSyncing(false);
+        toast({ title: 'Sync failed', description: 'Check your GitHub connection and try again.', variant: 'destructive' });
       }
-    } catch { stopPoll(); setSyncing(false); setImporting(false); }
+    } catch { stopPoll(); setSyncing(false); }
   }, [stopPoll, queryClient, toast]);
 
   useEffect(() => () => stopPoll(), [stopPoll]);
@@ -80,14 +75,6 @@ export function ProjectsList() {
     pollStatus();
   };
 
-  const handleImportAll = async () => {
-    setImporting(true);
-    try {
-      await githubApi.importNew(false);
-    } catch { /* server already processing */ }
-    pollRef.current = setInterval(pollStatus, 3000);
-    pollStatus();
-  };
   // ───────────────────────────────────────────────────────────────────────
 
   const { data: projects, isLoading, refetch } = useQuery({
@@ -143,6 +130,30 @@ export function ProjectsList() {
     },
   });
 
+  const deleteAllMutation = useMutation({
+    mutationFn: () => projectsApi.deleteAll(),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['projects'] });
+      const previous = queryClient.getQueryData(['projects']);
+      queryClient.setQueryData(['projects'], []);
+      return { previous };
+    },
+    onSuccess: (response) => {
+      toast({ title: 'All projects cleared', description: response.data?.message || 'Projects deleted.' });
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(['projects'], context.previous);
+      }
+      toast({ title: 'Failed to clear projects', variant: 'destructive' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
   // ── GitHub sync banner (always visible at top) ────────────────────────
   const syncBanner = (
     <Card className="mb-4 border-l-4 border-l-violet-500 bg-card">
@@ -177,25 +188,25 @@ export function ProjectsList() {
                 <><RefreshCw className="h-4 w-4" />Sync Existing</>
               )}
             </Button>
-            <Button
-              size="sm"
-              onClick={handleImportAll}
-              disabled={busy}
-              className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 gap-2"
-            >
-              {importing ? (
-                <><RefreshCw className="h-4 w-4 animate-spin" />Importing…</>
-              ) : (
-                <><Zap className="h-4 w-4" />Import All Repos</>
-              )}
-            </Button>
+            {projects && projects.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
+                onClick={() => setShowClearConfirm(true)}
+                disabled={deleteAllMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+                {deleteAllMutation.isPending ? 'Clearing…' : 'Clear All'}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
       {(syncStatus === 'in_progress' || syncStatus === 'pending') && (
         <CardContent className="pt-0">
           <p className="text-sm text-muted-foreground animate-pulse">
-            Fetching repos and generating AI summaries via Bedrock — this takes ~1–2 min for large accounts.
+            Refreshing existing projects via Bedrock — this takes ~1–2 min for large accounts.
           </p>
         </CardContent>
       )}
@@ -249,7 +260,7 @@ export function ProjectsList() {
             <div className="flex gap-2 justify-center">
               <Button variant="outline" className="gap-2" onClick={() => setShowGithubModal(true)}>
                 <Github className="h-4 w-4" />
-                Import Single Repo
+                Import from GitHub
                 {githubReposCount !== undefined && githubReposCount > 0 && (
                   <Badge variant="secondary" className="ml-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
                     {githubReposCount}
@@ -356,6 +367,25 @@ export function ProjectsList() {
       {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
       {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} />}
       {selectedProject && <ProjectDetailsModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background p-6 rounded-lg w-full max-w-sm">
+            <h2 className="text-lg font-bold mb-2">Clear All Projects?</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              This will permanently delete all {projects?.length ?? 0} projects. You can re-import specific ones afterwards using "Import from GitHub".
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowClearConfirm(false)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                onClick={() => { deleteAllMutation.mutate(); setShowClearConfirm(false); }}
+              >
+                Yes, Clear All
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -553,9 +583,9 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
 
 function GithubImportModal({ onClose }: { onClose: () => void }) {
   const [repoUrl, setRepoUrl] = useState('');
-  const [selectedRepo, setSelectedRepo] = useState('');
+  const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [importMode, setImportMode] = useState<'url' | 'dropdown'>('dropdown');
+  const [importMode, setImportMode] = useState<'select' | 'url'>('select');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -593,49 +623,88 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
     );
   });
 
+  const toggleRepo = (fullName: string) => {
+    setSelectedRepos(prev => {
+      const next = new Set(prev);
+      if (next.has(fullName)) {
+        next.delete(fullName);
+      } else {
+        next.add(fullName);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (!filteredRepos) return;
+    const allFilteredSelected = filteredRepos.every(r => selectedRepos.has(r.full_name));
+    if (allFilteredSelected) {
+      // Deselect all filtered
+      setSelectedRepos(prev => {
+        const next = new Set(prev);
+        filteredRepos.forEach(r => next.delete(r.full_name));
+        return next;
+      });
+    } else {
+      // Select all filtered
+      setSelectedRepos(prev => {
+        const next = new Set(prev);
+        filteredRepos.forEach(r => next.add(r.full_name));
+        return next;
+      });
+    }
+  };
+
   const importMutation = useMutation({
     mutationFn: async () => {
-      if (importMode === 'dropdown') {
-        // selectedRepo is full_name (e.g. "heyitsgautham/swades-connect") — no parsing needed
-        if (!selectedRepo) throw new Error('No repository selected');
-        return projectsApi.importGithub(selectedRepo);
+      if (importMode === 'select') {
+        if (selectedRepos.size === 0) throw new Error('No repositories selected');
+        return projectsApi.importGithub(Array.from(selectedRepos));
       } else {
         // URL mode: parse owner/repo from the typed URL
         const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
         if (!match) throw new Error('Invalid GitHub URL');
         const fullName = `${match[1]}/${match[2].replace('.git', '')}`;
-        return projectsApi.importGithub(fullName);
+        return projectsApi.importGithub([fullName]);
       }
     },
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      // Check whether the backend actually succeeded (HTTP 200 but result may contain errors)
       const results: Array<{ full_name?: string; status?: string; error?: string }> = response.data?.results ?? [];
       const failed = results.filter(r => r.status === 'error');
       const succeeded = results.filter(r => r.status === 'success');
-      if (succeeded.length > 0) {
-        toast({ title: 'Repository imported successfully' });
+      if (succeeded.length > 0 && failed.length === 0) {
+        toast({
+          title: `${succeeded.length} project${succeeded.length !== 1 ? 's' : ''} imported successfully`,
+        });
+        onClose();
+      } else if (succeeded.length > 0 && failed.length > 0) {
+        toast({
+          title: `${succeeded.length} imported, ${failed.length} failed`,
+          description: `Failed: ${failed.map(f => f.full_name).join(', ')}`,
+        });
         onClose();
       } else if (failed.length > 0) {
-        const errMsg = failed[0].error ?? 'Unknown error';
         toast({
-          title: 'Import failed',
-          description: errMsg,
+          title: `Import failed for ${failed.length} project${failed.length !== 1 ? 's' : ''}`,
+          description: failed[0].error ?? 'Unknown error',
           variant: 'destructive',
         });
       } else {
-        toast({ title: 'Repository imported successfully' });
+        toast({ title: 'Import completed' });
         onClose();
       }
     },
     onError: (error: any) => {
       toast({
-        title: 'Failed to import repository',
+        title: 'Failed to import repositories',
         description: error.response?.data?.detail || error.message || 'Unknown error',
         variant: 'destructive'
       });
     },
   });
+
+  const allFilteredSelected = filteredRepos && filteredRepos.length > 0 && filteredRepos.every(r => selectedRepos.has(r.full_name));
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -651,8 +720,8 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
           {/* Import Mode Tabs */}
           <div className="flex gap-2 mb-4">
             <Button
-              variant={importMode === 'dropdown' ? 'default' : 'outline'}
-              onClick={() => setImportMode('dropdown')}
+              variant={importMode === 'select' ? 'default' : 'outline'}
+              onClick={() => setImportMode('select')}
               className="flex-1"
             >
               Select from Your Repos
@@ -666,7 +735,7 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
             </Button>
           </div>
 
-          {importMode === 'dropdown' ? (
+          {importMode === 'select' ? (
             <>
               {loadingRepos ? (
                 <div className="text-center py-8">
@@ -703,53 +772,75 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       {filteredRepos?.length} of {userRepos.length} repositories
+                      {selectedRepos.size > 0 && (
+                        <span className="ml-2 font-medium text-violet-600 dark:text-violet-400">
+                          · {selectedRepos.size} selected
+                        </span>
+                      )}
                     </p>
                   </div>
 
-                  <div>
-                    <Label htmlFor="repoSelect">Select Repository</Label>
-                    <Select
-                      id="repoSelect"
-                      value={selectedRepo}
-                      onChange={(e) => setSelectedRepo(e.target.value)}
-                      className="mt-1"
+                  {/* Select All / Deselect All */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleAll}
+                      className="text-xs"
                     >
-                      <option value="">-- Select a repository --</option>
-                      {filteredRepos?.map((repo) => (
-                        <option key={repo.full_name} value={repo.full_name}>
-                          {repo.full_name}
-                          {repo.is_private && ' 🔒'}
-                          {repo.is_fork && ' 🍴'}
-                          {repo.language && ` • ${repo.language}`}
-                          {` • ⭐ ${repo.stars}`}
-                        </option>
-                      ))}
-                    </Select>
+                      {allFilteredSelected ? 'Deselect All' : 'Select All'}
+                    </Button>
+                    {selectedRepos.size > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedRepos(new Set())}
+                        className="text-xs text-muted-foreground"
+                      >
+                        Clear Selection
+                      </Button>
+                    )}
                   </div>
 
-                  {selectedRepo && (
-                    <div className="mt-2 p-3 bg-muted rounded-lg">
-                      {(() => {
-                        const repo = userRepos.find(r => r.full_name === selectedRepo);
-                        return repo ? (
-                          <div>
-                            <h3 className="font-semibold">{repo.name}</h3>
+                  {/* Repo List with Checkboxes */}
+                  <div className="border rounded-lg max-h-72 overflow-y-auto divide-y">
+                    {filteredRepos?.map((repo) => {
+                      const isSelected = selectedRepos.has(repo.full_name);
+                      return (
+                        <label
+                          key={repo.full_name}
+                          className={`flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors ${
+                            isSelected ? 'bg-violet-50 dark:bg-violet-950/30' : ''
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleRepo(repo.full_name)}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm truncate">{repo.full_name}</span>
+                              {repo.is_private && <Badge variant="outline" className="text-[10px] px-1 py-0">Private</Badge>}
+                              {repo.is_fork && <Badge variant="outline" className="text-[10px] px-1 py-0">Fork</Badge>}
+                            </div>
                             {repo.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{repo.description}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">{repo.description}</p>
                             )}
-                            <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
-                              {repo.language && <span>📝 {repo.language}</span>}
+                            <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                              {repo.language && <span>{repo.language}</span>}
                               <span>⭐ {repo.stars}</span>
                               <span>🍴 {repo.forks}</span>
                             </div>
                           </div>
-                        ) : null;
-                      })()}
-                    </div>
-                  )}
+                        </label>
+                      );
+                    })}
+                  </div>
 
                   <p className="text-sm text-muted-foreground">
-                    💡 Select a repository from your GitHub account to import. We'll analyze it to extract project details.
+                    💡 Select one or more repositories to import. We'll analyze each to extract project details via AI.
                   </p>
                 </>
               ) : (
@@ -785,11 +876,16 @@ function GithubImportModal({ onClose }: { onClose: () => void }) {
               onClick={() => importMutation.mutate()}
               disabled={
                 (importMode === 'url' && !repoUrl) ||
-                (importMode === 'dropdown' && !selectedRepo) ||
+                (importMode === 'select' && selectedRepos.size === 0) ||
                 importMutation.isPending
               }
             >
-              {importMutation.isPending ? 'Importing…' : 'Import Repository'}
+              {importMutation.isPending
+                ? 'Importing…'
+                : importMode === 'select' && selectedRepos.size > 1
+                  ? `Import ${selectedRepos.size} Repositories`
+                  : 'Import Repository'
+              }
             </Button>
           </div>
         </div>
