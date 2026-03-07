@@ -263,6 +263,12 @@ export const userApi = {
     api.post('/api/auth/upload-resume', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+
+  importLinkedInProfile: (linkedinUrl?: string) =>
+    api.post('/api/auth/linkedin/import-profile', linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
+
+  scrapeCertifications: () =>
+    api.post('/api/auth/linkedin/scrape-certifications'),
 };
 
 // ─── Projects API ─────────────────────────────────────────────────────────────
