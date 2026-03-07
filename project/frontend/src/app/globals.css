@@ -11,8 +11,8 @@
     --card-foreground: 24 10% 10%;    /* #1C1917                */
     --popover: 0 0% 100%;
     --popover-foreground: 24 10% 10%;
-    --primary: 243 75% 59%;           /* #4F46E5  Deep Indigo   */
-    --primary-foreground: 0 0% 100%;  /* White on indigo        */
+    --primary: 210 90% 40%;           /* #0A66C2  LinkedIn Blue  */
+    --primary-foreground: 0 0% 100%;  /* White on blue          */
     --secondary: 60 5% 96%;
     --secondary-foreground: 24 10% 10%;
     --muted: 60 5% 96%;
@@ -23,7 +23,7 @@
     --destructive-foreground: 0 0% 98%;
     --border: 20 6% 90%;              /* #E7E5E4  Stone Gray    */
     --input: 20 6% 90%;
-    --ring: 243 75% 59%;              /* matches primary        */
+    --ring: 210 90% 40%;              /* matches primary        */
     --radius: 0.75rem;
     --success: 160 84% 39%;           /* #10B981  Emerald       */
     --warning: 38 92% 50%;
@@ -40,7 +40,7 @@
     --card-foreground: 60 9% 98%;
     --popover: 24 10% 9%;
     --popover-foreground: 60 9% 98%;
-    --primary: 243 75% 67%;
+    --primary: 210 90% 55%;
     --primary-foreground: 0 0% 100%;
     --secondary: 24 10% 14%;
     --secondary-foreground: 60 9% 98%;
@@ -52,7 +52,7 @@
     --destructive-foreground: 60 9% 98%;
     --border: 24 10% 18%;
     --input: 24 10% 18%;
-    --ring: 243 75% 67%;
+    --ring: 210 90% 55%;
     --success: 160 84% 45%;
     --warning: 38 92% 50%;
     --match-high: 160 84% 45%;
@@ -151,7 +151,7 @@ a, button, [role="button"], input, select, textarea, .card {
 }
 .card-hover:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px -6px rgba(79, 70, 229, 0.12), 0 6px 12px -4px rgba(79, 70, 229, 0.08);
+  box-shadow: 0 12px 28px -6px rgba(10, 102, 194, 0.12), 0 6px 12px -4px rgba(10, 102, 194, 0.08);
 }
 
 /* Fade-in animation for page content */
@@ -196,12 +196,12 @@ a, button, [role="button"], input, select, textarea, .card {
 
 /* Gradient text utility */
 .text-gradient-primary {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-[hsl(243,75%,65%)] to-[hsl(var(--accent))];
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-[hsl(210,90%,55%)] to-[hsl(var(--accent))];
 }
 
 /* Hero decorative mesh — warm indigo/amber glow */
 .hero-mesh {
-  background: radial-gradient(ellipse 60% 40% at 50% 0%, hsla(243,75%,59%,0.06) 0%, transparent 60%),
+    background: radial-gradient(ellipse 60% 40% at 50% 0%, hsla(210,90%,40%,0.06) 0%, transparent 60%),
               radial-gradient(ellipse 40% 50% at 80% 20%, hsla(38,92%,50%,0.04) 0%, transparent 50%);
 }
 
