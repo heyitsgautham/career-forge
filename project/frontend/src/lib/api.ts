@@ -56,6 +56,8 @@ export interface Resume {
   texUrl: string;
   createdAt: string;
   jobDescriptionId?: string;
+  jobId?: string;
+  type?: string;
   status?: string;
 }
 

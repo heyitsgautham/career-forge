@@ -27,7 +27,7 @@ import {
   Zap,
   Edit,
 } from 'lucide-react';
-import { jobMatchApi, tailorApi, type Job, type TrackingStatuses } from '@/lib/api';
+import { jobMatchApi, tailorApi, resumesApi, type Job, type TrackingStatuses } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 // ── Category filter labels ───────────────────────────────────────────────────
@@ -69,25 +69,6 @@ const TRACKING_COLORS: Record<string, string> = {
 };
 
 const ROWS_PER_PAGE = 25;
-
-// ── localStorage helpers for tailored resume persistence ─────────────────────
-
-const TAILORED_STORAGE_KEY = 'jobScout_tailoredResumes';
-
-function loadTailoredResumes(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(TAILORED_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveTailoredResumes(map: Record<string, string>) {
-  try {
-    localStorage.setItem(TAILORED_STORAGE_KEY, JSON.stringify(map));
-  } catch { /* quota exceeded — best effort */ }
-}
 
 // ── Rich markdown description renderer ───────────────────────────────────────
 
@@ -288,12 +269,34 @@ export function JobScoutShell() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [tailoredResumes, setTailoredResumes] = useState<Record<string, string>>({});
 
-  // Restore tailored resume map from localStorage on mount
-  useEffect(() => {
-    setTailoredResumes(loadTailoredResumes());
-  }, []);
+  // Track freshly-tailored resumes in this session (optimistic, before refetch)
+  const [freshTailored, setFreshTailored] = useState<Record<string, string>>({});
+
+  // ── Query: fetch user's resumes to derive jobId → resumeId map ────────────
+  const { data: userResumes = [] } = useQuery({
+    queryKey: ['resumes'],
+    queryFn: async () => (await resumesApi.list()).data as Array<{ id: string; job_id?: string; type?: string }>,
+    staleTime: 2 * 60_000,
+  });
+
+  // Derive the tailored resumes map from real data + any freshly-generated ones
+  const tailoredResumes = useMemo(() => {
+    const map: Record<string, string> = {};
+    const existingResumeIds = new Set(userResumes.map((r) => r.id));
+    for (const r of userResumes) {
+      if (r.type === 'tailored' && r.job_id) {
+        map[r.job_id] = r.id;
+      }
+    }
+    // Merge in freshly-tailored entries, but only if the resume still exists
+    for (const [jobId, resumeId] of Object.entries(freshTailored)) {
+      if (existingResumeIds.has(resumeId) || !userResumes.length) {
+        map[jobId] = resumeId;
+      }
+    }
+    return map;
+  }, [userResumes, freshTailored]);
 
   // Category filter (persisted in localStorage)
   // SSR-safe: always start with 'All', then sync from localStorage after mount
@@ -361,13 +364,9 @@ export function JobScoutShell() {
     },
     onSuccess: (data) => {
       setTailoringJobId(null);
-      // Store the mapping: jobId → resumeId (state + localStorage)
-      setTailoredResumes((prev) => {
-        const next = { ...prev, [data.jobId]: data.resumeId };
-        saveTailoredResumes(next);
-        return next;
-      });
-      // Invalidate resumes list so it shows up in the Resumes tab
+      // Optimistically track the new tailored resume
+      setFreshTailored((prev) => ({ ...prev, [data.jobId]: data.resumeId }));
+      // Invalidate resumes list so the real data catches up
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
 
       if (data.compilationError) {
