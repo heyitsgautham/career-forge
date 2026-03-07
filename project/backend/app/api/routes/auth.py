@@ -90,6 +90,7 @@ class UserProfileResponse(BaseModel):
     education: Optional[list]
     skills: Optional[list]
     certifications: Optional[list]
+    achievements: Optional[list]
     
     class Config:
         from_attributes = True
@@ -118,6 +119,7 @@ class UserProfileUpdate(BaseModel):
     education: Optional[list] = None
     skills: Optional[list] = None
     certifications: Optional[list] = None
+    achievements: Optional[list] = None
 
 
 class GitHubCallbackRequest(BaseModel):
@@ -707,6 +709,7 @@ async def get_profile(
         education=current_user.education,
         skills=current_user.skills,
         certifications=current_user.certifications,
+        achievements=current_user.achievements,
     )
 
 
@@ -780,6 +783,7 @@ async def update_profile(
         education=current_user.education,
         skills=current_user.skills,
         certifications=current_user.certifications,
+        achievements=current_user.achievements,
     )
 
 
