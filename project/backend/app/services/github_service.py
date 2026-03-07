@@ -807,6 +807,7 @@ RULES:
             "repoUrl":        repo_data.get("url", ""),
             "stars":          repo_data.get("stars", 0),
             "isFork":         repo_data.get("is_fork", False),
+            "isPrivate":      repo_data.get("is_private", False),
             "pushedAt":       repo_data.get("pushed_at"),
             "sourceType":     "github",
             "githubId":       repo_data.get("github_id"),

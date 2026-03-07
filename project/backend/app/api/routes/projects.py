@@ -94,6 +94,7 @@ def _dynamo_to_response(p: dict) -> dict:
         "url":          p.get("repoUrl") or p.get("url") or p.get("demo_url"),
         "demo_url":     p.get("demo_url"),
         "source_type":  p.get("sourceType", "github"),
+        "is_private":   p.get("isPrivate", False),
         "is_verified":  True,
         "is_featured":  p.get("isFeatured", False),
         "start_date":   p.get("start_date"),
@@ -141,8 +142,6 @@ async def create_project(
     highlights = project_data.highlights
     if not highlights or len(highlights) == 0:
         try:
-            from app.services.bedrock_client import bedrock_client
-            
             prompt = f"""Generate exactly 3 concise, technical bullet points for this project. Each point should:
 - Be one line (max 80-100 characters)
 - Start with a strong action verb (Developed, Implemented, Architected, Designed, Built, Integrated, Optimized)
@@ -160,78 +159,42 @@ Return ONLY the 3 bullet points, one per line, no numbering or bullets."""
                 temperature=0.7,
                 max_tokens=300,
             )
-            
-            # Parse the response into lines
+
             generated_highlights = [line.strip() for line in response.strip().split('\n') if line.strip()]
             if len(generated_highlights) >= 3:
                 highlights = generated_highlights[:3]
             else:
                 highlights = project_data.highlights or []
-        except Exception as e:
-            # If generation fails, use provided highlights or empty
+        except Exception:
             highlights = project_data.highlights or []
-    
-    # Create project
-    project = Project(
-        user_id=current_user.id,
-        source_type=ProjectSourceType.MANUAL,
-        title=project_data.title,
-        description=project_data.description,
-        technologies=project_data.technologies,
-        highlights=highlights,
-        url=project_data.url,
-        demo_url=project_data.demo_url,
-        is_verified=True,  # Manual entries are trusted
-        raw_content=f"{project_data.title}\n{project_data.description}",
+
+    now = datetime.utcnow().isoformat()
+    project_id = str(uuid.uuid4())
+    user_id = current_user["userId"]
+
+    project_item = {
+        "userId":       user_id,
+        "projectId":    project_id,
+        "name":         project_data.title,
+        "description":  project_data.description,
+        "technologies": project_data.technologies or [],
+        "highlights":   highlights or [],
+        "repoUrl":      project_data.url or "",
+        "demo_url":     project_data.demo_url or "",
+        "sourceType":   "manual",
+        "isFeatured":   False,
+        "start_date":   project_data.start_date,
+        "end_date":     project_data.end_date,
+        "createdAt":    now,
+        "updatedAt":    now,
+    }
+
+    await dynamo_service.put_item(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        item=project_item,
     )
-    db.add(project)
-    await db.flush()
-    
-    # Generate embedding (optional - requires Gemini API keys)
-    try:
-        text = embedding_service.combine_texts_for_embedding(
-            title=project.title,
-            description=project.description,
-            technologies=project.technologies,
-            highlights=project_data.highlights,
-        )
-        embedding = await embedding_service.embed_text(text)
-        
-        embedding_id = vector_store.generate_embedding_id()
-        await vector_store.add_embedding(
-            collection_name=VectorStoreService.COLLECTION_PROJECTS,
-            embedding_id=embedding_id,
-            embedding=embedding,
-            metadata={
-                "user_id": str(current_user.id),
-                "source_type": "manual",
-                "name": project.title,
-                "technologies": project.technologies,
-            },
-            document=text,
-        )
-        
-        project.embedding_id = embedding_id
-    except ValueError as e:
-        # Embeddings not available, skip
-        pass
-    await db.commit()
-    await db.refresh(project)
-    
-    return ProjectResponse(
-        id=str(project.id),
-        title=project.title,
-        description=project.description,
-        technologies=project.technologies or [],
-        highlights=project.highlights if isinstance(project.highlights, list) else [],
-        url=project.url,
-        demo_url=project.demo_url,
-        source_type=project.source_type.value,
-        is_verified=project.is_verified,
-        is_featured=project.is_featured,
-        start_date=str(project.start_date) if project.start_date else None,
-        end_date=str(project.end_date) if project.end_date else None,
-    )
+
+    return _dynamo_to_response(project_item)
 
 
 @router.get("/{project_id}")
@@ -386,6 +349,18 @@ async def ingest_github_repos(
     else:
         raise HTTPException(status_code=400, detail="Either sync_all=true, full_names, or repo_urls must be provided")
 
+    # ── De-duplicate: build name→projectId map from existing projects ──
+    existing_items = await dynamo_service.query(
+        table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
+        pk_name="userId",
+        pk_value=user_id,
+    )
+    existing_name_to_id = {
+        item.get("name", ""): item["projectId"]
+        for item in existing_items
+        if item.get("projectId")
+    }
+
     for repo_meta in repos_meta:
         full_name = repo_meta["full_name"]
         logger.info(f"[INGEST] ── processing {full_name} ──────────────────────")
@@ -410,8 +385,8 @@ async def ingest_github_repos(
                 f"highlights_count={len(project_data.get('highlights', []))}"
             )
 
-            project_id = str(uuid.uuid4())
-            logger.info(f"[INGEST] [{full_name}] step 3: ingest_and_embed_repo project_id={project_id}")
+            project_id = existing_name_to_id.get(repo_meta["name"]) or str(uuid.uuid4())
+            logger.info(f"[INGEST] [{full_name}] step 3: ingest_and_embed_repo project_id={project_id} (reuse={'yes' if repo_meta['name'] in existing_name_to_id else 'no'})")
             await github_service.ingest_and_embed_repo(
                 repo_data=detailed,
                 project_data=project_data,
