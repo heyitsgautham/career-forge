@@ -126,6 +126,15 @@ class SchedulerStatusResponse(BaseModel):
     lastScrape: Optional[dict]
 
 
+def _to_str(val) -> Optional[str]:
+    """Safely coerce a DynamoDB value to str, handling int/Decimal/list."""
+    if val is None:
+        return None
+    if isinstance(val, list):
+        return ", ".join(str(v) for v in val) if val else None
+    return str(val)
+
+
 def _scout_response_from_dynamo(job: dict) -> ScoutJobResponse:
     """Convert DynamoDB job item to ScoutJobResponse."""
     return ScoutJobResponse(
@@ -136,9 +145,9 @@ def _scout_response_from_dynamo(job: dict) -> ScoutJobResponse:
         url=job.get("url"),
         source=job.get("source"),
         datePosted=job.get("datePosted"),
-        salary=job.get("salary"),
+        salary=_to_str(job.get("salary")),
         jobType=job.get("jobType"),
-        category=job.get("category"),
+        category=_to_str(job.get("category")),
         requiredSkills=job.get("requiredSkills") or [],
         preferredSkills=job.get("preferredSkills") or [],
         missingSkills=job.get("missingSkills") or [],
@@ -253,7 +262,8 @@ async def get_job_stats(
     # Category counts
     cat_counts: dict = {}
     for j in jobs:
-        cat = j.get("category") or "Uncategorized"
+        raw_cat = j.get("category") or "Uncategorized"
+        cat = _to_str(raw_cat) or "Uncategorized"
         cat_counts[cat] = cat_counts.get(cat, 0) + 1
 
     top_categories = sorted(
