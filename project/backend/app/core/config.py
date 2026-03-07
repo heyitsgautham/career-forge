@@ -73,12 +73,12 @@ class Settings(BaseSettings):
     # Legacy OAuth (kept for backward-compat during migration)
     GITHUB_CLIENT_ID: Optional[str] = None
     GITHUB_CLIENT_SECRET: Optional[str] = None
-    GITHUB_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/github"
+    GITHUB_CALLBACK_URL: str = "http://localhost:3001/api/auth/callback/github"
     
     # LinkedIn OAuth
     LINKEDIN_CLIENT_ID: Optional[str] = None
     LINKEDIN_CLIENT_SECRET: Optional[str] = None
-    LINKEDIN_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/linkedin"
+    LINKEDIN_CALLBACK_URL: str = "http://localhost:3001/api/auth/callback/linkedin"
     
     # JWT Configuration
     JWT_SECRET_KEY: str = "change-me-in-production"
