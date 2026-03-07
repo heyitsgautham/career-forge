@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     AWS_REGION: str = "us-east-1"
     
     # AWS Bedrock
-    BEDROCK_MODEL_ID: str = "amazon.nova-lite-v1:0"
+    BEDROCK_MODEL_ID: str = "us.anthropic.claude-sonnet-4-6"
     BEDROCK_EMBED_MODEL_ID: str = "amazon.titan-embed-text-v2:0"
     BEDROCK_TEMPERATURE: float = 0.2
     BEDROCK_MAX_TOKENS: int = 8192
