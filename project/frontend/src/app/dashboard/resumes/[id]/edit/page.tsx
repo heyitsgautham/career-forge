@@ -21,7 +21,6 @@ import {
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { LatexEditorHandle } from '@/components/resume-editor/latex-editor';
-import { PdfPreview } from '@/components/resume-editor/pdf-preview';
 import { EditorLayout } from '@/components/resume-editor/editor-layout';
 import { AiChatDrawer } from '@/components/resume-editor/ai-chat-drawer';
 import { cn } from '@/lib/utils';
@@ -34,7 +33,6 @@ const LatexEditor = dynamic(
 
 type CompileStatus = 'idle' | 'compiling' | 'success' | 'error';
 type SaveStatus = 'saved' | 'dirty' | 'saving';
-type LeftView = 'code' | 'preview';
 
 const AUTO_SAVE_DELAY = 2000; // ms
 const AUTO_COMPILE_DELAY = 3000; // ms
@@ -52,7 +50,6 @@ export default function ResumeEditorPage() {
   const [compileStatus, setCompileStatus] = useState<CompileStatus>('idle');
   const [compileError, setCompileError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
-  const [leftView, setLeftView] = useState<LeftView>('code');
   const [autoCompile, setAutoCompile] = useState(true); // on by default
 
   // Debounce timers
@@ -115,8 +112,6 @@ export default function ResumeEditorPage() {
     setCompileStatus('compiling');
     setCompileError(null);
     editorHandleRef.current?.clearMarkers?.();
-    // Switch to preview so the user sees the result
-    setLeftView('preview');
     try {
       const res = await resumesApi.compileWithContent(resumeId, content);
       const { pdf_url, status, error_message } = res.data;
@@ -174,10 +169,6 @@ export default function ResumeEditorPage() {
         e.preventDefault();
         doCompile();
       }
-      // Toggle left view with backtick
-      if (e.key === '`' && !mod) {
-        setLeftView((v) => (v === 'code' ? 'preview' : 'code'));
-      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -214,8 +205,6 @@ export default function ResumeEditorPage() {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = setTimeout(() => doSave(latex), AUTO_SAVE_DELAY);
       toast({ title: 'AI changes applied to editor' });
-      // Switch to code view so user can see what changed
-      setLeftView('code');
     },
     [doSave, toast],
   );
@@ -265,41 +254,37 @@ export default function ResumeEditorPage() {
       {/* Tab bar: Code / Preview toggle */}
       <div className="flex items-center gap-0 px-2 py-1.5 border-b bg-card shrink-0">
         <button
-          onClick={() => setLeftView('code')}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
-            leftView === 'code'
-              ? 'bg-violet-600 text-white'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-          )}
+          className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors bg-violet-600 text-white"
         >
           <Code2 className="h-3.5 w-3.5" />
           Code
         </button>
         <button
-          onClick={() => setLeftView('preview')}
+          onClick={() => {
+            if (pdfUrl) {
+              window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+            } else {
+              toast({ title: 'No PDF yet — compile first', variant: 'destructive' });
+            }
+          }}
           className={cn(
             'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
-            leftView === 'preview'
-              ? 'bg-violet-600 text-white'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            'text-muted-foreground hover:text-foreground hover:bg-muted',
           )}
         >
           <Eye className="h-3.5 w-3.5" />
           Preview
         </button>
-        {leftView === 'code' && (
-          <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground pr-1">
+        <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground pr-1">
             <FileText className="h-3.5 w-3.5" />
             {resume.name}.tex
           </span>
-        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {/* Monaco — always mounted to keep state, hidden when not in code view */}
-        <div className={cn('h-full', leftView !== 'code' && 'hidden')}>
+        {/* Monaco editor */}
+        <div className="h-full">
           <LatexEditor
             initialValue={resume.latex_content ?? ''}
             onChange={handleEditorChange}
@@ -309,16 +294,6 @@ export default function ResumeEditorPage() {
           />
         </div>
 
-        {/* PDF preview — shown in preview view */}
-        {leftView === 'preview' && (
-          <PdfPreview
-            pdfUrl={pdfUrl}
-            compileStatus={compileStatus}
-            errorMessage={compileError}
-            onRecompile={doCompile}
-            className="h-full"
-          />
-        )}
       </div>
     </div>
   );
