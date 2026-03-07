@@ -74,6 +74,7 @@ class S3Service:
         self,
         key: str,
         expires_in: int = 3600,
+        filename: str | None = None,
     ) -> str:
         """
         Generate a presigned URL for downloading a file.
@@ -81,19 +82,22 @@ class S3Service:
         Args:
             key: S3 object key
             expires_in: URL expiry in seconds (default: 1 hour)
+            filename: If provided, sets Content-Disposition: attachment so the
+                      browser downloads the file without a CORS fetch.
 
         Returns:
             Presigned URL string
         """
         client = self._get_client()
 
+        params: dict = {"Bucket": settings.S3_BUCKET, "Key": key}
+        if filename:
+            params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
+
         try:
             url = client.generate_presigned_url(
                 "get_object",
-                Params={
-                    "Bucket": settings.S3_BUCKET,
-                    "Key": key,
-                },
+                Params=params,
                 ExpiresIn=expires_in,
             )
             logger.debug("Generated presigned URL", key=key, expires_in=expires_in)

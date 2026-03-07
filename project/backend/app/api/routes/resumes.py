@@ -822,7 +822,8 @@ async def get_pdf_url(
     if pdf_key.startswith("/"):
         raise HTTPException(status_code=400, detail="Local file preview not supported via URL")
 
-    url = await s3_service.get_presigned_url(pdf_key)
+    resume_name = item.get("name", "resume").replace(" ", "_")
+    url = await s3_service.get_presigned_url(pdf_key, filename=f"{resume_name}.pdf")
     return {"url": url}
     
     if not resume:

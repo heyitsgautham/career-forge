@@ -6,12 +6,12 @@ Runs once for all users — jobs are shared.
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 logger = structlog.get_logger()
 
@@ -78,20 +78,19 @@ async def _scheduled_scrape():
 # ── Lifecycle ────────────────────────────────────────────────────────────────
 
 def start_scheduler():
-    """Start the hourly scheduler. First scrape after a 10-second delay."""
+    """Start the hourly scheduler. Runs at the top of every hour (xx:00)."""
     global _scheduler
 
     _scheduler = AsyncIOScheduler()
     _scheduler.add_job(
         _scheduled_scrape,
-        trigger=IntervalTrigger(hours=1),
+        trigger=CronTrigger(minute=0),  # fires at :00 of every hour
         id="job_scrape",
         name="Hourly Job Scrape",
         replace_existing=True,
-        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=10),
     )
     _scheduler.start()
-    logger.info("Job scrape scheduler started (interval: 1 hour, first run in 10s)")
+    logger.info("Job scrape scheduler started (cron: every hour at :00)")
 
 
 def stop_scheduler():
