@@ -30,8 +30,11 @@ export function ProjectsList() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showGithubModal, setShowGithubModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => setMounted(true), []);
 
   // ── GitHub bulk-ingestion state ─────────────────────────────────────────
   const [syncing, setSyncing] = useState(false);      // "Sync All Repos"
@@ -293,7 +296,7 @@ export function ProjectsList() {
                 <><RefreshCw className="h-4 w-4" />Sync Existing</>
               )}
             </Button>
-            {projects && projects.length > 0 && (
+            {mounted && projects && projects.length > 0 && (
               <Button
                 size="sm"
                 variant="outline"

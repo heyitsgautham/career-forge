@@ -6,7 +6,7 @@ User authentication and GitHub OAuth.
 
 from datetime import timedelta, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Body
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -1058,3 +1058,134 @@ async def scrape_linkedin_certifications_endpoint(
             status_code=500,
             detail=f"Failed to scrape certifications: {str(e)}"
         )
+
+
+class LinkedInImportRequest(BaseModel):
+    linkedin_url: Optional[str] = None  # If not provided, uses stored profile URL
+
+
+@router.post("/linkedin/import-profile")
+async def import_linkedin_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    request: Optional[LinkedInImportRequest] = Body(default=None),
+):
+    """
+    Scrape a LinkedIn profile and import: summary, website, contact info,
+    education, and certifications into the user's profile.
+
+    Accepts an optional linkedin_url in the body; falls back to the
+    linkedin_url already stored on the user record.
+    """
+    from app.services.linkedin_scraper import scrape_linkedin_profile, parse_linkedin_url
+
+    # Resolve which URL to use — body is optional; fallback to stored profile URL
+    req_url = request.linkedin_url if request else None
+    raw_url = req_url or current_user.linkedin_url
+    if not raw_url:
+        raise HTTPException(
+            status_code=400,
+            detail="No LinkedIn URL provided. Pass linkedin_url in the request body.",
+        )
+
+    linkedin_url = parse_linkedin_url(raw_url)
+    if not linkedin_url:
+        raise HTTPException(status_code=400, detail="Invalid LinkedIn URL format")
+
+    try:
+        logger.info(f"Starting LinkedIn profile import for: {linkedin_url}")
+        data = await scrape_linkedin_profile(linkedin_url)
+    except Exception as e:
+        import traceback
+        logger.error(f"LinkedIn profile import failed: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to import LinkedIn profile: {str(e)}")
+
+    # ── Merge extracted data into user profile ───────────────────────────
+    update_fields: dict = {}
+
+    # Always persist the (possibly new) LinkedIn URL
+    update_fields["linkedin_url"] = linkedin_url
+
+    # Personal details — only fill if not already set
+    if data.get("name") and not current_user.name:
+        update_fields["name"] = data["name"]
+    if data.get("headline"):
+        update_fields["headline"] = data["headline"]
+    if data.get("location") and not current_user.location:
+        update_fields["location"] = data["location"]
+
+    if data.get("summary"):
+        update_fields["summary"] = data["summary"]
+
+    if data.get("website") and not current_user.website:
+        update_fields["website"] = data["website"]
+
+    if data.get("phone") and not current_user.phone:
+        update_fields["phone"] = data["phone"]
+
+    if data.get("email") and not current_user.email:
+        update_fields["email"] = data["email"]
+
+    # Merge education — avoid duplicates by school name
+    if data.get("education"):
+        existing_edu: list = current_user.education or []
+        existing_schools = {e.get("school", "").lower() for e in existing_edu}
+        new_edu = [
+            e for e in data["education"]
+            if e.get("school") and e["school"].lower() not in existing_schools
+        ]
+        update_fields["education"] = existing_edu + new_edu
+
+    # Merge certifications — avoid duplicates by name
+    if data.get("certifications"):
+        existing_certs: list = current_user.certifications or []
+        existing_names = {c.get("name", "").lower() for c in existing_certs}
+        new_certs = [
+            c for c in data["certifications"]
+            if c.get("name") and c["name"].lower() not in existing_names
+        ]
+        update_fields["certifications"] = existing_certs + new_certs
+
+    # Compute counts BEFORE writing to DB (current_user may be refreshed after)
+    new_edu_count   = len(update_fields.get("education",       [])) - len(current_user.education       or []) if "education"       in update_fields else 0
+    new_certs_count = len(update_fields.get("certifications",  [])) - len(current_user.certifications  or []) if "certifications"  in update_fields else 0
+
+    # Write to DB (DynamoDB or SQL)
+    _FIELD_MAP = {
+        "linkedin_url": "linkedinUrl",
+    }
+    if settings.USE_DYNAMO:
+        from app.services.dynamo_service import dynamo_service
+        dynamo_updates = {_FIELD_MAP.get(k, k): v for k, v in update_fields.items()}
+        await dynamo_service.update_item(
+            "Users",
+            {"userId": str(current_user.id)},
+            {**dynamo_updates, "updatedAt": dynamo_service.now_iso()},
+        )
+    else:
+        if update_fields:
+            await db.execute(
+                update(User).where(User.id == current_user.id).values(**update_fields)
+            )
+            await db.commit()
+            await db.refresh(current_user)
+
+    logger.info(f"LinkedIn profile import complete. Updated fields: {list(update_fields.keys())}")
+
+    return {
+        "success": True,
+        "message": "LinkedIn profile imported successfully",
+        "imported": {
+            "name": data.get("name"),
+            "headline": data.get("headline"),
+            "location": data.get("location"),
+            "summary": bool(data.get("summary")),
+            "website": data.get("website"),
+            "phone": data.get("phone"),
+            "email": data.get("email"),
+            "education_added": new_edu_count,
+            "education": (update_fields.get("education") or [])[-new_edu_count:] if new_edu_count > 0 else [],
+            "certifications_added": new_certs_count,
+        },
+        "data": data,
+    }
