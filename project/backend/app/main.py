@@ -4,14 +4,22 @@ LaTeX Resume Agent - FastAPI Application
 A JD-aware, GitHub-grounded resume generation system.
 """
 
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import structlog
 
+# Set stdlib logging level so structlog's filter_by_level passes INFO through
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
 from app.core.config import settings
 from app.core.database import init_db
+from app.core.cache_middleware import CacheControlMiddleware
 from app.api.routes import projects, resumes, templates, jobs, auth, health, github, skill_gap
 
 
@@ -72,6 +80,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Cache-Control headers for browser caching
+app.add_middleware(CacheControlMiddleware)
 
 # Mount static files for uploads
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
