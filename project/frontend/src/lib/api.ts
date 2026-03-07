@@ -111,12 +111,15 @@ export interface Job {
 
 export interface Application {
   applicationId: string;
+  userId: string;
   jobId: string;
-  company: string;
-  role: string;
-  status: 'applied' | 'interviewing' | 'offer' | 'rejected';
+  companyName: string;
+  roleTitle: string;
+  status: 'saved' | 'applied' | 'viewed' | 'interviewing' | 'offered' | 'rejected';
   appliedAt: string;
+  updatedAt: string;
   resumeId?: string;
+  notes?: string;
   url?: string;
 }
 
@@ -377,6 +380,10 @@ export const resumesApi = {
   downloadPdf: (id: string) =>
     api.get(`/api/resumes/${id}/pdf`, { responseType: 'blob' }),
 
+  /** Get presigned S3 URL for PDF preview (no redirect) */
+  getPdfUrl: (id: string) =>
+    api.get<{ url: string }>(`/api/resumes/${id}/pdf-url`),
+
   downloadTex: (id: string) =>
     api.get(`/api/resumes/${id}/tex`, { responseType: 'blob' }),
 
@@ -494,17 +501,79 @@ export const jobMatchApi = {
   delete: (jobId: string) => api.delete(`/api/jobs/scout/${jobId}`),
 };
 
-// ─── Applications API (Stubs — real in M5) ────────────────────────────────────
+// ─── Applications API (M5) ─────────────────────────────────────────────────
+
+export interface TailorResponse {
+  resumeId: string;
+  pdfUrl: string | null;
+  texUrl: string | null;
+  jobId: string;
+  matchKeywords: string[];
+  diffSummary: {
+    skillsReordered?: boolean;
+    projectsChanged?: string[];
+    keywordsInjected?: string[];
+    bulletsRewritten?: number;
+    sectionsModified?: string[];
+  };
+  compilationError?: string | null;
+}
+
+export interface ApplicationStats {
+  total: number;
+  saved: number;
+  applied: number;
+  viewed: number;
+  interviewing: number;
+  offered: number;
+  rejected: number;
+}
+
+export const tailorApi = {
+  /** Generate a tailored resume for a specific job */
+  generate: (jobId: string) =>
+    api.post<TailorResponse>('/api/resumes/tailor', { jobId }),
+
+  /** Fetch existing tailored resume for a job */
+  getForJob: (jobId: string) =>
+    api.get<TailorResponse>(`/api/resumes/job/${jobId}`),
+};
 
 export const applicationsApi = {
-  list: (_userId: string): Promise<{ data: Application[] }> =>
-    Promise.resolve({ data: [] }),
+  /** List all applications for the current user */
+  list: (userId: string) =>
+    api.get<Application[]>(`/api/applications/user/${userId}`),
 
-  create: (_data: Partial<Application>): Promise<{ data: Application | null }> =>
-    Promise.resolve({ data: null }),
+  /** List with status filter */
+  listFiltered: (userId: string, status: string) =>
+    api.get<Application[]>(`/api/applications/user/${userId}`, {
+      params: { status_filter: status },
+    }),
 
-  updateStatus: (_id: string, _status: Application['status']): Promise<{ data: void }> =>
-    Promise.resolve({ data: undefined }),
+  /** Create a new application record */
+  create: (data: {
+    jobId: string;
+    resumeId?: string;
+    companyName?: string;
+    roleTitle?: string;
+    notes?: string;
+    url?: string;
+  }) => api.post<Application>('/api/applications', data),
+
+  /** Update application status or notes */
+  update: (applicationId: string, data: {
+    status?: Application['status'];
+    notes?: string;
+    resumeId?: string;
+  }) => api.patch<Application>(`/api/applications/${applicationId}`, data),
+
+  /** Delete an application */
+  delete: (applicationId: string) =>
+    api.delete(`/api/applications/${applicationId}`),
+
+  /** Get stats summary */
+  stats: (userId: string) =>
+    api.get<ApplicationStats>(`/api/applications/stats/${userId}`),
 };
 
 export { api };

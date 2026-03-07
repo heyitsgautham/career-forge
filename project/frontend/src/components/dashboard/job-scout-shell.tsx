@@ -25,7 +25,7 @@ import {
   BarChart3,
   X,
 } from 'lucide-react';
-import { jobMatchApi, type Job } from '@/lib/api';
+import { jobMatchApi, tailorApi, type Job } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 /* ─── Skeleton job card ──────────────────────────────────────────────────── */
@@ -86,9 +86,13 @@ export function MatchScoreBadge({ score }: { score: number | null }) {
 function JobCard({
   job,
   onDelete,
+  onTailor,
+  isTailoring,
 }: {
   job: Job;
   onDelete: (id: string) => void;
+  onTailor: (job: Job) => void;
+  isTailoring: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -243,10 +247,15 @@ function JobCard({
               size="sm"
               className="h-7 text-xs gap-1"
               aria-label={`Generate tailored resume for ${job.title}`}
-              title="Coming in M5 — Tailored Apply"
+              onClick={() => onTailor(job)}
+              disabled={isTailoring}
             >
-              <FileText className="h-3 w-3" aria-hidden="true" />
-              Tailored Resume
+              {isTailoring ? (
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+              ) : (
+                <FileText className="h-3 w-3" aria-hidden="true" />
+              )}
+              {isTailoring ? 'Tailoring...' : 'Tailored Resume'}
             </Button>
           </div>
 
@@ -476,6 +485,39 @@ export function JobScoutShell() {
     },
   });
 
+  // Tailor resume mutation
+  const [tailoringJobId, setTailoringJobId] = useState<string | null>(null);
+  const tailorMutation = useMutation({
+    mutationFn: (jobId: string) => tailorApi.generate(jobId),
+    onSuccess: (res) => {
+      setTailoringJobId(null);
+      const data = res.data;
+      if (data.pdfUrl) {
+        window.open(data.pdfUrl, '_blank');
+      }
+      toast({
+        title: 'Tailored resume generated!',
+        description: `Resume tailored for ${data.jobId}. Keywords: ${data.matchKeywords.slice(0, 5).join(', ')}`,
+      });
+    },
+    onError: (err: any) => {
+      setTailoringJobId(null);
+      toast({
+        title: 'Tailoring failed',
+        description: err?.response?.data?.detail || 'Could not generate tailored resume',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleTailor = useCallback(
+    (job: Job) => {
+      setTailoringJobId(job.jobId);
+      tailorMutation.mutate(job.jobId);
+    },
+    [tailorMutation]
+  );
+
   // Derive unique categories from loaded jobs
   const categories = useMemo(() => {
     if (!jobs) return [];
@@ -624,7 +666,13 @@ export function JobScoutShell() {
       {!isLoading && hasJobs && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredJobs.map((job) => (
-            <JobCard key={job.jobId} job={job} onDelete={handleDelete} />
+            <JobCard
+              key={job.jobId}
+              job={job}
+              onDelete={handleDelete}
+              onTailor={handleTailor}
+              isTailoring={tailoringJobId === job.jobId}
+            />
           ))}
         </div>
       )}
