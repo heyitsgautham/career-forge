@@ -185,11 +185,11 @@ function DashboardInner() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* ─── Sidebar ─────────────────────────────────────────────────────── */}
       <aside
         className={`${sidebarOpen ? 'w-64' : 'w-16'
-          } shrink-0 border-r border-border/60 bg-card backdrop-blur-sm transition-all duration-300 relative flex flex-col`}
+          } shrink-0 border-r border-border/60 bg-card backdrop-blur-sm transition-all duration-300 sticky top-0 h-screen flex flex-col overflow-hidden`}
       >
         {/* Brand */}
         <div className="flex h-14 items-center gap-2 border-b border-border/60 px-3">
@@ -198,7 +198,7 @@ function DashboardInner() {
               href="/"
               className="group flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md shadow-primary/25 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md shadow-primary/25 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105">
                 <Zap className="h-4 w-4" aria-hidden="true" />
               </span>
               <span className="font-bold text-sm tracking-tight">CareerForge</span>
@@ -255,7 +255,7 @@ function DashboardInner() {
       </aside>
 
       {/* ─── Main ────────────────────────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col min-w-0" id="main-content">
+      <main className="flex-1 min-w-0 flex flex-col overflow-y-auto" id="main-content">
         {/* Header bar */}
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b border-border/60 bg-card/80 backdrop-blur-xl px-6">
           <div className="min-w-0">
@@ -310,9 +310,12 @@ function DashboardInner() {
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 animate-fade-in-up">
+        <div className="flex-1 p-6 animate-fade-in-up">
           {activeTab === 'resumes' && <ResumesList />}
-          {activeTab === 'projects' && <ProjectsList />}
+          {/* Always keep ProjectsList mounted so import state survives tab switches */}
+          <div className={activeTab !== 'projects' ? 'hidden' : ''}>
+            <ProjectsList />
+          </div>
           {activeTab === 'jobs' && <JobsList />}
           {activeTab === 'templates' && <TemplatesList />}
           {activeTab === 'skill-gap' && <SkillGapShell />}

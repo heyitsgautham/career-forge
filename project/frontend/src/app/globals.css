@@ -196,28 +196,17 @@ a, button, [role="button"], input, select, textarea, .card {
 
 /* Gradient text utility */
 .text-gradient-primary {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-[hsl(210,90%,55%)] to-[hsl(var(--accent))];
+  @apply text-primary;
 }
 
-/* Hero decorative mesh — warm indigo/amber glow */
+/* Hero decorative mesh */
 .hero-mesh {
-    background: radial-gradient(ellipse 60% 40% at 50% 0%, hsla(210,90%,40%,0.06) 0%, transparent 60%),
-              radial-gradient(ellipse 40% 50% at 80% 20%, hsla(38,92%,50%,0.04) 0%, transparent 50%);
+  background: none;
 }
 
 /* Glass morphism utility */
 .glass {
   @apply bg-card/70 backdrop-blur-xl border border-border/50;
-}
-
-/* Animated gradient background for hero */
-@keyframes gradient-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient-shift 8s ease-in-out infinite;
 }
 
 /* Floating blob animation */
@@ -238,11 +227,8 @@ a, button, [role="button"], input, select, textarea, .card {
 }
 
 /* Hero gradient mesh background */
-.hero-mesh {
-  background: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, hsl(212 92% 45% / 0.12), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 50%, hsl(17 92% 68% / 0.08), transparent),
-    radial-gradient(ellipse 50% 50% at 20% 80%, hsl(212 92% 45% / 0.06), transparent);
+.hero-mesh-bg {
+  background: none;
 }
 
 /* Noise texture overlay for depth */
