@@ -222,6 +222,15 @@ class JobScraper:
             if _is_management_role(title):
                 continue
 
+            # Safely convert date_posted — pd.NaT is falsy so "or" short-circuits
+            raw_date = row.get("date_posted")
+            try:
+                import pandas as pd
+                date_posted_str = raw_date.strftime("%Y-%m-%d") if raw_date and raw_date is not pd.NaT else ""
+            except Exception:
+                s = str(raw_date) if raw_date else ""
+                date_posted_str = "" if s.lower() in ("nan", "nat", "none", "null") else s
+
             job = {
                 "title": title,
                 "company": str(row.get("company") or "").strip() or None,
@@ -229,7 +238,7 @@ class JobScraper:
                 "description": str(row.get("description") or ""),
                 "url": url,
                 "source": str(row.get("site") or "unknown"),
-                "date_posted": str(row.get("date_posted") or ""),
+                "date_posted": date_posted_str,
                 "salary": salary,
                 "job_type": job_type,
             }
