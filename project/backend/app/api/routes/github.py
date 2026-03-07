@@ -92,6 +92,7 @@ async def run_ingestion(
         logger.info("run_ingestion: repos to process", count=len(repos_to_process), mode=mode)
 
         processed, failed = 0, 0
+        all_tech: set = set()
         for repo_meta in repos_to_process:
             try:
                 await asyncio.sleep(0.1)  # respect rate limits
@@ -104,6 +105,9 @@ async def run_ingestion(
 
                 # Bedrock structured summary → .md content
                 project_data = await github_service.create_project_from_repo(repo_detail)
+
+                # Collect technologies for profile skills update
+                all_tech.update(project_data.get("technologies", []))
 
                 # For sync: reuse existing projectId so put_item overwrites in place
                 # For import_new: generate a fresh UUID
@@ -124,6 +128,23 @@ async def run_ingestion(
                     error=str(e),
                 )
                 failed += 1
+
+        # Merge extracted tech into the user's skills list (deduplicated, preserve existing).
+        if all_tech:
+            existing_user = await dynamo_service.get_item(
+                table=f"{settings.DYNAMO_TABLE_PREFIX}Users",
+                key={"userId": user_id},
+            )
+            existing_skills: list = existing_user.get("skills") or [] if existing_user else []
+            merged_skills = list(dict.fromkeys(
+                [s for s in existing_skills if s] + sorted(all_tech)
+            ))
+            await dynamo_service.update_item(
+                table=f"{settings.DYNAMO_TABLE_PREFIX}Users",
+                key={"userId": user_id},
+                updates={"skills": merged_skills},
+            )
+            logger.info("run_ingestion: updated user skills", user_id=user_id, new_count=len(merged_skills))
 
         # Update ingestion status
         summary = {
