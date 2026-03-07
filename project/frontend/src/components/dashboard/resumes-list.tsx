@@ -309,6 +309,19 @@ export function ResumesList() {
                         {resume.status === 'generated' && !resume.pdf_path && (
                           <CompileButton resumeId={resume.id} />
                         )}
+                        {/* Open in Editor — available for any resume with LaTeX content */}
+                        {(resume.latex_content || ['generated', 'compiled', 'error'].includes(resume.status)) && (
+                          <Link href={`/dashboard/resumes/${resume.id}/edit`}>
+                            <Button
+                              size="sm"
+                              variant={resume.status === 'compiled' ? 'default' : 'outline'}
+                              className={`gap-1 h-8 text-xs ${resume.status === 'compiled' ? 'bg-violet-600 hover:bg-violet-700 text-white' : ''}`}
+                            >
+                              <Edit className="h-3 w-3" />
+                              {resume.status === 'compiled' ? 'Open in Editor' : 'Edit'}
+                            </Button>
+                          </Link>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -610,6 +623,15 @@ function ResumeGenerator({
                           Download .tex Source
                         </button>
                       )}
+                      {/* Open in Editor shortcut — shown when status is compiled */}
+                      <Link
+                        href={`/dashboard/resumes/${result.resume_id}/edit`}
+                        onClick={onClose}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        Open in Editor
+                      </Link>
                     </div>
                   </div>
                 </div>

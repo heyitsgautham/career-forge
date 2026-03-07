@@ -1,38 +1,66 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import Editor from '@monaco-editor/react';
-import { resumesApi, projectsApi, templatesApi } from '@/lib/api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { resumesApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  ArrowLeft, 
-  Save, 
-  Play, 
-  Download, 
-  FileText,
+import {
+  ArrowLeft,
+  Save,
+  Play,
+  Download,
   Loader2,
+  FileText,
+  Eye,
+  Cloud,
   CheckCircle,
-  XCircle,
-  Eye
+  Code2,
 } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { LatexEditorHandle } from '@/components/resume-editor/latex-editor';
+import { PdfPreview } from '@/components/resume-editor/pdf-preview';
+import { EditorLayout } from '@/components/resume-editor/editor-layout';
+import { AiChatDrawer } from '@/components/resume-editor/ai-chat-drawer';
+import { cn } from '@/lib/utils';
+
+// Monaco editor must be dynamically imported (no SSR)
+const LatexEditor = dynamic(
+  () => import('@/components/resume-editor/latex-editor').then((m) => m.LatexEditor),
+  { ssr: false, loading: () => <div className="flex-1 bg-[#1e1e1e]" /> },
+);
+
+type CompileStatus = 'idle' | 'compiling' | 'success' | 'error';
+type SaveStatus = 'saved' | 'dirty' | 'saving';
+type LeftView = 'code' | 'preview';
+
+const AUTO_SAVE_DELAY = 2000; // ms
+const AUTO_COMPILE_DELAY = 3000; // ms
 
 export default function ResumeEditorPage() {
   const params = useParams();
-  const router = useRouter();
   const { toast } = useToast();
   const resumeId = params.id as string;
-  
-  const [latexContent, setLatexContent] = useState('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Fetch resume data
-  const { data: resume, isLoading, refetch } = useQuery({
+  // Editor handle ref (from Monaco)
+  const editorHandleRef = useRef<LatexEditorHandle | null>(null);
+
+  // State
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [compileStatus, setCompileStatus] = useState<CompileStatus>('idle');
+  const [compileError, setCompileError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [leftView, setLeftView] = useState<LeftView>('code');
+  const [autoCompile, setAutoCompile] = useState(true); // on by default
+
+  // Debounce timers
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoCompileTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch resume
+  const { data: resume, isLoading } = useQuery({
     queryKey: ['resume', resumeId],
     queryFn: async () => {
       const res = await resumesApi.get(resumeId);
@@ -41,238 +69,359 @@ export default function ResumeEditorPage() {
     enabled: !!resumeId,
   });
 
-  // Update local state when resume loads
+  // On resume load: try to get existing PDF URL
   useEffect(() => {
-    if (resume?.latex_content) {
-      setLatexContent(resume.latex_content);
-    }
-  }, [resume]);
-
-  // Save mutation
-  const saveMutation = useMutation({
-    mutationFn: () => resumesApi.updateLatex(resumeId, latexContent),
-    onSuccess: () => {
-      setHasUnsavedChanges(false);
-      toast({ title: 'Saved!', description: 'LaTeX content saved successfully.' });
-      refetch();
-    },
-    onError: () => {
-      toast({ 
-        title: 'Error', 
-        description: 'Failed to save changes.', 
-        variant: 'destructive' 
-      });
-    },
-  });
-
-  // Compile mutation
-  const compileMutation = useMutation({
-    mutationFn: async () => {
-      // Save first if there are changes
-      if (hasUnsavedChanges) {
-        await resumesApi.updateLatex(resumeId, latexContent);
-      }
-      return resumesApi.compile(resumeId);
-    },
-    onSuccess: (res) => {
-      if (res.data.success) {
-        toast({ title: 'Compiled!', description: 'PDF generated successfully.' });
-      } else {
-        toast({ 
-          title: 'Compilation failed', 
-          description: res.data.errors?.[0]?.message || 'Check LaTeX for errors.',
-          variant: 'destructive'
+    if (!resume) return;
+    if (resume.status === 'compiled' || resume.pdf_path) {
+      resumesApi
+        .getPdfUrl(resumeId)
+        .then((res) => {
+          setPdfUrl(res.data.url);
+          setCompileStatus('success');
+        })
+        .catch(() => {
+          if (resume.pdf_path) {
+            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            setPdfUrl(`${apiBase}/uploads/pdfs/${resumeId.slice(0, 8)}.pdf`);
+            setCompileStatus('success');
+          }
         });
+    }
+  }, [resume, resumeId]);
+
+  // ─── Save ───────────────────────────────────────────────────────────────────
+
+  const doSave = useCallback(
+    async (latex?: string) => {
+      const content = latex ?? editorHandleRef.current?.getValue() ?? '';
+      if (!content) return;
+      setSaveStatus('saving');
+      try {
+        await resumesApi.saveLaTeX(resumeId, content);
+        setSaveStatus('saved');
+      } catch {
+        setSaveStatus('dirty');
+        toast({ title: 'Save failed', variant: 'destructive' });
       }
-      refetch();
     },
-    onError: () => {
-      toast({ 
-        title: 'Error', 
-        description: 'Compilation failed.', 
-        variant: 'destructive' 
-      });
-    },
-  });
+    [resumeId, toast],
+  );
 
-  // Download PDF
-  const handleDownload = async () => {
+  // ─── Compile ─────────────────────────────────────────────────────────────────
+
+  const doCompile = useCallback(async () => {
+    const content = editorHandleRef.current?.getValue();
+    if (!content) return;
+    setCompileStatus('compiling');
+    setCompileError(null);
+    editorHandleRef.current?.clearMarkers?.();
+    // Switch to preview so the user sees the result
+    setLeftView('preview');
     try {
-      const response = await resumesApi.downloadPdf(resumeId);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${resume?.name || 'resume'}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const res = await resumesApi.compileWithContent(resumeId, content);
+      const { pdf_url, status, error_message } = res.data;
+      if (status === 'compiled' && pdf_url) {
+        let finalUrl = pdf_url;
+        try {
+          const urlRes = await resumesApi.getPdfUrl(resumeId);
+          finalUrl = urlRes.data.url;
+        } catch {
+          finalUrl = pdf_url;
+        }
+        setPdfUrl(finalUrl);
+        setCompileStatus('success');
+        toast({ title: 'Compiled successfully' });
+      } else {
+        setCompileStatus('error');
+        setCompileError(error_message ?? 'Compilation failed');
+        toast({ title: 'Compilation failed', variant: 'destructive' });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Compilation failed';
+      setCompileStatus('error');
+      setCompileError(message);
+      toast({ title: 'Compile error', variant: 'destructive' });
+    }
+  }, [resumeId, toast]);
+
+  // ─── Editor change handler ────────────────────────────────────────────────────
+
+  const handleEditorChange = useCallback(
+    (value: string) => {
+      setSaveStatus('dirty');
+
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => doSave(value), AUTO_SAVE_DELAY);
+
+      if (autoCompile) {
+        if (autoCompileTimerRef.current) clearTimeout(autoCompileTimerRef.current);
+        autoCompileTimerRef.current = setTimeout(() => doCompile(), AUTO_COMPILE_DELAY);
+      }
+    },
+    [doSave, doCompile, autoCompile],
+  );
+
+  // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === 's') {
+        e.preventDefault();
+        doSave();
+      }
+      if (mod && e.key === 'Enter') {
+        e.preventDefault();
+        doCompile();
+      }
+      // Toggle left view with backtick
+      if (e.key === '`' && !mod) {
+        setLeftView((v) => (v === 'code' ? 'preview' : 'code'));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [doSave, doCompile]);
+
+  // ─── Download PDF ─────────────────────────────────────────────────────────────
+
+  const handleDownload = () => {
+    if (pdfUrl) window.open(pdfUrl, '_blank');
+  };
+
+  // ─── Download .tex ────────────────────────────────────────────────────────────
+
+  const handleDownloadTex = async () => {
+    try {
+      const response = await resumesApi.downloadTex(resumeId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/plain' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${resume?.name || 'resume'}.tex`;
+      a.click();
+      window.URL.revokeObjectURL(url);
     } catch {
-      toast({ 
-        title: 'Error', 
-        description: 'Failed to download PDF.',
-        variant: 'destructive'
-      });
+      toast({ title: '.tex download failed', variant: 'destructive' });
     }
   };
 
-  const handleEditorChange = (value: string | undefined) => {
-    if (value !== undefined) {
-      setLatexContent(value);
-      setHasUnsavedChanges(true);
-    }
-  };
+  // ─── Apply AI latex ────────────────────────────────────────────────────────────
+
+  const handleApplyLatex = useCallback(
+    (latex: string) => {
+      editorHandleRef.current?.setValue(latex);
+      setSaveStatus('dirty');
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => doSave(latex), AUTO_SAVE_DELAY);
+      toast({ title: 'AI changes applied to editor' });
+      // Switch to code view so user can see what changed
+      setLeftView('code');
+    },
+    [doSave, toast],
+  );
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+          <span className="text-sm text-muted-foreground">Loading editor…</span>
+        </div>
       </div>
     );
   }
 
+  if (!resume) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-4">
+        <FileText className="h-12 w-12 text-muted-foreground opacity-30" />
+        <p className="text-muted-foreground">Resume not found.</p>
+        <Link href="/dashboard">
+          <Button variant="outline" size="sm">Back to Dashboard</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const saveIndicator =
+    saveStatus === 'saving' ? (
+      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Cloud className="h-3.5 w-3.5 animate-pulse" /> Saving…
+      </span>
+    ) : saveStatus === 'dirty' ? (
+      <span className="text-xs text-amber-500">● Unsaved</span>
+    ) : (
+      <span className="flex items-center gap-1 text-xs text-emerald-600">
+        <CheckCircle className="h-3.5 w-3.5" /> Saved
+      </span>
+    );
+
+  // ─── Left panel ───────────────────────────────────────────────────────────────
+
+  const leftPanel = (
+    <div className="h-full flex flex-col">
+      {/* Tab bar: Code / Preview toggle */}
+      <div className="flex items-center gap-0 px-2 py-1.5 border-b bg-card shrink-0">
+        <button
+          onClick={() => setLeftView('code')}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
+            leftView === 'code'
+              ? 'bg-violet-600 text-white'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+          )}
+        >
+          <Code2 className="h-3.5 w-3.5" />
+          Code
+        </button>
+        <button
+          onClick={() => setLeftView('preview')}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
+            leftView === 'preview'
+              ? 'bg-violet-600 text-white'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+          )}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          Preview
+        </button>
+        {leftView === 'code' && (
+          <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground pr-1">
+            <FileText className="h-3.5 w-3.5" />
+            {resume.name}.tex
+          </span>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-hidden">
+        {/* Monaco — always mounted to keep state, hidden when not in code view */}
+        <div className={cn('h-full', leftView !== 'code' && 'hidden')}>
+          <LatexEditor
+            initialValue={resume.latex_content ?? ''}
+            onChange={handleEditorChange}
+            onEditorReady={(handle) => {
+              editorHandleRef.current = handle;
+            }}
+          />
+        </div>
+
+        {/* PDF preview — shown in preview view */}
+        {leftView === 'preview' && (
+          <PdfPreview
+            pdfUrl={pdfUrl}
+            compileStatus={compileStatus}
+            errorMessage={compileError}
+            onRecompile={doCompile}
+            className="h-full"
+          />
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b bg-card px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* ── Toolbar ─────────────────────────────────────────────────── */}
+      <header className="flex items-center justify-between px-4 py-2 border-b bg-card shrink-0 h-14">
+        {/* Left */}
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/dashboard?tab=resumes">
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div>
-            <h1 className="font-semibold flex items-center gap-2">
-              {resume?.name}
-              {hasUnsavedChanges && <span className="text-muted-foreground text-sm">(unsaved)</span>}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Status: {resume?.status}
-            </p>
+          <div className="min-w-0">
+            <h1 className="font-semibold text-sm truncate">{resume.name}</h1>
+            <div className="flex items-center gap-2">{saveIndicator}</div>
           </div>
         </div>
-        
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+
+        {/* Right */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Auto-compile toggle */}
+          <Button
+            variant={autoCompile ? 'secondary' : 'ghost'}
             size="sm"
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !hasUnsavedChanges}
+            className="h-8 gap-1.5 text-xs hidden sm:flex"
+            onClick={() => setAutoCompile((v) => !v)}
           >
-            {saveMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Play className="h-3 w-3" />
+            Auto-compile {autoCompile ? 'ON' : 'OFF'}
+          </Button>
+
+          {/* Save */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => doSave()}
+            disabled={saveStatus === 'saving'}
+          >
+            {saveStatus === 'saving' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Save className="h-4 w-4 mr-2" />
+              <Save className="h-3.5 w-3.5" />
             )}
             Save
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          {/* Compile */}
+          <Button
+            variant="outline"
             size="sm"
-            onClick={() => compileMutation.mutate()}
-            disabled={compileMutation.isPending}
+            className="h-8 gap-1.5 text-xs"
+            onClick={doCompile}
+            disabled={compileStatus === 'compiling'}
           >
-            {compileMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            {compileStatus === 'compiling' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Play className="h-4 w-4 mr-2" />
+              <Play className="h-3.5 w-3.5" />
             )}
             Compile
           </Button>
-          
-          <Button 
+
+          {/* Download PDF */}
+          <Button
             size="sm"
+            className="h-8 gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white"
             onClick={handleDownload}
-            disabled={resume?.status !== 'compiled'}
+            disabled={!pdfUrl}
           >
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF
+            <Download className="h-3.5 w-3.5" />
+            PDF
+          </Button>
+
+          {/* Download .tex */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-xs hidden md:flex"
+            onClick={handleDownloadTex}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            .tex
           </Button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Editor Panel */}
-        <div className="flex-1 border-r flex flex-col">
-          <div className="p-2 border-b bg-muted/50 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">LaTeX Editor</span>
-          </div>
-          <div className="flex-1">
-            <Editor
-              height="100%"
-              defaultLanguage="latex"
-              value={latexContent}
-              onChange={handleEditorChange}
-              theme="vs-dark"
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                lineNumbers: 'on',
-                wordWrap: 'on',
-                automaticLayout: true,
-                scrollBeyondLastLine: false,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Preview Panel */}
-        <div className="w-1/2 flex flex-col">
-          <div className="p-2 border-b bg-muted/50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">PDF Preview</span>
-            </div>
-            {resume?.status === 'compiled' && (
-              <span className="flex items-center gap-1 text-xs text-green-600">
-                <CheckCircle className="h-3 w-3" />
-                Ready
-              </span>
-            )}
-            {resume?.status === 'error' && (
-              <span className="flex items-center gap-1 text-xs text-red-600">
-                <XCircle className="h-3 w-3" />
-                Error
-              </span>
-            )}
-          </div>
-          <div className="flex-1 bg-muted overflow-auto p-4">
-            {resume?.status === 'compiled' && resume?.pdf_path ? (
-              <iframe
-                src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/uploads/pdfs/${resumeId.slice(0, 8)}.pdf`}
-                className="w-full h-full border-0"
-                title="PDF Preview"
-              />
-            ) : resume?.latex_content ? (
-              <div className="h-full">
-                <div className="bg-card p-4 rounded-lg shadow-inner max-h-full overflow-auto">
-                  <h3 className="text-sm font-semibold mb-2 text-muted-foreground">LaTeX Preview (raw)</h3>
-                  <pre className="text-xs font-mono whitespace-pre-wrap">
-                    {latexContent.slice(0, 2000)}
-                    {latexContent.length > 2000 && '...'}
-                  </pre>
-                </div>
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-                <FileText className="h-16 w-16 mb-4 opacity-30" />
-                <p className="text-center">
-                  {resume?.status === 'error' 
-                    ? 'Compilation failed. Check your LaTeX for errors.'
-                    : 'Click "Compile" to generate PDF preview'}
-                </p>
-                {resume?.error_message && (
-                  <p className="text-sm text-destructive mt-2 max-w-md text-center">
-                    {resume.error_message}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* ── Main: left (AI chat) + right (code/preview toggle) ───── */}
+      <EditorLayout
+        className="flex-1"
+        left={
+          <AiChatDrawer
+            resumeId={resumeId}
+            getLatex={() => editorHandleRef.current?.getValue() ?? resume.latex_content ?? ''}
+            onApplyLatex={handleApplyLatex}
+          />
+        }
+        right={leftPanel}
+      />
     </div>
   );
 }
+
