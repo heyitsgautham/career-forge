@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  CareerForge — Daily Job Digest Lambda
+  Triggered every evening by EventBridge; publishes top-scoring
+  jobs to SNS, which delivers the digest email to all subscribers.
+
+# ── Parameters ────────────────────────────────────────────────────────────
+Parameters:
+  DynamoDBTable:
+    Type: String
+    Default: Jobs
+    Description: DynamoDB table that stores scraped jobs
+
+  TopJobsCount:
+    Type: Number
+    Default: 5
+    Description: Number of top-scored jobs to include in the digest
+
+  DigestSchedule:
+    Type: String
+    # cron(min hour day month weekday year) — UTC
+    # 13:30 UTC = 7:00 PM IST (end of working day)
+    Default: "cron(30 13 * * ? *)"
+    Description: EventBridge schedule expression (UTC) for the daily digest
+
+  RecipientEmails:
+    Type: CommaDelimitedList
+    Default: "krishnagoutham37@gmail.com,hiruviru18@gmail.com,kishorerose88@gmail.com"
+    Description: >
+      Comma-separated list of email addresses to subscribe to the SNS topic.
+      Each address will receive a confirmation email that must be accepted
+      before digest emails start arriving.
+
+# ── Globals ───────────────────────────────────────────────────────────────
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 60
+    MemorySize: 256
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Ref DynamoDBTable
+        TOP_JOBS_COUNT: !Ref TopJobsCount
+        AWS_REGION:     !Ref AWS::Region
+
+# ── Resources ─────────────────────────────────────────────────────────────
+Resources:
+
+  # ── SNS Topic (email delivery) ──────────────────────────────────────────
+  DailyDigestTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: careerforge-daily-digest
+      DisplayName: "CareerForge Job Digest"
+
+  # ── Email subscriptions (one per address) ───────────────────────────────
+  # NOTE: Each subscriber will receive an AWS confirmation email.
+  #       Digest emails only start after the link in that email is clicked.
+  Subscription0:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DailyDigestTopic
+      Protocol: email
+      Endpoint: !Select [0, !Ref RecipientEmails]
+
+  Subscription1:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DailyDigestTopic
+      Protocol: email
+      Endpoint: !Select [1, !Ref RecipientEmails]
+
+  Subscription2:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DailyDigestTopic
+      Protocol: email
+      Endpoint: !Select [2, !Ref RecipientEmails]
+
+  # ── IAM Role for Lambda ──────────────────────────────────────────────────
+  DigestFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: careerforge-daily-digest-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DigestPermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Read all jobs from DynamoDB (no userId filter — shared table)
+              - Effect: Allow
+                Action:
+                  - dynamodb:Scan
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTable}"
+              # Publish the digest message to SNS
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref DailyDigestTopic
+
+  # ── Lambda Function ───────────────────────────────────────────────────────
+  DigestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: careerforge-daily-job-digest
+      CodeUri: .
+      Handler: handler.lambda_handler
+      Role: !GetAtt DigestFunctionRole.Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref DailyDigestTopic
+      Events:
+        DailyTrigger:
+          Type: Schedule
+          Properties:
+            Name: careerforge-digest-schedule
+            Description: "Trigger CareerForge daily job digest at 7 PM IST"
+            Schedule: !Ref DigestSchedule
+            Enabled: true
+
+# ── Outputs ───────────────────────────────────────────────────────────────
+Outputs:
+  DigestTopicArn:
+    Description: ARN of the SNS topic (save this if you want to publish manually)
+    Value: !Ref DailyDigestTopic
+
+  DigestFunctionArn:
+    Description: ARN of the daily digest Lambda function
+    Value: !GetAtt DigestFunction.Arn
+
+  DigestFunctionName:
+    Description: Lambda function name (for manual test invocations)
+    Value: !Ref DigestFunction
