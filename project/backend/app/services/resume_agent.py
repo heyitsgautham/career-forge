@@ -159,7 +159,7 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
       "company": "Company Name",
       "location": "",
       "highlights": [
-        "Bullet starting with strong action verb (95-110 chars)",
+        "Bullet starting with strong action verb (Strictly Exactly 95-110 chars)",
         "Another bullet point with metrics"
       ]
     }
@@ -168,9 +168,9 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
     {
       "name": "Project Name",
       "url": "https://github.com/user/repo",
-      "technologies": "Python, FastAPI, Docker",
+      "technologies": "Python, FastAPI, Docker, Next.js, GCP, RAG, Typescript",
       "highlights": [
-        "First bullet MUST describe what the project does (product description)",
+        "First bullet MUST describe what the project does (Strictly Exactly 95-110 chars)",
         "Technical implementation detail with metric",
         "Architectural/impact achievement with metric"
       ]
@@ -189,9 +189,9 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
 
 1. **ANTI-HALLUCINATION**: Only use data from the provided project summaries and user profile. Never fabricate metrics, experience, skills, or any facts not in the source data.
 2. **ONE-PAGE FIT**: Resume MUST fit on a single letter-size page.
-   - Max 3 bullet points per project (single line each, 95-110 chars)
+   - Max 3 bullet points per project (single line each, Strictly Exactly 95-110 chars)
    - Select 3-4 projects based on whether experience exists
-   - Keep experience bullets to 3-4 per role (95-110 chars each)
+   - Keep experience bullets to 3-4 per role (Strictly Exactly 95-110 chars each)
    - Professional summary: 2-3 concise sentences
 3. **PLAIN TEXT ONLY**: All string values must be plain text. NO LaTeX commands (no \textbf, no \href, no \\, no \%). The template engine adds all formatting. The ONLY exception: use -- (double hyphen) for date ranges.
 4. **PROFESSIONAL SUMMARY**: 
@@ -206,11 +206,11 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
    - Include specific technologies from the project
    - First bullet of each project MUST describe what the project does (product description, not tech stack)
    - At least 2 of 3 project bullets MUST contain quantifiable numbers (e.g., "98% reduction", "500+ users", "3 microservices")
-   - Each bullet: 95-110 characters. Under 95 = too short, expand it
+   - Each bullet: Strictly Exactly 95-110 characters. Under 95 = too short, expand it
 6. **EXPERIENCE HANDLING**:
    - If experience data is provided, include it and select 3 projects
    - If NO experience data, select 4 projects to compensate
-   - Generate 3-4 bullets per experience role (95-110 chars each)
+   - Generate 3-4 bullets per experience role (Strictly Exactly 95-110 chars each)
    - Experience bullets must be based on provided experience data only
 7. **SECTIONS ORDER**: Header → Professional Summary → Education → Experience (if provided) → Projects → Technical Skills
 8. **OMIT EMPTY SECTIONS**: If no education/experience data available, use empty arrays []. Do not invent data.
