@@ -51,6 +51,7 @@ export default function ResumeEditorPage() {
   const [compileError, setCompileError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [autoCompile, setAutoCompile] = useState(true); // on by default
+  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
 
   // Debounce timers
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -254,37 +255,45 @@ export default function ResumeEditorPage() {
       {/* Tab bar: Code / Preview toggle */}
       <div className="flex items-center gap-0 px-2 py-1.5 border-b bg-card shrink-0">
         <button
-          className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors bg-violet-600 text-white"
+          onClick={() => setActiveTab('code')}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
+            activeTab === 'code'
+              ? 'bg-violet-600 text-white'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+          )}
         >
           <Code2 className="h-3.5 w-3.5" />
           Code
         </button>
         <button
           onClick={() => {
-            if (pdfUrl) {
-              window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-            } else {
+            if (!pdfUrl) {
               toast({ title: 'No PDF yet — compile first', variant: 'destructive' });
+              return;
             }
+            setActiveTab('preview');
           }}
           className={cn(
             'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
-            'text-muted-foreground hover:text-foreground hover:bg-muted',
+            activeTab === 'preview'
+              ? 'bg-violet-600 text-white'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
           )}
         >
           <Eye className="h-3.5 w-3.5" />
           Preview
         </button>
         <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground pr-1">
-            <FileText className="h-3.5 w-3.5" />
-            {resume.name}.tex
-          </span>
+          <FileText className="h-3.5 w-3.5" />
+          {resume.name}.tex
+        </span>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {/* Monaco editor */}
-        <div className="h-full">
+        {/* Monaco editor — always mounted so state is preserved, hidden when previewing */}
+        <div className={cn('h-full', activeTab !== 'code' && 'hidden')}>
           <LatexEditor
             initialValue={resume.latex_content ?? ''}
             onChange={handleEditorChange}
@@ -294,6 +303,22 @@ export default function ResumeEditorPage() {
           />
         </div>
 
+        {/* Inline PDF preview */}
+        {activeTab === 'preview' && (
+          <div className="h-full bg-[#525659]">
+            {pdfUrl ? (
+              <iframe
+                src={pdfUrl}
+                title="Resume PDF preview"
+                className="w-full h-full border-0"
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-sm text-muted-foreground">No PDF yet — compile first</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
