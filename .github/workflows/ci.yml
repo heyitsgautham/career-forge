@@ -51,7 +51,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: project/frontend/.nvmrc
           cache: npm
@@ -84,7 +84,7 @@ jobs:
           --ignore-vuln PYSEC-2026-3813
           --ignore-vuln PYSEC-2026-3814
           --ignore-vuln PYSEC-2026-1604
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: project/frontend/.nvmrc
       - name: npm audit (frontend)
