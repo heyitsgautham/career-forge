@@ -9,14 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Github, RefreshCw, X, Lock, Globe } from 'lucide-react';
 
-export function GithubImportModal({ 
-  onClose, 
-  onStartImport, 
+export function GithubImportModal({
+  onClose,
+  onStartImport,
   importedRepoNames,
   projectsLoading = false,
-}: { 
-  onClose: () => void; 
-  onStartImport: (fullNames: string[]) => void; 
+}: {
+  onClose: () => void;
+  onStartImport: (fullNames: string[]) => void;
   importedRepoNames: Set<string>;
   projectsLoading?: boolean;
 }) {
@@ -27,7 +27,11 @@ export function GithubImportModal({
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
 
   // Fetch user's GitHub repositories
-  const { data: userRepos, isLoading: loadingRepos, error: reposError } = useQuery({
+  const {
+    data: userRepos,
+    isLoading: loadingRepos,
+    error: reposError,
+  } = useQuery({
     queryKey: ['github-user-repos'],
     queryFn: async () => {
       const res = await projectsApi.listGithubUserRepos();
@@ -44,16 +48,16 @@ export function GithubImportModal({
       }>;
     },
     retry: false,
-    staleTime: 5 * 60 * 1000,   // 5 min
-    gcTime: 30 * 60 * 1000,     // 30 min
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 30 * 60 * 1000, // 30 min
   });
 
   // Filter repos based on search query and visibility
-  const filteredRepos = userRepos?.filter(repo => {
+  const filteredRepos = userRepos?.filter((repo) => {
     // Apply visibility filter first
     if (visibilityFilter === 'public' && repo.is_private) return false;
     if (visibilityFilter === 'private' && !repo.is_private) return false;
-    
+
     // Then apply search query
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
@@ -66,13 +70,13 @@ export function GithubImportModal({
   });
 
   // Compute visibility counts from full userRepos list
-  const publicCount = userRepos?.filter(r => !r.is_private).length ?? 0;
-  const privateCount = userRepos?.filter(r => r.is_private).length ?? 0;
+  const publicCount = userRepos?.filter((r) => !r.is_private).length ?? 0;
+  const privateCount = userRepos?.filter((r) => r.is_private).length ?? 0;
 
   const isAlreadyImported = (repo: { name: string }) => importedRepoNames.has(repo.name);
 
   const toggleRepo = (fullName: string) => {
-    setSelectedRepos(prev => {
+    setSelectedRepos((prev) => {
       const next = new Set(prev);
       if (next.has(fullName)) {
         next.delete(fullName);
@@ -85,18 +89,18 @@ export function GithubImportModal({
 
   const toggleAll = () => {
     if (!filteredRepos) return;
-    const selectableRepos = filteredRepos.filter(r => !isAlreadyImported(r));
-    const allFilteredSelected = selectableRepos.every(r => selectedRepos.has(r.full_name));
+    const selectableRepos = filteredRepos.filter((r) => !isAlreadyImported(r));
+    const allFilteredSelected = selectableRepos.every((r) => selectedRepos.has(r.full_name));
     if (allFilteredSelected) {
-      setSelectedRepos(prev => {
+      setSelectedRepos((prev) => {
         const next = new Set(prev);
-        selectableRepos.forEach(r => next.delete(r.full_name));
+        selectableRepos.forEach((r) => next.delete(r.full_name));
         return next;
       });
     } else {
-      setSelectedRepos(prev => {
+      setSelectedRepos((prev) => {
         const next = new Set(prev);
-        selectableRepos.forEach(r => next.add(r.full_name));
+        selectableRepos.forEach((r) => next.add(r.full_name));
         return next;
       });
     }
@@ -114,8 +118,11 @@ export function GithubImportModal({
     }
   };
 
-  const selectableFilteredRepos = filteredRepos?.filter(r => !isAlreadyImported(r));
-  const allFilteredSelected = selectableFilteredRepos && selectableFilteredRepos.length > 0 && selectableFilteredRepos.every(r => selectedRepos.has(r.full_name));
+  const selectableFilteredRepos = filteredRepos?.filter((r) => !isAlreadyImported(r));
+  const allFilteredSelected =
+    selectableFilteredRepos &&
+    selectableFilteredRepos.length > 0 &&
+    selectableFilteredRepos.every((r) => selectedRepos.has(r.full_name));
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
@@ -160,13 +167,10 @@ export function GithubImportModal({
                     Failed to load repositories
                   </p>
                   <p className="text-xs text-muted-foreground mb-3">
-                    {(reposError as any)?.response?.data?.detail || 'No GitHub account connected or connection expired'}
+                    {(reposError as any)?.response?.data?.detail ||
+                      'No GitHub account connected or connection expired'}
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setImportMode('url')}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setImportMode('url')}>
                     Switch to URL Import
                   </Button>
                 </div>
@@ -231,12 +235,7 @@ export function GithubImportModal({
 
                   {/* Select All / Deselect All */}
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={toggleAll}
-                      className="text-xs"
-                    >
+                    <Button variant="outline" size="sm" onClick={toggleAll} className="text-xs">
                       {allFilteredSelected ? 'Deselect All' : 'Select All'}
                     </Button>
                     {selectedRepos.size > 0 && (
@@ -277,12 +276,29 @@ export function GithubImportModal({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-sm truncate">{repo.full_name}</span>
-                              {imported && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]">Imported</Badge>}
-                              {repo.is_private && <Badge variant="outline" className="text-[10px] px-1 py-0">Private</Badge>}
-                              {repo.is_fork && <Badge variant="outline" className="text-[10px] px-1 py-0">Fork</Badge>}
+                              {imported && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] px-1.5 py-0 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]"
+                                >
+                                  Imported
+                                </Badge>
+                              )}
+                              {repo.is_private && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                  Private
+                                </Badge>
+                              )}
+                              {repo.is_fork && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                  Fork
+                                </Badge>
+                              )}
                             </div>
                             {repo.description && (
-                              <p className="text-xs text-muted-foreground mt-0.5 truncate">{repo.description}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                {repo.description}
+                              </p>
                             )}
                             <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
                               {repo.language && <span>{repo.language}</span>}
@@ -296,7 +312,8 @@ export function GithubImportModal({
                   </div>
 
                   <p className="text-sm text-muted-foreground">
-                    💡 Select one or more repositories to import. We&apos;ll analyze each to extract project details via AI.
+                    💡 Select one or more repositories to import. We&apos;ll analyze each to extract
+                    project details via AI.
                   </p>
                 </>
               ) : (
@@ -327,7 +344,9 @@ export function GithubImportModal({
           )}
 
           <div className="flex gap-2 justify-end pt-4">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
             <Button
               onClick={handleImport}
               disabled={
@@ -337,8 +356,7 @@ export function GithubImportModal({
             >
               {importMode === 'select' && selectedRepos.size > 1
                 ? `Import ${selectedRepos.size} Repositories`
-                : 'Import Repository'
-              }
+                : 'Import Repository'}
             </Button>
           </div>
         </div>

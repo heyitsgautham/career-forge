@@ -6,9 +6,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Map, Loader2, ChevronDown, Clock, CheckCircle2,
-  ExternalLink, Sparkles, ArrowLeft, Trophy, Star, Lock, Unlock, Trash2,
-  Code2, Rocket, X, Wrench, Layers, ListChecks, BookOpen,
+  Map,
+  Loader2,
+  ChevronDown,
+  Clock,
+  CheckCircle2,
+  ExternalLink,
+  Sparkles,
+  ArrowLeft,
+  Trophy,
+  Star,
+  Lock,
+  Unlock,
+  Trash2,
+  Code2,
+  Rocket,
+  X,
+  Wrench,
+  Layers,
+  ListChecks,
+  BookOpen,
 } from 'lucide-react';
 import {
   projectRoadmapApi,
@@ -20,39 +37,103 @@ import { useToast } from '@/hooks/use-toast';
 
 /* ─── Domain suggestions for quick-pick ──────────────────────────────────── */
 const DOMAIN_CHIPS = [
-  'Web Development', 'Backend Development', 'Mobile Development',
-  'Machine Learning', 'Data Engineering', 'DevOps & Cloud',
-  'Blockchain', 'Game Development', 'Cybersecurity',
-  'AI / LLM Apps', 'System Design', 'Embedded Systems',
+  'Web Development',
+  'Backend Development',
+  'Mobile Development',
+  'Machine Learning',
+  'Data Engineering',
+  'DevOps & Cloud',
+  'Blockchain',
+  'Game Development',
+  'Cybersecurity',
+  'AI / LLM Apps',
+  'System Design',
+  'Embedded Systems',
 ];
 
 /* ─── Day theme colours (cycle through a spectrum) ───────────────────────── */
 const DAY_COLORS = [
-  { ring: 'ring-blue-400',   bg: 'bg-blue-500',   bgLight: 'bg-blue-50 dark:bg-blue-950/40',   text: 'text-blue-600 dark:text-blue-400',   glow: 'shadow-blue-400/40' },
-  { ring: 'ring-violet-400', bg: 'bg-violet-500',  bgLight: 'bg-violet-50 dark:bg-violet-950/40', text: 'text-violet-600 dark:text-violet-400', glow: 'shadow-violet-400/40' },
-  { ring: 'ring-amber-400',  bg: 'bg-amber-500',   bgLight: 'bg-amber-50 dark:bg-amber-950/40',  text: 'text-amber-600 dark:text-amber-400',  glow: 'shadow-amber-400/40' },
-  { ring: 'ring-emerald-400',bg: 'bg-emerald-500', bgLight: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-600 dark:text-emerald-400', glow: 'shadow-emerald-400/40' },
-  { ring: 'ring-rose-400',   bg: 'bg-rose-500',    bgLight: 'bg-rose-50 dark:bg-rose-950/40',    text: 'text-rose-600 dark:text-rose-400',    glow: 'shadow-rose-400/40' },
-  { ring: 'ring-cyan-400',   bg: 'bg-cyan-500',    bgLight: 'bg-cyan-50 dark:bg-cyan-950/40',    text: 'text-cyan-600 dark:text-cyan-400',    glow: 'shadow-cyan-400/40' },
-  { ring: 'ring-orange-400', bg: 'bg-orange-500',   bgLight: 'bg-orange-50 dark:bg-orange-950/40', text: 'text-orange-600 dark:text-orange-400', glow: 'shadow-orange-400/40' },
+  {
+    ring: 'ring-blue-400',
+    bg: 'bg-blue-500',
+    bgLight: 'bg-blue-50 dark:bg-blue-950/40',
+    text: 'text-blue-600 dark:text-blue-400',
+    glow: 'shadow-blue-400/40',
+  },
+  {
+    ring: 'ring-violet-400',
+    bg: 'bg-violet-500',
+    bgLight: 'bg-violet-50 dark:bg-violet-950/40',
+    text: 'text-violet-600 dark:text-violet-400',
+    glow: 'shadow-violet-400/40',
+  },
+  {
+    ring: 'ring-amber-400',
+    bg: 'bg-amber-500',
+    bgLight: 'bg-amber-50 dark:bg-amber-950/40',
+    text: 'text-amber-600 dark:text-amber-400',
+    glow: 'shadow-amber-400/40',
+  },
+  {
+    ring: 'ring-emerald-400',
+    bg: 'bg-emerald-500',
+    bgLight: 'bg-emerald-50 dark:bg-emerald-950/40',
+    text: 'text-emerald-600 dark:text-emerald-400',
+    glow: 'shadow-emerald-400/40',
+  },
+  {
+    ring: 'ring-rose-400',
+    bg: 'bg-rose-500',
+    bgLight: 'bg-rose-50 dark:bg-rose-950/40',
+    text: 'text-rose-600 dark:text-rose-400',
+    glow: 'shadow-rose-400/40',
+  },
+  {
+    ring: 'ring-cyan-400',
+    bg: 'bg-cyan-500',
+    bgLight: 'bg-cyan-50 dark:bg-cyan-950/40',
+    text: 'text-cyan-600 dark:text-cyan-400',
+    glow: 'shadow-cyan-400/40',
+  },
+  {
+    ring: 'ring-orange-400',
+    bg: 'bg-orange-500',
+    bgLight: 'bg-orange-50 dark:bg-orange-950/40',
+    text: 'text-orange-600 dark:text-orange-400',
+    glow: 'shadow-orange-400/40',
+  },
 ];
 
 /* ─── Mountain-curve SVG connector between day cards ─────────────────────── */
 function MountainConnector({ fromLeft, completed }: { fromLeft: boolean; completed: boolean }) {
   // Cubic bezier swooping from one side to the other
-  const d = fromLeft
-    ? 'M 160,5 C 160,65 340,55 340,115'
-    : 'M 340,5 C 340,65 160,55 160,115';
+  const d = fromLeft ? 'M 160,5 C 160,65 340,55 340,115' : 'M 340,5 C 340,65 160,55 160,115';
 
   // Decorative terrain slash-marks scattered around the curve
   const marks: [number, number, number][] = fromLeft
-    ? [[210,28,35],[185,52,-25],[240,60,42],[275,70,-20],[310,82,30],[330,44,-35]]
-    : [[290,28,-35],[315,52,25],[260,60,-42],[225,70,20],[190,82,-30],[170,44,35]];
+    ? [
+        [210, 28, 35],
+        [185, 52, -25],
+        [240, 60, 42],
+        [275, 70, -20],
+        [310, 82, 30],
+        [330, 44, -35],
+      ]
+    : [
+        [290, 28, -35],
+        [315, 52, 25],
+        [260, 60, -42],
+        [225, 70, 20],
+        [190, 82, -30],
+        [170, 44, 35],
+      ];
 
   return (
-    <div className={`w-full select-none pointer-events-none ${
-      completed ? 'text-primary/30' : 'text-muted-foreground/20'
-    }`}>
+    <div
+      className={`w-full select-none pointer-events-none ${
+        completed ? 'text-primary/30' : 'text-muted-foreground/20'
+      }`}
+    >
       <svg viewBox="0 0 500 120" className="w-full h-[100px]" preserveAspectRatio="xMidYMid meet">
         {/* Main curved dashed line */}
         <path
@@ -65,7 +146,7 @@ function MountainConnector({ fromLeft, completed }: { fromLeft: boolean; complet
         />
         {/* Terrain hash marks */}
         {marks.map(([mx, my, angle], idx) => {
-          const a = angle * Math.PI / 180;
+          const a = (angle * Math.PI) / 180;
           const len = 9;
           return (
             <line
@@ -104,7 +185,7 @@ function DuolingoPath({
   onUnlockAll: () => void;
   unlocking: boolean;
 }) {
-  const completedCount = roadmap.days.filter(d => d.completedAt).length;
+  const completedCount = roadmap.days.filter((d) => d.completedAt).length;
   const progressPercent = Math.round((completedCount / roadmap.totalDays) * 100);
   const allUnlocked = !!roadmap.unlockedAll;
 
@@ -113,20 +194,29 @@ function DuolingoPath({
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Button variant="ghost" size="sm" className="gap-1 -ml-2 mb-2 text-muted-foreground" onClick={onBack}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 -ml-2 mb-2 text-muted-foreground"
+            onClick={onBack}
+          >
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
           <h2 className="text-2xl font-bold">{roadmap.projectTitle}</h2>
           <p className="text-sm text-muted-foreground mt-1">{roadmap.projectDescription}</p>
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {roadmap.techStack.map(t => (
-              <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>
+            {roadmap.techStack.map((t) => (
+              <Badge key={t} variant="secondary" className="text-xs">
+                {t}
+              </Badge>
             ))}
           </div>
         </div>
         <div className="text-right shrink-0">
           <div className="text-3xl font-bold text-primary tabular-nums">{progressPercent}%</div>
-          <p className="text-xs text-muted-foreground">{completedCount}/{roadmap.totalDays} days</p>
+          <p className="text-xs text-muted-foreground">
+            {completedCount}/{roadmap.totalDays} days
+          </p>
         </div>
       </div>
 
@@ -148,7 +238,11 @@ function DuolingoPath({
             onClick={onUnlockAll}
             disabled={unlocking}
           >
-            {unlocking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
+            {unlocking ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Unlock className="h-3.5 w-3.5" />
+            )}
             Unlock All Days
           </Button>
         </div>
@@ -166,7 +260,7 @@ function DuolingoPath({
           <div className="relative h-full w-px bg-border/40 mx-auto">
             {roadmap.days.map((day, i) => {
               const isCompleted = !!day.completedAt;
-              const isNext = !isCompleted && roadmap.days.slice(0, i).every(d => d.completedAt);
+              const isNext = !isCompleted && roadmap.days.slice(0, i).every((d) => d.completedAt);
               const color = DAY_COLORS[i % DAY_COLORS.length];
               const topPct = roadmap.totalDays > 1 ? (i / (roadmap.totalDays - 1)) * 100 : 50;
               return (
@@ -176,14 +270,22 @@ function DuolingoPath({
                   style={{ top: `${topPct}%` }}
                 >
                   <div className="text-right mr-1">
-                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-semibold">Day {day.day}</p>
-                    <p className="text-[10px] text-muted-foreground truncate max-w-[80px]">{day.title}</p>
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                      Day {day.day}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate max-w-[80px]">
+                      {day.title}
+                    </p>
                   </div>
-                  <div className={`w-3 h-3 rounded-full border-2 shrink-0 transition-colors ${
-                    isCompleted ? 'bg-emerald-500 border-emerald-400'
-                    : isNext ? `${color.bg} border-white shadow-sm`
-                    : 'bg-muted border-border'
-                  }`} />
+                  <div
+                    className={`w-3 h-3 rounded-full border-2 shrink-0 transition-colors ${
+                      isCompleted
+                        ? 'bg-emerald-500 border-emerald-400'
+                        : isNext
+                          ? `${color.bg} border-white shadow-sm`
+                          : 'bg-muted border-border'
+                    }`}
+                  />
                 </div>
               );
             })}
@@ -195,36 +297,38 @@ function DuolingoPath({
           {roadmap.days.map((day, i) => {
             const color = DAY_COLORS[i % DAY_COLORS.length];
             const isCompleted = !!day.completedAt;
-            const isNext = !isCompleted && roadmap.days.slice(0, i).every(d => d.completedAt);
+            const isNext = !isCompleted && roadmap.days.slice(0, i).every((d) => d.completedAt);
             const isLocked = !allUnlocked && !isCompleted && !isNext;
             const isAccessible = allUnlocked || isCompleted || isNext;
             const isLeft = i % 2 === 0;
 
             return (
-              <div key={day.day} className="mountain-node" style={{ animationDelay: `${i * 100}ms` }}>
+              <div
+                key={day.day}
+                className="mountain-node"
+                style={{ animationDelay: `${i * 100}ms` }}
+              >
                 {/* Curved SVG connector from previous card */}
                 {i > 0 && (
-                  <MountainConnector
-                    fromLeft={!isLeft}
-                    completed={isCompleted || isNext}
-                  />
+                  <MountainConnector fromLeft={!isLeft} completed={isCompleted || isNext} />
                 )}
 
                 {/* Day card — alternates left / right */}
-                <div className={`flex ${
-                  isLeft
-                    ? 'justify-center sm:justify-start'
-                    : 'justify-center sm:justify-end'
-                }`}>
+                <div
+                  className={`flex ${
+                    isLeft ? 'justify-center sm:justify-start' : 'justify-center sm:justify-end'
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={() => onDayClick(day)}
                     className={`mountain-card group relative w-[85%] sm:w-[60%] text-center rounded-2xl border-2 p-5 pb-4 transition-all duration-300
-                      ${isCompleted
-                        ? 'border-emerald-300/70 bg-emerald-50/50 dark:border-emerald-800/50 dark:bg-emerald-950/20 shadow-sm cursor-pointer hover:shadow-md'
-                        : isNext
-                          ? 'border-primary/70 bg-card shadow-xl cursor-pointer hover:shadow-2xl hover:-translate-y-0.5'
-                          : 'border-dashed border-border/50 bg-muted/30 cursor-pointer hover:opacity-80 opacity-60'
+                      ${
+                        isCompleted
+                          ? 'border-emerald-300/70 bg-emerald-50/50 dark:border-emerald-800/50 dark:bg-emerald-950/20 shadow-sm cursor-pointer hover:shadow-md'
+                          : isNext
+                            ? 'border-primary/70 bg-card shadow-xl cursor-pointer hover:shadow-2xl hover:-translate-y-0.5'
+                            : 'border-dashed border-border/50 bg-muted/30 cursor-pointer hover:opacity-80 opacity-60'
                       }`}
                   >
                     {/* START badge for next available day */}
@@ -238,19 +342,23 @@ function DuolingoPath({
 
                     {/* Icon circle */}
                     <div className="flex justify-center mb-3">
-                      <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-105
-                        ${isCompleted
-                          ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
-                          : isLocked
-                            ? 'bg-muted/60 text-muted-foreground/60'
-                            : `${color.bgLight} ${color.text}`
-                        }`}>
-                        {isCompleted
-                          ? <CheckCircle2 className="h-7 w-7" />
-                          : isLocked
-                            ? <Lock className="h-7 w-7" />
-                            : <span className="text-xl font-bold">D{day.day}</span>
-                        }
+                      <div
+                        className={`w-16 h-16 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-105
+                        ${
+                          isCompleted
+                            ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
+                            : isLocked
+                              ? 'bg-muted/60 text-muted-foreground/60'
+                              : `${color.bgLight} ${color.text}`
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <CheckCircle2 className="h-7 w-7" />
+                        ) : isLocked ? (
+                          <Lock className="h-7 w-7" />
+                        ) : (
+                          <span className="text-xl font-bold">D{day.day}</span>
+                        )}
                       </div>
                     </div>
 
@@ -260,7 +368,9 @@ function DuolingoPath({
                     </p>
 
                     {/* Title */}
-                    <h3 className={`text-base font-bold mt-1 ${isCompleted ? 'line-through opacity-60' : ''}`}>
+                    <h3
+                      className={`text-base font-bold mt-1 ${isCompleted ? 'line-through opacity-60' : ''}`}
+                    >
                       {day.title}
                     </h3>
 
@@ -272,7 +382,8 @@ function DuolingoPath({
                     {/* Stats */}
                     <div className="flex items-center justify-center gap-4 mt-3">
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> +{day.tasks.length}
+                        <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> +
+                        {day.tasks.length}
                       </span>
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" /> {day.estimatedHours}h
@@ -301,7 +412,8 @@ function DuolingoPath({
           <Trophy className="h-14 w-14 text-amber-500 mx-auto mb-3" />
           <h3 className="text-xl font-bold">Project Complete!</h3>
           <p className="text-muted-foreground mt-1">
-            You&apos;ve built <strong>{roadmap.projectTitle}</strong> in {roadmap.totalDays} days. Amazing work!
+            You&apos;ve built <strong>{roadmap.projectTitle}</strong> in {roadmap.totalDays} days.
+            Amazing work!
           </p>
         </Card>
       )}
@@ -321,7 +433,7 @@ function DayDetailModal({
   completing,
 }: {
   day: RoadmapDay;
-  color: typeof DAY_COLORS[0];
+  color: (typeof DAY_COLORS)[0];
   canComplete: boolean;
   onClose: () => void;
   onComplete: () => void;
@@ -330,23 +442,40 @@ function DayDetailModal({
   const isCompleted = !!day.completedAt;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in-up" onClick={onClose}>
-      <Card className="w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in-up"
+      onClick={onClose}
+    >
+      <Card
+        className="w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm ${isCompleted ? 'bg-emerald-500' : color.bg}`}>
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm ${isCompleted ? 'bg-emerald-500' : color.bg}`}
+              >
                 {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : `D${day.day}`}
               </div>
               <div>
                 <CardTitle className="text-lg">{day.title}</CardTitle>
                 <CardDescription className="flex items-center gap-2 mt-0.5">
                   <Clock className="h-3 w-3" /> {day.estimatedHours} hours
-                  {isCompleted && <Badge variant="outline" className="text-emerald-600 border-emerald-300 text-xs ml-1">Completed</Badge>}
+                  {isCompleted && (
+                    <Badge
+                      variant="outline"
+                      className="text-emerald-600 border-emerald-300 text-xs ml-1"
+                    >
+                      Completed
+                    </Badge>
+                  )}
                 </CardDescription>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </CardHeader>
 
@@ -375,7 +504,9 @@ function DayDetailModal({
               <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
                 <Wrench className="h-4 w-4 text-amber-500" /> Tech Stack & Tools
               </h4>
-              <p className="text-sm text-muted-foreground leading-relaxed bg-muted/40 rounded-lg p-3">{day.techDetails}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed bg-muted/40 rounded-lg p-3">
+                {day.techDetails}
+              </p>
             </div>
           )}
 
@@ -385,7 +516,9 @@ function DayDetailModal({
               <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
                 <Layers className="h-4 w-4 text-violet-500" /> Architecture & Design
               </h4>
-              <p className="text-sm text-muted-foreground leading-relaxed bg-muted/40 rounded-lg p-3">{day.architecture}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed bg-muted/40 rounded-lg p-3">
+                {day.architecture}
+              </p>
             </div>
           )}
 
@@ -414,7 +547,11 @@ function DayDetailModal({
           {/* Complete button */}
           {!isCompleted && canComplete && (
             <Button onClick={onComplete} disabled={completing} className="w-full gap-2">
-              {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {completing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
               Mark Day {day.day} Complete
             </Button>
           )}
@@ -446,13 +583,18 @@ function ProjectPicker({
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <Button variant="ghost" size="sm" className="gap-1 -ml-2 mb-2 text-muted-foreground" onClick={onBack}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1 -ml-2 mb-2 text-muted-foreground"
+          onClick={onBack}
+        >
           <ArrowLeft className="h-4 w-4" /> Change domain
         </Button>
         <h2 className="text-2xl font-bold">Choose Your Project</h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Pick one of these <strong>{suggestions.domain}</strong> projects.
-          We&apos;ll build a 7-day plan for the one you choose.
+          Pick one of these <strong>{suggestions.domain}</strong> projects. We&apos;ll build a 7-day
+          plan for the one you choose.
         </p>
       </div>
 
@@ -464,26 +606,37 @@ function ProjectPicker({
             onClick={() => !picking && onPick(p)}
           >
             {/* Difficulty strip */}
-            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${p.difficulty === 'hard' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+            <div
+              className={`absolute left-0 top-0 bottom-0 w-1.5 ${p.difficulty === 'hard' ? 'bg-rose-500' : 'bg-amber-500'}`}
+            />
 
             <CardContent className="flex items-start gap-4 p-5 pl-6">
               {/* Icon */}
-              <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
-                p.difficulty === 'hard'
-                  ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'
-                  : 'bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
-              }`}>
-                {p.difficulty === 'hard' ? <Rocket className="h-6 w-6" /> : <Code2 className="h-6 w-6" />}
+              <div
+                className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
+                  p.difficulty === 'hard'
+                    ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'
+                    : 'bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
+                }`}
+              >
+                {p.difficulty === 'hard' ? (
+                  <Rocket className="h-6 w-6" />
+                ) : (
+                  <Code2 className="h-6 w-6" />
+                )}
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="font-semibold">{p.title}</h3>
-                  <Badge variant="outline" className={`text-xs capitalize ${
-                    p.difficulty === 'hard'
-                      ? 'border-rose-200 text-rose-600 dark:border-rose-800 dark:text-rose-400'
-                      : 'border-amber-200 text-amber-600 dark:border-amber-800 dark:text-amber-400'
-                  }`}>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs capitalize ${
+                      p.difficulty === 'hard'
+                        ? 'border-rose-200 text-rose-600 dark:border-rose-800 dark:text-rose-400'
+                        : 'border-amber-200 text-amber-600 dark:border-amber-800 dark:text-amber-400'
+                    }`}
+                  >
                     {p.difficulty}
                   </Badge>
                 </div>
@@ -491,15 +644,21 @@ function ProjectPicker({
                 <p className="text-sm text-muted-foreground leading-relaxed">{p.description}</p>
 
                 <div className="flex flex-wrap gap-1.5 mt-2.5">
-                  {p.techStack.map(t => (
-                    <Badge key={t} variant="secondary" className="text-xs font-normal">{t}</Badge>
+                  {p.techStack.map((t) => (
+                    <Badge key={t} variant="secondary" className="text-xs font-normal">
+                      {t}
+                    </Badge>
                   ))}
                 </div>
 
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> ~{p.estimatedHours}h</span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> ~{p.estimatedHours}h
+                  </span>
                   {p.keySkills.slice(0, 3).map((s, i) => (
-                    <span key={i} className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> {s}</span>
+                    <span key={i} className="flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" /> {s}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -537,7 +696,10 @@ export function ProjectRoadmapShell() {
   const [domain, setDomain] = useState('');
 
   // Suggestion state
-  const [suggestions, setSuggestions] = useState<{ domain: string; projects: ProjectSuggestion[] } | null>(null);
+  const [suggestions, setSuggestions] = useState<{
+    domain: string;
+    projects: ProjectSuggestion[];
+  } | null>(null);
   const [suggesting, setSuggesting] = useState(false);
 
   // Plan state
@@ -564,7 +726,11 @@ export function ProjectRoadmapShell() {
   // Step 1: Suggest projects
   const handleSuggest = useCallback(async () => {
     if (!domain.trim()) {
-      toast({ title: 'Enter a domain', description: 'Please specify which domain you want to learn.', variant: 'destructive' });
+      toast({
+        title: 'Enter a domain',
+        description: 'Please specify which domain you want to learn.',
+        variant: 'destructive',
+      });
       return;
     }
     setSuggesting(true);
@@ -575,65 +741,98 @@ export function ProjectRoadmapShell() {
         setStep('pick');
       }
     } catch (err: any) {
-      toast({ title: 'Failed to get suggestions', description: typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : 'Please try again.', variant: 'destructive' });
+      toast({
+        title: 'Failed to get suggestions',
+        description:
+          typeof err?.response?.data?.detail === 'string'
+            ? err.response.data.detail
+            : 'Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setSuggesting(false);
     }
   }, [domain, toast]);
 
   // Step 2: Generate plan for chosen project
-  const handlePick = useCallback(async (project: ProjectSuggestion) => {
-    if (!suggestions) return;
-    setPlanning(true);
-    try {
-      const res = await projectRoadmapApi.plan({
-        domain: suggestions.domain,
-        projectTitle: project.title,
-        projectDescription: project.description,
-        techStack: project.techStack,
-      });
-      if (res.data?.projectRoadmapId) {
-        setActiveRoadmap(res.data);
-        setStep('path');
-        refetchHistory();
-        toast({ title: 'Roadmap ready!', description: `7-day plan for "${project.title}" generated.` });
+  const handlePick = useCallback(
+    async (project: ProjectSuggestion) => {
+      if (!suggestions) return;
+      setPlanning(true);
+      try {
+        const res = await projectRoadmapApi.plan({
+          domain: suggestions.domain,
+          projectTitle: project.title,
+          projectDescription: project.description,
+          techStack: project.techStack,
+        });
+        if (res.data?.projectRoadmapId) {
+          setActiveRoadmap(res.data);
+          setStep('path');
+          refetchHistory();
+          toast({
+            title: 'Roadmap ready!',
+            description: `7-day plan for "${project.title}" generated.`,
+          });
+        }
+      } catch (err: any) {
+        toast({
+          title: 'Plan generation failed',
+          description:
+            typeof err?.response?.data?.detail === 'string'
+              ? err.response.data.detail
+              : 'Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setPlanning(false);
       }
-    } catch (err: any) {
-      toast({ title: 'Plan generation failed', description: typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : 'Please try again.', variant: 'destructive' });
-    } finally {
-      setPlanning(false);
-    }
-  }, [suggestions, toast, refetchHistory]);
+    },
+    [suggestions, toast, refetchHistory]
+  );
 
   // Mark day complete
-  const handleDayComplete = useCallback(async (dayNum: number) => {
-    if (!activeRoadmap) return;
-    setCompleting(true);
-    try {
-      const res = await projectRoadmapApi.markDayComplete(activeRoadmap.projectRoadmapId, dayNum);
-      setActiveRoadmap(res.data);
-      // Update selected day too if modal is open
-      const updated = res.data.days.find((d: RoadmapDay) => d.day === dayNum);
-      if (updated) setSelectedDay(updated);
-      refetchHistory();
-      toast({ title: `Day ${dayNum} complete!`, description: 'Keep the momentum going!' });
-    } catch (err: any) {
-      toast({ title: 'Failed to update', description: typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : 'Please try again.', variant: 'destructive' });
-    } finally {
-      setCompleting(false);
-    }
-  }, [activeRoadmap, toast, refetchHistory]);
+  const handleDayComplete = useCallback(
+    async (dayNum: number) => {
+      if (!activeRoadmap) return;
+      setCompleting(true);
+      try {
+        const res = await projectRoadmapApi.markDayComplete(activeRoadmap.projectRoadmapId, dayNum);
+        setActiveRoadmap(res.data);
+        // Update selected day too if modal is open
+        const updated = res.data.days.find((d: RoadmapDay) => d.day === dayNum);
+        if (updated) setSelectedDay(updated);
+        refetchHistory();
+        toast({ title: `Day ${dayNum} complete!`, description: 'Keep the momentum going!' });
+      } catch (err: any) {
+        toast({
+          title: 'Failed to update',
+          description:
+            typeof err?.response?.data?.detail === 'string'
+              ? err.response.data.detail
+              : 'Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setCompleting(false);
+      }
+    },
+    [activeRoadmap, toast, refetchHistory]
+  );
 
   // Load from history
-  const handleLoadRoadmap = useCallback(async (id: string) => {
-    try {
-      const res = await projectRoadmapApi.get(id);
-      setActiveRoadmap(res.data);
-      setStep('path');
-    } catch {
-      toast({ title: 'Failed to load roadmap', variant: 'destructive' });
-    }
-  }, [toast]);
+  const handleLoadRoadmap = useCallback(
+    async (id: string) => {
+      try {
+        const res = await projectRoadmapApi.get(id);
+        setActiveRoadmap(res.data);
+        setStep('path');
+      } catch {
+        toast({ title: 'Failed to load roadmap', variant: 'destructive' });
+      }
+    },
+    [toast]
+  );
 
   // Unlock all days
   const handleUnlockAll = useCallback(async () => {
@@ -642,31 +841,51 @@ export function ProjectRoadmapShell() {
     try {
       const res = await projectRoadmapApi.unlockAll(activeRoadmap.projectRoadmapId);
       setActiveRoadmap(res.data);
-      toast({ title: 'All days unlocked!', description: 'You can now access any day in any order.' });
+      toast({
+        title: 'All days unlocked!',
+        description: 'You can now access any day in any order.',
+      });
     } catch (err: any) {
-      toast({ title: 'Failed to unlock', description: typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : 'Please try again.', variant: 'destructive' });
+      toast({
+        title: 'Failed to unlock',
+        description:
+          typeof err?.response?.data?.detail === 'string'
+            ? err.response.data.detail
+            : 'Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setUnlocking(false);
     }
   }, [activeRoadmap, toast]);
 
   // Delete roadmap
-  const handleDelete = useCallback(async (id: string) => {
-    setDeleting(id);
-    try {
-      await projectRoadmapApi.delete(id);
-      refetchHistory();
-      if (activeRoadmap?.projectRoadmapId === id) {
-        setActiveRoadmap(null);
-        setStep('form');
+  const handleDelete = useCallback(
+    async (id: string) => {
+      setDeleting(id);
+      try {
+        await projectRoadmapApi.delete(id);
+        refetchHistory();
+        if (activeRoadmap?.projectRoadmapId === id) {
+          setActiveRoadmap(null);
+          setStep('form');
+        }
+        toast({ title: 'Roadmap deleted' });
+      } catch (err: any) {
+        toast({
+          title: 'Failed to delete',
+          description:
+            typeof err?.response?.data?.detail === 'string'
+              ? err.response.data.detail
+              : 'Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setDeleting(null);
       }
-      toast({ title: 'Roadmap deleted' });
-    } catch (err: any) {
-      toast({ title: 'Failed to delete', description: typeof err?.response?.data?.detail === 'string' ? err.response.data.detail : 'Please try again.', variant: 'destructive' });
-    } finally {
-      setDeleting(null);
-    }
-  }, [activeRoadmap, toast, refetchHistory]);
+    },
+    [activeRoadmap, toast, refetchHistory]
+  );
 
   /* ─── STEP 3: S-curve path ─────────────────────────────────────────────── */
   if (step === 'path' && activeRoadmap) {
@@ -676,24 +895,29 @@ export function ProjectRoadmapShell() {
           roadmap={activeRoadmap}
           onDayClick={(day) => setSelectedDay(day)}
           onComplete={handleDayComplete}
-          onBack={() => { setStep('form'); setActiveRoadmap(null); }}
+          onBack={() => {
+            setStep('form');
+            setActiveRoadmap(null);
+          }}
           onUnlockAll={handleUnlockAll}
           unlocking={unlocking}
         />
-        {selectedDay && activeRoadmap && (() => {
-          const dayIdx = selectedDay.day - 1;
-          const prevDone = activeRoadmap.days.slice(0, dayIdx).every(d => d.completedAt);
-          return (
-            <DayDetailModal
-              day={selectedDay}
-              color={DAY_COLORS[(selectedDay.day - 1) % DAY_COLORS.length]}
-              canComplete={prevDone}
-              onClose={() => setSelectedDay(null)}
-              onComplete={() => handleDayComplete(selectedDay.day)}
-              completing={completing}
-            />
-          );
-        })()}
+        {selectedDay &&
+          activeRoadmap &&
+          (() => {
+            const dayIdx = selectedDay.day - 1;
+            const prevDone = activeRoadmap.days.slice(0, dayIdx).every((d) => d.completedAt);
+            return (
+              <DayDetailModal
+                day={selectedDay}
+                color={DAY_COLORS[(selectedDay.day - 1) % DAY_COLORS.length]}
+                canComplete={prevDone}
+                onClose={() => setSelectedDay(null)}
+                onComplete={() => handleDayComplete(selectedDay.day)}
+                completing={completing}
+              />
+            );
+          })()}
       </>
     );
   }
@@ -720,7 +944,8 @@ export function ProjectRoadmapShell() {
         </div>
         <h2 className="text-3xl font-bold tracking-tight">Project Roadmap</h2>
         <p className="text-muted-foreground max-w-lg mx-auto">
-          Choose a domain and we&apos;ll suggest 3 real-world projects — pick one and get a day-by-day build plan!
+          Choose a domain and we&apos;ll suggest 3 real-world projects — pick one and get a
+          day-by-day build plan!
         </p>
       </div>
 
@@ -740,13 +965,13 @@ export function ProjectRoadmapShell() {
             <input
               type="text"
               value={domain}
-              onChange={e => setDomain(e.target.value)}
+              onChange={(e) => setDomain(e.target.value)}
               placeholder="e.g., Web Development, Machine Learning..."
               className="w-full rounded-xl border border-input px-4 py-3 text-sm bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
-              onKeyDown={e => e.key === 'Enter' && handleSuggest()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSuggest()}
             />
             <div className="flex flex-wrap gap-2 pt-1">
-              {DOMAIN_CHIPS.map(d => (
+              {DOMAIN_CHIPS.map((d) => (
                 <button
                   key={d}
                   onClick={() => setDomain(d)}
@@ -770,9 +995,13 @@ export function ProjectRoadmapShell() {
             size="lg"
           >
             {suggesting ? (
-              <><Loader2 className="h-5 w-5 animate-spin" /> Finding projects...</>
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" /> Finding projects...
+              </>
             ) : (
-              <><Sparkles className="h-5 w-5" /> Suggest 3 Projects</>
+              <>
+                <Sparkles className="h-5 w-5" /> Suggest 3 Projects
+              </>
             )}
           </Button>
         </CardContent>
@@ -785,7 +1014,7 @@ export function ProjectRoadmapShell() {
             Previous Roadmaps ({history.length})
           </h3>
           <div className="space-y-2">
-            {history.map(rm => {
+            {history.map((rm) => {
               const pct = Math.round((rm.completedDays / rm.totalDays) * 100);
               return (
                 <Card
@@ -807,18 +1036,24 @@ export function ProjectRoadmapShell() {
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className="text-xs font-medium tabular-nums w-8 text-right">{pct}%</span>
+                      <span className="text-xs font-medium tabular-nums w-8 text-right">
+                        {pct}%
+                      </span>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(rm.projectRoadmapId); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(rm.projectRoadmapId);
+                        }}
                         disabled={deleting === rm.projectRoadmapId}
                       >
-                        {deleting === rm.projectRoadmapId
-                          ? <Loader2 className="h-4 w-4 animate-spin" />
-                          : <Trash2 className="h-4 w-4" />
-                        }
+                        {deleting === rm.projectRoadmapId ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </CardContent>

@@ -79,7 +79,7 @@ export function LatexEditor({ initialValue = '', onChange, onEditorReady }: Late
         onEditorReady(handle);
       }
     },
-    [onEditorReady],
+    [onEditorReady]
   );
 
   const handleChange: OnChange = useCallback(
@@ -88,7 +88,7 @@ export function LatexEditor({ initialValue = '', onChange, onEditorReady }: Late
         onChange(value);
       }
     },
-    [onChange],
+    [onChange]
   );
 
   return (

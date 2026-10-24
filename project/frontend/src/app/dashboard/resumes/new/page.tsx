@@ -17,7 +17,7 @@ import {
   FolderGit2,
   Briefcase,
   User,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -96,7 +96,7 @@ export default function NewResumePage() {
       toast({
         title: 'Error',
         description: 'Failed to create resume.',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     },
   });
@@ -108,7 +108,7 @@ export default function NewResumePage() {
     { key: 'personal', title: 'Personal Info', icon: <User className="h-4 w-4" /> },
   ];
 
-  const currentStepIndex = steps.findIndex(s => s.key === step);
+  const currentStepIndex = steps.findIndex((s) => s.key === step);
 
   const canProceed = () => {
     switch (step) {
@@ -138,10 +138,8 @@ export default function NewResumePage() {
   };
 
   const toggleProject = (id: string) => {
-    setSelectedProjectIds(prev =>
-      prev.includes(id)
-        ? prev.filter(p => p !== id)
-        : [...prev, id]
+    setSelectedProjectIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
   };
 
@@ -171,15 +169,17 @@ export default function NewResumePage() {
                 key={s.key}
                 className={`flex items-center gap-2 transition-colors duration-200 ${
                   i <= currentStepIndex ? 'text-primary' : 'text-muted-foreground'
-                  }`}
+                }`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-                  i < currentStepIndex
-                    ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/20'
-                    : i === currentStepIndex
-                      ? 'border-primary shadow-sm shadow-primary/10'
-                      : 'border-muted'
-                  }`}>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    i < currentStepIndex
+                      ? 'bg-primary border-primary text-primary-foreground shadow-sm shadow-primary/20'
+                      : i === currentStepIndex
+                        ? 'border-primary shadow-sm shadow-primary/10'
+                        : 'border-muted'
+                  }`}
+                >
                   {i < currentStepIndex ? <Check className="h-4 w-4" /> : s.icon}
                 </div>
                 <span className="text-sm font-medium hidden sm:inline">{s.title}</span>
@@ -201,10 +201,11 @@ export default function NewResumePage() {
               {templates?.map((template: any) => (
                 <Card
                   key={template.id}
-                  className={`cursor-pointer transition-all duration-200 ${selectedTemplateId === template.id
+                  className={`cursor-pointer transition-all duration-200 ${
+                    selectedTemplateId === template.id
                       ? 'ring-2 ring-primary shadow-md shadow-primary/10'
                       : 'hover:shadow-md hover:-translate-y-0.5'
-                    }`}
+                  }`}
                   onClick={() => setSelectedTemplateId(template.id)}
                 >
                   <div className="aspect-[8.5/11] bg-muted/50 flex items-center justify-center rounded-t-xl">
@@ -232,10 +233,11 @@ export default function NewResumePage() {
               {projects?.map((project: any) => (
                 <Card
                   key={project.id}
-                  className={`cursor-pointer transition-all duration-200 ${selectedProjectIds.includes(project.id)
+                  className={`cursor-pointer transition-all duration-200 ${
+                    selectedProjectIds.includes(project.id)
                       ? 'ring-2 ring-primary shadow-md shadow-primary/10'
                       : 'hover:shadow-md hover:-translate-y-0.5'
-                    }`}
+                  }`}
                   onClick={() => toggleProject(project.id)}
                 >
                   <CardHeader>
@@ -252,7 +254,10 @@ export default function NewResumePage() {
                   <CardContent className="pt-0">
                     <div className="flex flex-wrap gap-1">
                       {project.technologies?.slice(0, 4).map((tech: string) => (
-                        <span key={tech} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+                        <span
+                          key={tech}
+                          className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md"
+                        >
                           {tech}
                         </span>
                       ))}
@@ -272,8 +277,11 @@ export default function NewResumePage() {
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               <Card
-                className={`cursor-pointer transition-all duration-200 ${selectedJobId === null ? 'ring-2 ring-primary shadow-md shadow-primary/10' : 'hover:shadow-md hover:-translate-y-0.5'
-                  }`}
+                className={`cursor-pointer transition-all duration-200 ${
+                  selectedJobId === null
+                    ? 'ring-2 ring-primary shadow-md shadow-primary/10'
+                    : 'hover:shadow-md hover:-translate-y-0.5'
+                }`}
                 onClick={() => setSelectedJobId(null)}
               >
                 <CardHeader>
@@ -286,8 +294,11 @@ export default function NewResumePage() {
               {jobs?.map((job: any) => (
                 <Card
                   key={job.id}
-                  className={`cursor-pointer transition-all duration-200 ${selectedJobId === job.id ? 'ring-2 ring-primary shadow-md shadow-primary/10' : 'hover:shadow-md hover:-translate-y-0.5'
-                    }`}
+                  className={`cursor-pointer transition-all duration-200 ${
+                    selectedJobId === job.id
+                      ? 'ring-2 ring-primary shadow-md shadow-primary/10'
+                      : 'hover:shadow-md hover:-translate-y-0.5'
+                  }`}
                   onClick={() => setSelectedJobId(job.id)}
                 >
                   <CardHeader>
@@ -296,9 +307,7 @@ export default function NewResumePage() {
                         <CardTitle className="text-base">{job.title}</CardTitle>
                         <CardDescription>{job.company}</CardDescription>
                       </div>
-                      {selectedJobId === job.id && (
-                        <Check className="h-5 w-5 text-primary" />
-                      )}
+                      {selectedJobId === job.id && <Check className="h-5 w-5 text-primary" />}
                     </div>
                   </CardHeader>
                 </Card>
@@ -329,7 +338,7 @@ export default function NewResumePage() {
                   <Label>Full Name *</Label>
                   <Input
                     value={personalInfo.name}
-                    onChange={(e) => setPersonalInfo(p => ({ ...p, name: e.target.value }))}
+                    onChange={(e) => setPersonalInfo((p) => ({ ...p, name: e.target.value }))}
                     placeholder="John Doe"
                   />
                 </div>
@@ -338,7 +347,7 @@ export default function NewResumePage() {
                   <Input
                     type="email"
                     value={personalInfo.email}
-                    onChange={(e) => setPersonalInfo(p => ({ ...p, email: e.target.value }))}
+                    onChange={(e) => setPersonalInfo((p) => ({ ...p, email: e.target.value }))}
                     placeholder="john@example.com"
                   />
                 </div>
@@ -349,7 +358,7 @@ export default function NewResumePage() {
                   <Label>Phone</Label>
                   <Input
                     value={personalInfo.phone}
-                    onChange={(e) => setPersonalInfo(p => ({ ...p, phone: e.target.value }))}
+                    onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))}
                     placeholder="+1 (555) 123-4567"
                   />
                 </div>
@@ -357,7 +366,7 @@ export default function NewResumePage() {
                   <Label>Location</Label>
                   <Input
                     value={personalInfo.location}
-                    onChange={(e) => setPersonalInfo(p => ({ ...p, location: e.target.value }))}
+                    onChange={(e) => setPersonalInfo((p) => ({ ...p, location: e.target.value }))}
                     placeholder="San Francisco, CA"
                   />
                 </div>
@@ -368,7 +377,7 @@ export default function NewResumePage() {
                   <Label>LinkedIn</Label>
                   <Input
                     value={personalInfo.linkedin}
-                    onChange={(e) => setPersonalInfo(p => ({ ...p, linkedin: e.target.value }))}
+                    onChange={(e) => setPersonalInfo((p) => ({ ...p, linkedin: e.target.value }))}
                     placeholder="linkedin.com/in/johndoe"
                   />
                 </div>
@@ -376,7 +385,7 @@ export default function NewResumePage() {
                   <Label>GitHub</Label>
                   <Input
                     value={personalInfo.github}
-                    onChange={(e) => setPersonalInfo(p => ({ ...p, github: e.target.value }))}
+                    onChange={(e) => setPersonalInfo((p) => ({ ...p, github: e.target.value }))}
                     placeholder="github.com/johndoe"
                   />
                 </div>
@@ -386,7 +395,7 @@ export default function NewResumePage() {
                 <Label>Website</Label>
                 <Input
                   value={personalInfo.website}
-                  onChange={(e) => setPersonalInfo(p => ({ ...p, website: e.target.value }))}
+                  onChange={(e) => setPersonalInfo((p) => ({ ...p, website: e.target.value }))}
                   placeholder="johndoe.dev"
                 />
               </div>
@@ -396,20 +405,13 @@ export default function NewResumePage() {
 
         {/* Navigation */}
         <div className="flex justify-between mt-8">
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentStepIndex === 0}
-          >
+          <Button variant="outline" onClick={handleBack} disabled={currentStepIndex === 0}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
 
           {currentStepIndex < steps.length - 1 ? (
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed()}
-            >
+            <Button onClick={handleNext} disabled={!canProceed()}>
               Next
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>

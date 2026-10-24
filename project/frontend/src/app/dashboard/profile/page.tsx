@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import api from "@/lib/api";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import api from '@/lib/api';
 
 interface ProfileData {
   id: string;
@@ -45,13 +45,13 @@ export default function ProfilePage() {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/auth/profile");
+      const response = await api.get('/auth/profile');
       setProfile(response.data);
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.response?.data?.detail || "Failed to load profile",
-        variant: "destructive",
+        title: 'Error',
+        description: error.response?.data?.detail || 'Failed to load profile',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -63,7 +63,7 @@ export default function ProfilePage() {
 
     try {
       setSaving(true);
-      const response = await api.put("/auth/profile", {
+      const response = await api.put('/auth/profile', {
         name: profile.name,
         headline: profile.headline,
         summary: profile.summary,
@@ -85,14 +85,14 @@ export default function ProfilePage() {
       });
       setProfile(response.data);
       toast({
-        title: "Success",
-        description: "Profile updated successfully",
+        title: 'Success',
+        description: 'Profile updated successfully',
       });
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.response?.data?.detail || "Failed to save profile",
-        variant: "destructive",
+        title: 'Error',
+        description: error.response?.data?.detail || 'Failed to save profile',
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -129,7 +129,7 @@ export default function ProfilePage() {
           <p className="text-muted-foreground">View and edit your profile information</p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save Changes"}
+          {saving ? 'Saving…' : 'Save Changes'}
         </Button>
       </div>
 
@@ -146,19 +146,14 @@ export default function ProfilePage() {
                 <Label htmlFor="name">Full Name</Label>
                 <Input
                   id="name"
-                  value={profile.name || ""}
-                  onChange={(e) => handleChange("name", e.target.value)}
+                  value={profile.name || ''}
+                  onChange={(e) => handleChange('name', e.target.value)}
                   placeholder="Your full name"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  value={profile.email || ""}
-                  disabled
-                  className="bg-muted"
-                />
+                <Input id="email" value={profile.email || ''} disabled className="bg-muted" />
               </div>
             </div>
 
@@ -166,8 +161,8 @@ export default function ProfilePage() {
               <Label htmlFor="headline">Headline</Label>
               <Input
                 id="headline"
-                value={profile.headline || ""}
-                onChange={(e) => handleChange("headline", e.target.value)}
+                value={profile.headline || ''}
+                onChange={(e) => handleChange('headline', e.target.value)}
                 placeholder="Your professional headline"
               />
             </div>
@@ -176,8 +171,8 @@ export default function ProfilePage() {
               <Label htmlFor="summary">Summary</Label>
               <Textarea
                 id="summary"
-                value={profile.summary || ""}
-                onChange={(e) => handleChange("summary", e.target.value)}
+                value={profile.summary || ''}
+                onChange={(e) => handleChange('summary', e.target.value)}
                 placeholder="Professional summary"
                 rows={5}
               />
@@ -197,8 +192,8 @@ export default function ProfilePage() {
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
-                  value={profile.phone || ""}
-                  onChange={(e) => handleChange("phone", e.target.value)}
+                  value={profile.phone || ''}
+                  onChange={(e) => handleChange('phone', e.target.value)}
                   placeholder="+1-234-567-8900"
                 />
               </div>
@@ -206,8 +201,8 @@ export default function ProfilePage() {
                 <Label htmlFor="location">Location</Label>
                 <Input
                   id="location"
-                  value={profile.location || ""}
-                  onChange={(e) => handleChange("location", e.target.value)}
+                  value={profile.location || ''}
+                  onChange={(e) => handleChange('location', e.target.value)}
                   placeholder="City, State"
                 />
               </div>
@@ -218,8 +213,8 @@ export default function ProfilePage() {
                 <Label htmlFor="website">Website</Label>
                 <Input
                   id="website"
-                  value={profile.website || ""}
-                  onChange={(e) => handleChange("website", e.target.value)}
+                  value={profile.website || ''}
+                  onChange={(e) => handleChange('website', e.target.value)}
                   placeholder="https://yourwebsite.com"
                 />
               </div>
@@ -227,8 +222,8 @@ export default function ProfilePage() {
                 <Label htmlFor="linkedin_url">LinkedIn</Label>
                 <Input
                   id="linkedin_url"
-                  value={profile.linkedin_url || ""}
-                  onChange={(e) => handleChange("linkedin_url", e.target.value)}
+                  value={profile.linkedin_url || ''}
+                  onChange={(e) => handleChange('linkedin_url', e.target.value)}
                   placeholder="https://linkedin.com/in/yourprofile"
                 />
               </div>
@@ -247,8 +242,8 @@ export default function ProfilePage() {
               <Label htmlFor="address_line1">Address Line 1</Label>
               <Input
                 id="address_line1"
-                value={profile.address_line1 || ""}
-                onChange={(e) => handleChange("address_line1", e.target.value)}
+                value={profile.address_line1 || ''}
+                onChange={(e) => handleChange('address_line1', e.target.value)}
                 placeholder="Street address"
               />
             </div>
@@ -256,8 +251,8 @@ export default function ProfilePage() {
               <Label htmlFor="address_line2">Address Line 2</Label>
               <Input
                 id="address_line2"
-                value={profile.address_line2 || ""}
-                onChange={(e) => handleChange("address_line2", e.target.value)}
+                value={profile.address_line2 || ''}
+                onChange={(e) => handleChange('address_line2', e.target.value)}
                 placeholder="Apartment, suite, etc. (optional)"
               />
             </div>
@@ -267,8 +262,8 @@ export default function ProfilePage() {
                 <Label htmlFor="city">City</Label>
                 <Input
                   id="city"
-                  value={profile.city || ""}
-                  onChange={(e) => handleChange("city", e.target.value)}
+                  value={profile.city || ''}
+                  onChange={(e) => handleChange('city', e.target.value)}
                   placeholder="City"
                 />
               </div>
@@ -276,8 +271,8 @@ export default function ProfilePage() {
                 <Label htmlFor="state">State</Label>
                 <Input
                   id="state"
-                  value={profile.state || ""}
-                  onChange={(e) => handleChange("state", e.target.value)}
+                  value={profile.state || ''}
+                  onChange={(e) => handleChange('state', e.target.value)}
                   placeholder="State"
                 />
               </div>
@@ -285,8 +280,8 @@ export default function ProfilePage() {
                 <Label htmlFor="zip_code">ZIP Code</Label>
                 <Input
                   id="zip_code"
-                  value={profile.zip_code || ""}
-                  onChange={(e) => handleChange("zip_code", e.target.value)}
+                  value={profile.zip_code || ''}
+                  onChange={(e) => handleChange('zip_code', e.target.value)}
                   placeholder="ZIP"
                 />
               </div>
@@ -296,8 +291,8 @@ export default function ProfilePage() {
               <Label htmlFor="country">Country</Label>
               <Input
                 id="country"
-                value={profile.country || ""}
-                onChange={(e) => handleChange("country", e.target.value)}
+                value={profile.country || ''}
+                onChange={(e) => handleChange('country', e.target.value)}
                 placeholder="Country"
               />
             </div>
@@ -315,8 +310,8 @@ export default function ProfilePage() {
               <Label htmlFor="institution">Institution</Label>
               <Input
                 id="institution"
-                value={profile.institution || ""}
-                onChange={(e) => handleChange("institution", e.target.value)}
+                value={profile.institution || ''}
+                onChange={(e) => handleChange('institution', e.target.value)}
                 placeholder="University or college name"
               />
             </div>
@@ -326,8 +321,8 @@ export default function ProfilePage() {
                 <Label htmlFor="degree">Degree</Label>
                 <Input
                   id="degree"
-                  value={profile.degree || ""}
-                  onChange={(e) => handleChange("degree", e.target.value)}
+                  value={profile.degree || ''}
+                  onChange={(e) => handleChange('degree', e.target.value)}
                   placeholder="Bachelor of Science"
                 />
               </div>
@@ -335,8 +330,8 @@ export default function ProfilePage() {
                 <Label htmlFor="field_of_study">Field of Study</Label>
                 <Input
                   id="field_of_study"
-                  value={profile.field_of_study || ""}
-                  onChange={(e) => handleChange("field_of_study", e.target.value)}
+                  value={profile.field_of_study || ''}
+                  onChange={(e) => handleChange('field_of_study', e.target.value)}
                   placeholder="Computer Science"
                 />
               </div>
@@ -346,8 +341,8 @@ export default function ProfilePage() {
               <Label htmlFor="graduation_year">Graduation Year</Label>
               <Input
                 id="graduation_year"
-                value={profile.graduation_year || ""}
-                onChange={(e) => handleChange("graduation_year", e.target.value)}
+                value={profile.graduation_year || ''}
+                onChange={(e) => handleChange('graduation_year', e.target.value)}
                 placeholder="2024"
               />
             </div>
@@ -365,8 +360,13 @@ export default function ProfilePage() {
               <Label htmlFor="skills">Skills (comma-separated)</Label>
               <Textarea
                 id="skills"
-                value={profile.skills?.join(", ") || ""}
-                onChange={(e) => handleChange("skills", e.target.value.split(",").map(s => s.trim()))}
+                value={profile.skills?.join(', ') || ''}
+                onChange={(e) =>
+                  handleChange(
+                    'skills',
+                    e.target.value.split(',').map((s) => s.trim())
+                  )
+                }
                 placeholder="Python, JavaScript, React, etc."
                 rows={4}
               />
@@ -377,7 +377,7 @@ export default function ProfilePage() {
         {/* Save Button (bottom) */}
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving} size="lg">
-            {saving ? "Saving…" : "Save Changes"}
+            {saving ? 'Saving…' : 'Save Changes'}
           </Button>
         </div>
       </div>

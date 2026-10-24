@@ -50,16 +50,26 @@ export type SourceFilter = (typeof SOURCES)[number];
 // ── Month names for posted dates ────────────────────────────────────────────
 
 export const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 // ── Source logo/favicon ──────────────────────────────────────────────────────
 
 export const SOURCE_ICONS: Record<string, string> = {
-  linkedin:    '/icons/linkedin.jpg',
-  indeed:      '/icons/indeed-copy.jpeg',
-  naukri:      '/icons/naukri.png',
-  unstop:      '/icons/unstop.jpg',
+  linkedin: '/icons/linkedin.jpg',
+  indeed: '/icons/indeed-copy.jpeg',
+  naukri: '/icons/naukri.png',
+  unstop: '/icons/unstop.jpg',
   internshala: '/icons/internshala.jpeg',
 };

@@ -20,16 +20,16 @@ const CONTEXT = 3; // lines of context around each change
 /** Very small Myers-inspired line diff (no external dependency). */
 function diffLines(a: string[], b: string[]): DiffLine[] {
   // Build LCS table
-  const m = a.length, n = b.length;
+  const m = a.length,
+    n = b.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
   for (let i = m - 1; i >= 0; i--)
     for (let j = n - 1; j >= 0; j--)
-      dp[i][j] = a[i] === b[j]
-        ? dp[i + 1][j + 1] + 1
-        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
 
   const raw: DiffLine[] = [];
-  let i = 0, j = 0;
+  let i = 0,
+    j = 0;
   while (i < m || j < n) {
     if (i < m && j < n && a[i] === b[j]) {
       raw.push({ kind: 'equal', text: a[i++] });
@@ -46,7 +46,9 @@ function diffLines(a: string[], b: string[]): DiffLine[] {
 /** Collapse unchanged regions to ±CONTEXT lines around each hunk. */
 function buildHunks(lines: DiffLine[]): DiffLine[] {
   const changed = new Set<number>();
-  lines.forEach((l, i) => { if (l.kind !== 'equal') changed.add(i); });
+  lines.forEach((l, i) => {
+    if (l.kind !== 'equal') changed.add(i);
+  });
 
   if (changed.size === 0) return [];
 
@@ -82,9 +84,8 @@ export function LatexDiffViewer({ original, modified }: LatexDiffViewerProps) {
 
   const changeCount = hunks.filter((l) => l.kind === 'remove' || l.kind === 'add').length;
 
-  if (changeCount === 0) return (
-    <p className="mt-2 text-xs text-muted-foreground italic">No changes detected.</p>
-  );
+  if (changeCount === 0)
+    return <p className="mt-2 text-xs text-muted-foreground italic">No changes detected.</p>;
 
   return (
     <div className="mt-2 rounded-lg overflow-hidden border border-border/40 text-xs">
@@ -114,8 +115,8 @@ export function LatexDiffViewer({ original, modified }: LatexDiffViewerProps) {
                 className={cn(
                   'px-3 whitespace-pre-wrap break-all',
                   line.kind === 'remove' && 'bg-red-950/40 text-red-300',
-                  line.kind === 'add'    && 'bg-emerald-950/40 text-emerald-300',
-                  line.kind === 'equal'  && 'text-[#888]',
+                  line.kind === 'add' && 'bg-emerald-950/40 text-emerald-300',
+                  line.kind === 'equal' && 'text-[#888]'
                 )}
               >
                 <span className="select-none mr-2 opacity-50">

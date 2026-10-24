@@ -16,7 +16,9 @@ export function SourceLogo({ source }: { source?: string }) {
       alt={key}
       title={key.charAt(0).toUpperCase() + key.slice(1)}
       className="h-7 w-7 shrink-0 rounded object-contain"
-      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      onError={(e) => {
+        (e.target as HTMLImageElement).style.display = 'none';
+      }}
     />
   );
 }
@@ -56,11 +58,7 @@ export function JobRow({
         >
           {job.title}
         </button>
-        {job.salary && (
-          <span className="text-xs text-[hsl(var(--success))]">
-            {job.salary}
-          </span>
-        )}
+        {job.salary && <span className="text-xs text-[hsl(var(--success))]">{job.salary}</span>}
       </td>
 
       {/* Company */}
@@ -89,10 +87,11 @@ export function JobRow({
       {/* Tracking status */}
       <td className="px-4 py-3">
         <select
-          className={`cursor-pointer rounded-md border px-2 py-1 text-xs font-medium transition ${trackingStatus
+          className={`cursor-pointer rounded-md border px-2 py-1 text-xs font-medium transition ${
+            trackingStatus
               ? TRACKING_COLORS[trackingStatus] || ''
               : 'bg-background text-muted-foreground'
-            }`}
+          }`}
           value={trackingStatus}
           onChange={(e) => onTrack(e.target.value)}
         >

@@ -75,8 +75,8 @@ function DashboardInner() {
       const res = await userApi.getProfile();
       return res.data as UserType;
     },
-    staleTime: 10 * 60 * 1000,   // 10 min
-    gcTime: 30 * 60 * 1000,      // 30 min
+    staleTime: 10 * 60 * 1000, // 10 min
+    gcTime: 30 * 60 * 1000, // 30 min
     retry: false,
   });
 
@@ -95,23 +95,20 @@ function DashboardInner() {
   const githubUsername = githubStatusData?.username ?? '';
 
   /* URL-sync: update ?tab= when activeTab changes */
-  const switchTab = useCallback(
-    (tab: TabKey) => {
-      setActiveTab(tab);
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', tab);
-      window.history.replaceState(null, '', url.toString());
-    },
-    []
-  );
+  const switchTab = useCallback((tab: TabKey) => {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState(null, '', url.toString());
+  }, []);
 
   /* Sync active tab from URL param on client mount */
   useEffect(() => {
     const tab = searchParams.get('tab') as TabKey;
-    if (tab && TABS.some(t => t.key === (tab as string))) {
+    if (tab && TABS.some((t) => t.key === (tab as string))) {
       setActiveTab(tab);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // only on mount — switchTab() keeps URL in sync for all subsequent changes
 
   /* Handle OAuth callback query params */
@@ -149,17 +146,17 @@ function DashboardInner() {
   useEffect(() => {
     queryClient.prefetchQuery({
       queryKey: ['resumes'],
-      queryFn: () => resumesApi.list().then(r => r.data),
+      queryFn: () => resumesApi.list().then((r) => r.data),
       staleTime: 2 * 60 * 1000,
     });
     queryClient.prefetchQuery({
       queryKey: ['projects'],
-      queryFn: () => projectsApi.list().then(r => r.data),
+      queryFn: () => projectsApi.list().then((r) => r.data),
       staleTime: 5 * 60 * 1000,
     });
     queryClient.prefetchQuery({
       queryKey: ['skill-gap-roles'],
-      queryFn: () => skillGapApi.getRoles().then(r => r.data.roles || []),
+      queryFn: () => skillGapApi.getRoles().then((r) => r.data.roles || []),
       staleTime: 60 * 60 * 1000,
     });
   }, [queryClient]);
@@ -171,22 +168,41 @@ function DashboardInner() {
   };
 
   /* ── Hover-prefetch map: tab key → prefetch function ────────────────── */
-  const prefetchTab = useCallback((tab: string) => {
-    switch (tab) {
-      case 'resumes':
-        queryClient.prefetchQuery({ queryKey: ['resumes'], queryFn: () => resumesApi.list().then(r => r.data), staleTime: 2 * 60 * 1000 });
-        break;
-      case 'projects':
-        queryClient.prefetchQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data), staleTime: 5 * 60 * 1000 });
-        break;
-      case 'skill-gap':
-        queryClient.prefetchQuery({ queryKey: ['skill-gap-roles'], queryFn: () => skillGapApi.getRoles().then(r => r.data.roles || []), staleTime: 60 * 60 * 1000 });
-        break;
-      case 'job-scout':
-        queryClient.prefetchQuery({ queryKey: ['job-scout-matches'], queryFn: () => jobMatchApi.list().then(r => r.data), staleTime: 30_000 });
-        break;
-    }
-  }, [queryClient]);
+  const prefetchTab = useCallback(
+    (tab: string) => {
+      switch (tab) {
+        case 'resumes':
+          queryClient.prefetchQuery({
+            queryKey: ['resumes'],
+            queryFn: () => resumesApi.list().then((r) => r.data),
+            staleTime: 2 * 60 * 1000,
+          });
+          break;
+        case 'projects':
+          queryClient.prefetchQuery({
+            queryKey: ['projects'],
+            queryFn: () => projectsApi.list().then((r) => r.data),
+            staleTime: 5 * 60 * 1000,
+          });
+          break;
+        case 'skill-gap':
+          queryClient.prefetchQuery({
+            queryKey: ['skill-gap-roles'],
+            queryFn: () => skillGapApi.getRoles().then((r) => r.data.roles || []),
+            staleTime: 60 * 60 * 1000,
+          });
+          break;
+        case 'job-scout':
+          queryClient.prefetchQuery({
+            queryKey: ['job-scout-matches'],
+            queryFn: () => jobMatchApi.list().then((r) => r.data),
+            staleTime: 30_000,
+          });
+          break;
+      }
+    },
+    [queryClient]
+  );
 
   /* Tab → Content mapping */
   const tabDescription: Record<TabKey, string> = {
@@ -205,8 +221,9 @@ function DashboardInner() {
     <div className="flex h-screen overflow-hidden">
       {/* ─── Sidebar ─────────────────────────────────────────────────────── */}
       <aside
-        className={`${sidebarOpen ? 'w-64' : 'w-16'
-          } shrink-0 border-r border-border/60 bg-card backdrop-blur-sm transition-all duration-300 sticky top-0 h-screen flex flex-col overflow-hidden`}
+        className={`${
+          sidebarOpen ? 'w-64' : 'w-16'
+        } shrink-0 border-r border-border/60 bg-card backdrop-blur-sm transition-all duration-300 sticky top-0 h-screen flex flex-col overflow-hidden`}
       >
         {/* Brand */}
         <div className="flex h-14 items-center gap-2 border-b border-border/60 px-3">
@@ -215,7 +232,11 @@ function DashboardInner() {
               href="/"
               className="group flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
             >
-              <img src="/logo.svg" alt="CareerForge logo" className="h-10 w-10 rounded-full bg-white p-0.5 object-contain shadow-md shadow-primary/25 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105" />
+              <img
+                src="/logo.svg"
+                alt="CareerForge logo"
+                className="h-10 w-10 rounded-full bg-white p-0.5 object-contain shadow-md shadow-primary/25 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105"
+              />
               <span className="font-bold text-base tracking-tight">CareerForge</span>
             </Link>
           )}
@@ -304,25 +325,25 @@ function DashboardInner() {
               </div>
             )}
 
-            {mounted && (githubConnected ? (
-              <Badge
-                variant="outline"
-                className="gap-1.5 border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 text-[hsl(var(--success))] cursor-default"
-              >
-                <Github className="h-3 w-3" aria-hidden="true" />
-                @{githubUsername}
-              </Badge>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => authApi.githubInstall()}
-              >
-                <Github className="h-3.5 w-3.5" aria-hidden="true" />
-                Connect GitHub
-              </Button>
-            ))}
+            {mounted &&
+              (githubConnected ? (
+                <Badge
+                  variant="outline"
+                  className="gap-1.5 border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 text-[hsl(var(--success))] cursor-default"
+                >
+                  <Github className="h-3 w-3" aria-hidden="true" />@{githubUsername}
+                </Badge>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => authApi.githubInstall()}
+                >
+                  <Github className="h-3.5 w-3.5" aria-hidden="true" />
+                  Connect GitHub
+                </Button>
+              ))}
           </div>
         </header>
 
@@ -352,16 +373,11 @@ function DashboardInner() {
           aria-modal="true"
           aria-label="Settings"
         >
-          <Card
-            className="w-full max-w-md shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <Card className="w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="flex flex-row items-start justify-between">
               <div>
                 <CardTitle>Settings</CardTitle>
-                <CardDescription>
-                  Manage integrations and upload your resume
-                </CardDescription>
+                <CardDescription>Manage integrations and upload your resume</CardDescription>
               </div>
               <Button
                 variant="ghost"
@@ -399,7 +415,7 @@ function DashboardInner() {
                       });
                       // Refresh user header + trigger ProfileView to re-fetch
                       queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-                      setProfileRefreshKey(k => k + 1);
+                      setProfileRefreshKey((k) => k + 1);
                       setShowSettings(false);
                     } catch {
                       toast({
@@ -478,10 +494,11 @@ function SidebarItem({
     <button
       onClick={onClick}
       onMouseEnter={onMouseEnter}
-      className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${active
+      className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${
+        active
           ? 'bg-primary/10 text-primary font-medium shadow-sm border-l-2 border-primary'
           : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground'
-        }`}
+      }`}
       aria-current={active ? 'page' : undefined}
     >
       {icon}

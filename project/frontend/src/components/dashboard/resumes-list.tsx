@@ -9,8 +9,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  FileText, Download, Edit, Trash2, Clock, CheckCircle, XCircle,
-  Loader2, Plus, X, Sparkles, Eye, RefreshCw, AlertTriangle, ExternalLink, List,
+  FileText,
+  Download,
+  Edit,
+  Trash2,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Plus,
+  X,
+  Sparkles,
+  Eye,
+  RefreshCw,
+  AlertTriangle,
+  ExternalLink,
+  List,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
@@ -46,10 +60,28 @@ interface Template {
 
 const statusConfig = {
   draft: { icon: Clock, color: 'bg-muted text-muted-foreground', text: 'Draft' },
-  generating: { icon: Loader2, color: 'bg-primary/10 text-primary', text: 'Generating\u2026', animate: true },
-  generated: { icon: CheckCircle, color: 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]', text: 'Generated' },
-  compiling: { icon: Loader2, color: 'bg-primary/10 text-primary', text: 'Compiling\u2026', animate: true },
-  compiled: { icon: CheckCircle, color: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]', text: 'Ready' },
+  generating: {
+    icon: Loader2,
+    color: 'bg-primary/10 text-primary',
+    text: 'Generating\u2026',
+    animate: true,
+  },
+  generated: {
+    icon: CheckCircle,
+    color: 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]',
+    text: 'Generated',
+  },
+  compiling: {
+    icon: Loader2,
+    color: 'bg-primary/10 text-primary',
+    text: 'Compiling\u2026',
+    animate: true,
+  },
+  compiled: {
+    icon: CheckCircle,
+    color: 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]',
+    text: 'Ready',
+  },
   error: { icon: XCircle, color: 'bg-destructive/10 text-destructive', text: 'Error' },
 };
 
@@ -66,8 +98,8 @@ export function ResumesList() {
       const res = await resumesApi.list();
       return res.data as Resume[];
     },
-    staleTime: 2 * 60 * 1000,   // 2 min
-    gcTime: 15 * 60 * 1000,     // 15 min
+    staleTime: 2 * 60 * 1000, // 2 min
+    gcTime: 15 * 60 * 1000, // 15 min
   });
 
   const deleteMutation = useMutation({
@@ -82,7 +114,12 @@ export function ResumesList() {
 
   const deleteAll = async () => {
     if (!resumes || resumes.length === 0) return;
-    if (!confirm(`Delete all ${resumes.length} resume${resumes.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    if (
+      !confirm(
+        `Delete all ${resumes.length} resume${resumes.length !== 1 ? 's' : ''}? This cannot be undone.`
+      )
+    )
+      return;
     setIsDeletingAll(true);
     try {
       await Promise.all(resumes.map((r) => resumesApi.delete(r.id)));
@@ -120,7 +157,10 @@ export function ResumesList() {
       const { data } = await resumesApi.getPdfDownloadUrl(resume.id);
       const link = document.createElement('a');
       link.href = data.url;
-      link.setAttribute('download', `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.pdf`);
+      link.setAttribute(
+        'download',
+        `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.pdf`
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -215,7 +255,6 @@ export function ResumesList() {
         />
       )}
 
-
       {/* Result area with aria-live for screen readers */}
       <div aria-live="polite" role="status">
         {/* Empty state */}
@@ -228,13 +267,11 @@ export function ResumesList() {
               <div>
                 <h3 className="text-lg font-semibold">No resumes yet</h3>
                 <p className="text-muted-foreground mt-1 max-w-sm mx-auto">
-                  Generate your first resume from your GitHub projects. Import your repos first, then click Generate.
+                  Generate your first resume from your GitHub projects. Import your repos first,
+                  then click Generate.
                 </p>
               </div>
-              <Button
-                onClick={() => setShowGenerator(true)}
-                className="gap-2"
-              >
+              <Button onClick={() => setShowGenerator(true)} className="gap-2">
                 <Sparkles className="h-4 w-4" />
                 Generate Your First Resume
               </Button>
@@ -288,42 +325,49 @@ export function ResumesList() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {(resume.status === 'compiled' || resume.status === 'generated') && resume.pdf_path && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1 h-7 text-xs"
-                          onClick={() => previewPdf(resume)}
-                        >
-                          <Eye className="h-3 w-3" />
-                          Preview
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="gap-1 h-7 text-xs"
-                          onClick={() => downloadPdf(resume)}
-                        >
-                          <Download className="h-3 w-3" />
-                          PDF
-                        </Button>
-                        {resume.tex_s3_key && (
+                    {(resume.status === 'compiled' || resume.status === 'generated') &&
+                      resume.pdf_path && (
+                        <>
                           <Button
                             size="sm"
                             variant="outline"
                             className="gap-1 h-7 text-xs"
-                            onClick={() => downloadTex(resume.id, `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.tex`)}
+                            onClick={() => previewPdf(resume)}
                           >
-                            <FileText className="h-3 w-3" />
-                            .tex
+                            <Eye className="h-3 w-3" />
+                            Preview
                           </Button>
-                        )}
-                      </>
-                    )}
+                          <Button
+                            size="sm"
+                            className="gap-1 h-7 text-xs"
+                            onClick={() => downloadPdf(resume)}
+                          >
+                            <Download className="h-3 w-3" />
+                            PDF
+                          </Button>
+                          {resume.tex_s3_key && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 h-7 text-xs"
+                              onClick={() =>
+                                downloadTex(
+                                  resume.id,
+                                  `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.tex`
+                                )
+                              }
+                            >
+                              <FileText className="h-3 w-3" />
+                              .tex
+                            </Button>
+                          )}
+                        </>
+                      )}
                     {resume.status === 'generated' && !resume.pdf_path && (
                       <CompileButton resumeId={resume.id} />
                     )}
-                    {(resume.latex_content || ['generated', 'compiled', 'error'].includes(resume.status)) && (
+                    {(resume.latex_content ||
+                      ['generated', 'compiled', 'error'].includes(resume.status)) && (
                       <Link href={`/dashboard/resumes/${resume.id}/edit`}>
                         <Button
                           size="sm"
@@ -454,7 +498,9 @@ function PdfPreviewModal({
             <div className="flex flex-col items-center gap-3 text-muted-foreground p-8 text-center">
               <AlertTriangle className="h-8 w-8 text-[hsl(var(--accent))]" />
               <p className="text-sm font-medium">Preview unavailable</p>
-              <p className="text-xs text-muted-foreground/70">Use the Download button to open the PDF.</p>
+              <p className="text-xs text-muted-foreground/70">
+                Use the Download button to open the PDF.
+              </p>
             </div>
           )}
           {pdfUrl && (
@@ -534,9 +580,7 @@ function ResumeGenerator({
             </div>
             <div>
               <h2 className="text-lg font-semibold">Generate Resume</h2>
-              <p className="text-xs text-muted-foreground">
-                AI-powered from your GitHub projects
-              </p>
+              <p className="text-xs text-muted-foreground">AI-powered from your GitHub projects</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
@@ -587,12 +631,8 @@ function ResumeGenerator({
               <div className="flex items-start gap-2">
                 <XCircle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-medium text-sm text-destructive">
-                    Generation failed
-                  </p>
-                  <p className="text-xs text-destructive/80 mt-1">
-                    {error}
-                  </p>
+                  <p className="font-medium text-sm text-destructive">Generation failed</p>
+                  <p className="text-xs text-destructive/80 mt-1">{error}</p>
                 </div>
               </div>
               <p className="text-xs text-destructive/70 pl-7">
@@ -627,7 +667,12 @@ function ResumeGenerator({
                       )}
                       {result.tex_url && (
                         <button
-                          onClick={() => downloadTex(result.resume_id, `resume-${new Date().toISOString().split('T')[0]}.tex`)}
+                          onClick={() =>
+                            downloadTex(
+                              result.resume_id,
+                              `resume-${new Date().toISOString().split('T')[0]}.tex`
+                            )
+                          }
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white dark:bg-gray-800 border text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
                           <FileText className="h-3.5 w-3.5" />
@@ -653,9 +698,13 @@ function ResumeGenerator({
                 <div className="rounded-lg border border-[hsl(var(--accent))]/20 bg-[hsl(var(--accent))]/5 p-3 space-y-1">
                   <div className="flex items-start gap-2">
                     <XCircle className="h-4 w-4 text-[hsl(var(--accent))] mt-0.5 shrink-0" />
-                      <div>
-                      <p className="text-xs font-medium text-[hsl(var(--accent))]">PDF compilation failed</p>
-                      <p className="text-xs text-[hsl(var(--accent))]/80 mt-0.5 font-mono break-all">{result.compilation_error}</p>
+                    <div>
+                      <p className="text-xs font-medium text-[hsl(var(--accent))]">
+                        PDF compilation failed
+                      </p>
+                      <p className="text-xs text-[hsl(var(--accent))]/80 mt-0.5 font-mono break-all">
+                        {result.compilation_error}
+                      </p>
                     </div>
                   </div>
                   <p className="text-xs text-amber-500/80 dark:text-amber-400/50 pl-6">
@@ -665,9 +714,7 @@ function ResumeGenerator({
               )}
 
               {/* Analysis collapse */}
-              {result.analysis && (
-                <AnalysisPanel analysis={result.analysis} />
-              )}
+              {result.analysis && <AnalysisPanel analysis={result.analysis} />}
 
               {/* PDF preview */}
               {result.pdf_url && (
@@ -746,9 +793,7 @@ function AnalysisPanel({ analysis }: { analysis: string }) {
           <FileText className="h-4 w-4 text-muted-foreground" />
           Step 0 Analysis
         </span>
-        <span className="text-xs text-muted-foreground">
-          {expanded ? 'Collapse' : 'Expand'}
-        </span>
+        <span className="text-xs text-muted-foreground">{expanded ? 'Collapse' : 'Expand'}</span>
       </button>
       {expanded && (
         <div className="px-3 pb-3">

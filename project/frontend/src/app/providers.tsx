@@ -34,8 +34,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 2 * 60 * 1000,   // 2 min default (overridden per-query)
-            gcTime: 15 * 60 * 1000,     // 15 min garbage collection
+            staleTime: 2 * 60 * 1000, // 2 min default (overridden per-query)
+            gcTime: 15 * 60 * 1000, // 15 min garbage collection
             refetchOnWindowFocus: false,
           },
         },
@@ -49,7 +49,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       client={queryClient}
       persistOptions={{
         persister,
-        maxAge: 24 * 60 * 60 * 1000,  // discard cache older than 24 hours
+        maxAge: 24 * 60 * 60 * 1000, // discard cache older than 24 hours
         buster: CACHE_BUSTER,
       }}
     >

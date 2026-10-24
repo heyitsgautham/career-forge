@@ -25,14 +25,22 @@ export function ProjectsList() {
   useEffect(() => setMounted(true), []);
 
   // ── GitHub bulk-ingestion state ─────────────────────────────────────────
-  const [syncing, setSyncing] = useState(false);      // "Sync All Repos"
+  const [syncing, setSyncing] = useState(false); // "Sync All Repos"
   const busy = syncing;
   const [syncStatus, setSyncStatus] = useState<string>('none');
-  const [syncSummary, setSyncSummary] = useState<{ processed: number; failed: number; mode?: string; lastRunAt?: string } | null>(null);
+  const [syncSummary, setSyncSummary] = useState<{
+    processed: number;
+    failed: number;
+    mode?: string;
+    lastRunAt?: string;
+  } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPoll = useCallback(() => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
   }, []);
 
   const pollStatus = useCallback(async () => {
@@ -43,7 +51,8 @@ export function ProjectsList() {
       setSyncStatus(s);
       setSyncSummary(summary);
       if (s === 'done' || s === 'completed') {
-        stopPoll(); setSyncing(false);
+        stopPoll();
+        setSyncing(false);
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         const count = summary?.processed ?? 0;
         toast({
@@ -51,10 +60,18 @@ export function ProjectsList() {
           description: `${count} existing project${count !== 1 ? 's' : ''} refreshed.`,
         });
       } else if (s === 'failed') {
-        stopPoll(); setSyncing(false);
-        toast({ title: 'Sync failed', description: 'Check your GitHub connection and try again.', variant: 'destructive' });
+        stopPoll();
+        setSyncing(false);
+        toast({
+          title: 'Sync failed',
+          description: 'Check your GitHub connection and try again.',
+          variant: 'destructive',
+        });
       }
-    } catch { stopPoll(); setSyncing(false); }
+    } catch {
+      stopPoll();
+      setSyncing(false);
+    }
   }, [stopPoll, queryClient, toast]);
 
   useEffect(() => () => stopPoll(), [stopPoll]);
@@ -63,21 +80,27 @@ export function ProjectsList() {
     setSyncing(true);
     try {
       await githubApi.sync(false);
-    } catch { /* server already processing */ }
+    } catch {
+      /* server already processing */
+    }
     pollRef.current = setInterval(pollStatus, 3000);
     pollStatus();
   };
 
   // ───────────────────────────────────────────────────────────────────────
 
-  const { data: projects, isLoading, refetch } = useQuery({
+  const {
+    data: projects,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
       const res = await projectsApi.list();
       return res.data as Project[];
     },
-    staleTime: 5 * 60 * 1000,   // 5 min
-    gcTime: 30 * 60 * 1000,     // 30 min
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 30 * 60 * 1000, // 30 min
   });
 
   // Fetch GitHub repos count for the badge
@@ -91,8 +114,8 @@ export function ProjectsList() {
         return 0;
       }
     },
-    staleTime: 5 * 60 * 1000,   // 5 min
-    gcTime: 30 * 60 * 1000,     // 30 min
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 30 * 60 * 1000, // 30 min
     retry: false,
   });
 
@@ -132,7 +155,10 @@ export function ProjectsList() {
       return { previous };
     },
     onSuccess: (response) => {
-      toast({ title: 'All projects cleared', description: response.data?.message || 'Projects deleted.' });
+      toast({
+        title: 'All projects cleared',
+        description: response.data?.message || 'Projects deleted.',
+      });
     },
     onError: (_err, _vars, context) => {
       if (context?.previous !== undefined) {
@@ -146,7 +172,9 @@ export function ProjectsList() {
   });
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [importProgress, setImportProgress] = useState<Array<{ name: string; fullName: string; status: 'queued' | 'processing' | 'done' | 'failed' }>>([]);
+  const [importProgress, setImportProgress] = useState<
+    Array<{ name: string; fullName: string; status: 'queued' | 'processing' | 'done' | 'failed' }>
+  >([]);
   // Holds the visual simulation interval so it can be cancelled when real results arrive
   const simulationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -164,17 +192,25 @@ export function ProjectsList() {
       }
 
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      const results: Array<{ full_name?: string; status?: string; error?: string }> = response.data?.results ?? [];
+      const results: Array<{ full_name?: string; status?: string; error?: string }> =
+        response.data?.results ?? [];
 
       // Reveal done/failed one by one — 650ms stagger so cards appear sequentially
       results.forEach((result, idx) => {
         setTimeout(() => {
-          setImportProgress(prev => prev.map(repo => {
-            if (repo.fullName === result.full_name || (!result.full_name && idx === prev.indexOf(prev.find(r => r.status !== 'done' && r.status !== 'failed')!))) {
-              return { ...repo, status: result.status === 'success' ? 'done' : 'failed' };
-            }
-            return repo;
-          }));
+          setImportProgress((prev) =>
+            prev.map((repo) => {
+              if (
+                repo.fullName === result.full_name ||
+                (!result.full_name &&
+                  idx ===
+                    prev.indexOf(prev.find((r) => r.status !== 'done' && r.status !== 'failed')!))
+              ) {
+                return { ...repo, status: result.status === 'success' ? 'done' : 'failed' };
+              }
+              return repo;
+            })
+          );
         }, idx * 650);
       });
 
@@ -182,14 +218,23 @@ export function ProjectsList() {
 
       // Toast after the last card flips
       setTimeout(() => {
-        const failed = results.filter(r => r.status === 'error');
-        const succeeded = results.filter(r => r.status === 'success');
+        const failed = results.filter((r) => r.status === 'error');
+        const succeeded = results.filter((r) => r.status === 'success');
         if (succeeded.length > 0 && failed.length === 0) {
-          toast({ title: `${succeeded.length} project${succeeded.length !== 1 ? 's' : ''} imported successfully` });
+          toast({
+            title: `${succeeded.length} project${succeeded.length !== 1 ? 's' : ''} imported successfully`,
+          });
         } else if (succeeded.length > 0 && failed.length > 0) {
-          toast({ title: `${succeeded.length} imported, ${failed.length} failed`, description: `Failed: ${failed.map(f => f.full_name).join(', ')}` });
+          toast({
+            title: `${succeeded.length} imported, ${failed.length} failed`,
+            description: `Failed: ${failed.map((f) => f.full_name).join(', ')}`,
+          });
         } else if (failed.length > 0) {
-          toast({ title: `Import failed for ${failed.length} project${failed.length !== 1 ? 's' : ''}`, description: failed[0].error ?? 'Unknown error', variant: 'destructive' });
+          toast({
+            title: `Import failed for ${failed.length} project${failed.length !== 1 ? 's' : ''}`,
+            description: failed[0].error ?? 'Unknown error',
+            variant: 'destructive',
+          });
         } else {
           toast({ title: 'Import completed' });
         }
@@ -210,8 +255,12 @@ export function ProjectsList() {
         simulationIntervalRef.current = null;
       }
       // Mark all as failed, then clear after a short delay
-      setImportProgress(prev => prev.map(repo => ({ ...repo, status: 'failed' })));
-      toast({ title: 'Failed to import repositories', description: error.response?.data?.detail || error.message || 'Unknown error', variant: 'destructive' });
+      setImportProgress((prev) => prev.map((repo) => ({ ...repo, status: 'failed' })));
+      toast({
+        title: 'Failed to import repositories',
+        description: error.response?.data?.detail || error.message || 'Unknown error',
+        variant: 'destructive',
+      });
       setTimeout(() => setImportProgress([]), 4000);
     },
     onSettled: () => {
@@ -235,11 +284,14 @@ export function ProjectsList() {
       let currentIdx = 1;
       simulationIntervalRef.current = setInterval(() => {
         if (currentIdx < fullNames.length) {
-          setImportProgress(prev => prev.map((item, i) => {
-            if (i < currentIdx) return item.status === 'queued' ? { ...item, status: 'processing' as const } : item;
-            if (i === currentIdx) return { ...item, status: 'processing' as const };
-            return item;
-          }));
+          setImportProgress((prev) =>
+            prev.map((item, i) => {
+              if (i < currentIdx)
+                return item.status === 'queued' ? { ...item, status: 'processing' as const } : item;
+              if (i === currentIdx) return { ...item, status: 'processing' as const };
+              return item;
+            })
+          );
           currentIdx++;
         } else {
           if (simulationIntervalRef.current) {
@@ -255,49 +307,55 @@ export function ProjectsList() {
   const syncBanner = (
     <Card className="mb-4 border-l-4 border-l-primary bg-card">
       <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-2">
-            <Github className="h-5 w-5 text-primary" />
-            <span className="text-base font-semibold leading-none tracking-tight">GitHub Sync</span>
-            {syncStatus === 'done' || syncStatus === 'completed' ? (
-              <Badge className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-0">
-                {syncSummary ? `${syncSummary.processed} imported` : 'Synced'}
-              </Badge>
-            ) : syncStatus === 'in_progress' || syncStatus === 'pending' ? (
-              <Badge className="bg-primary/10 text-primary border-0 animate-pulse">
-                {syncStatus === 'pending' ? 'Pending…' : 'Importing…'}
-              </Badge>
-            ) : syncStatus === 'failed' ? (
-              <Badge variant="destructive">Failed</Badge>
-            ) : null}
-          </div>
-          <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Github className="h-5 w-5 text-primary" />
+          <span className="text-base font-semibold leading-none tracking-tight">GitHub Sync</span>
+          {syncStatus === 'done' || syncStatus === 'completed' ? (
+            <Badge className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-0">
+              {syncSummary ? `${syncSummary.processed} imported` : 'Synced'}
+            </Badge>
+          ) : syncStatus === 'in_progress' || syncStatus === 'pending' ? (
+            <Badge className="bg-primary/10 text-primary border-0 animate-pulse">
+              {syncStatus === 'pending' ? 'Pending…' : 'Importing…'}
+            </Badge>
+          ) : syncStatus === 'failed' ? (
+            <Badge variant="destructive">Failed</Badge>
+          ) : null}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={handleSyncAll}
+            disabled={busy}
+            variant="outline"
+            className="gap-2 border-primary/40 text-primary hover:bg-primary/5"
+          >
+            {syncing ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Syncing…
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Sync Existing
+              </>
+            )}
+          </Button>
+          {mounted && projects && projects.length > 0 && (
             <Button
               size="sm"
-              onClick={handleSyncAll}
-              disabled={busy}
               variant="outline"
-              className="gap-2 border-primary/40 text-primary hover:bg-primary/5"
+              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5"
+              onClick={() => setShowClearConfirm(true)}
+              disabled={deleteAllMutation.isPending}
             >
-              {syncing ? (
-                <><RefreshCw className="h-4 w-4 animate-spin" />Syncing…</>
-              ) : (
-                <><RefreshCw className="h-4 w-4" />Sync Existing</>
-              )}
+              <Trash2 className="h-4 w-4" />
+              {deleteAllMutation.isPending ? 'Clearing…' : 'Clear All'}
             </Button>
-            {mounted && projects && projects.length > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5"
-                onClick={() => setShowClearConfirm(true)}
-                disabled={deleteAllMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-                {deleteAllMutation.isPending ? 'Clearing…' : 'Clear All'}
-              </Button>
-            )}
-          </div>
+          )}
         </div>
+      </div>
       {(syncStatus === 'in_progress' || syncStatus === 'pending') && (
         <CardContent className="pt-0">
           <p className="text-sm text-muted-foreground animate-pulse">
@@ -317,9 +375,8 @@ export function ProjectsList() {
   );
 
   // ── Non-blocking import progress banner ─────────────────────────────────
-  const importBanner = importProgress.length > 0 ? (
-    <ImportProgressBanner importProgress={importProgress} />
-  ) : null;
+  const importBanner =
+    importProgress.length > 0 ? <ImportProgressBanner importProgress={importProgress} /> : null;
   // ───────────────────────────────────────────────────────────────────────
 
   if (isLoading) {
@@ -380,7 +437,14 @@ export function ProjectsList() {
         </Card>
 
         {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
-        {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} projectsLoading={isLoading} />}
+        {showGithubModal && (
+          <GithubImportModal
+            onClose={() => setShowGithubModal(false)}
+            onStartImport={handleStartImport}
+            importedRepoNames={new Set((projects ?? []).map((p) => p.title))}
+            projectsLoading={isLoading}
+          />
+        )}
       </>
     );
   }
@@ -390,7 +454,11 @@ export function ProjectsList() {
       {syncBanner}
       {importBanner}
       <div className="flex justify-end gap-2 mb-4">
-        <Button variant="outline" className="gap-2 border-primary/30 hover:bg-primary/5" onClick={() => setShowGithubModal(true)}>
+        <Button
+          variant="outline"
+          className="gap-2 border-primary/30 hover:bg-primary/5"
+          onClick={() => setShowGithubModal(true)}
+        >
           <Github className="h-4 w-4" />
           Import from GitHub
           {githubReposCount !== undefined && githubReposCount > 0 && (
@@ -399,7 +467,10 @@ export function ProjectsList() {
             </Badge>
           )}
         </Button>
-        <Button onClick={() => setShowAddModal(true)} className="shadow-md shadow-primary/20 hover:shadow-lg">
+        <Button
+          onClick={() => setShowAddModal(true)}
+          className="shadow-md shadow-primary/20 hover:shadow-lg"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Project
         </Button>
@@ -412,13 +483,16 @@ export function ProjectsList() {
         ))}
         {/* Real project cards */}
         {(projects ?? []).map((project) => (
-          <Card key={project.id} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-[hsl(var(--success))]">
+          <Card
+            key={project.id}
+            className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-[hsl(var(--success))]"
+          >
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2 min-w-0">
                   <CardTitle className="text-lg truncate">{project.title}</CardTitle>
-                  {project.source_type === 'github' && (
-                    project.is_private ? (
+                  {project.source_type === 'github' &&
+                    (project.is_private ? (
                       <span title="Private repository" className="flex-shrink-0">
                         <Lock className="h-3.5 w-3.5 text-amber-500" />
                       </span>
@@ -426,8 +500,7 @@ export function ProjectsList() {
                       <span title="Public repository" className="flex-shrink-0">
                         <Globe className="h-3.5 w-3.5 text-green-500" />
                       </span>
-                    )
-                  )}
+                    ))}
                 </div>
                 <div className="flex gap-1">
                   {project.url && (
@@ -439,17 +512,22 @@ export function ProjectsList() {
                   )}
                 </div>
               </div>
-              <CardDescription className="line-clamp-2">
-                {project.description}
-              </CardDescription>
+              <CardDescription className="line-clamp-2">{project.description}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1 mb-4">
                 {project.technologies?.slice(0, 5).map((tech, idx) => (
-                  <Badge key={tech} variant="secondary" className={`text-xs ${idx % 3 === 0 ? 'bg-primary/10 text-primary' :
-                    idx % 3 === 1 ? 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]' :
-                      'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
-                    }`}>
+                  <Badge
+                    key={tech}
+                    variant="secondary"
+                    className={`text-xs ${
+                      idx % 3 === 0
+                        ? 'bg-primary/10 text-primary'
+                        : idx % 3 === 1
+                          ? 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]'
+                          : 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
+                    }`}
+                  >
                     {tech}
                   </Badge>
                 ))}
@@ -466,11 +544,7 @@ export function ProjectsList() {
                 </div>
               )}
               <div className="flex justify-between gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedProject(project)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setSelectedProject(project)}>
                   Show Details
                 </Button>
                 <Button
@@ -488,20 +562,35 @@ export function ProjectsList() {
       </div>
 
       {showAddModal && <AddProjectModal onClose={() => setShowAddModal(false)} />}
-      {showGithubModal && <GithubImportModal onClose={() => setShowGithubModal(false)} onStartImport={handleStartImport} importedRepoNames={new Set((projects ?? []).map(p => p.title))} projectsLoading={isLoading} />}
-      {selectedProject && <ProjectDetailsModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
+      {showGithubModal && (
+        <GithubImportModal
+          onClose={() => setShowGithubModal(false)}
+          onStartImport={handleStartImport}
+          importedRepoNames={new Set((projects ?? []).map((p) => p.title))}
+          projectsLoading={isLoading}
+        />
+      )}
+      {selectedProject && (
+        <ProjectDetailsModal project={selectedProject} onClose={() => setSelectedProject(null)} />
+      )}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2">Clear All Projects?</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              This will permanently delete all {projects?.length ?? 0} projects. You can re-import specific ones afterwards using &quot;Import from GitHub&quot;.
+              This will permanently delete all {projects?.length ?? 0} projects. You can re-import
+              specific ones afterwards using &quot;Import from GitHub&quot;.
             </p>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowClearConfirm(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setShowClearConfirm(false)}>
+                Cancel
+              </Button>
               <Button
                 variant="destructive"
-                onClick={() => { deleteAllMutation.mutate(); setShowClearConfirm(false); }}
+                onClick={() => {
+                  deleteAllMutation.mutate();
+                  setShowClearConfirm(false);
+                }}
               >
                 Yes, Clear All
               </Button>

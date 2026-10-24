@@ -12,7 +12,10 @@ describe('toast reducer', () => {
   });
 
   it('updates a toast by id', () => {
-    const state = reducer({ toasts: [base('1', 'old')] }, { type: 'UPDATE_TOAST', toast: { id: '1', title: 'new' } });
+    const state = reducer(
+      { toasts: [base('1', 'old')] },
+      { type: 'UPDATE_TOAST', toast: { id: '1', title: 'new' } }
+    );
     expect(state.toasts[0].title).toBe('new');
     expect(state.toasts[0].open).toBe(true);
   });
@@ -25,7 +28,9 @@ describe('toast reducer', () => {
 
   it('removes one toast or all of them', () => {
     const two = { toasts: [base('1'), base('2')] };
-    expect(reducer(two, { type: 'REMOVE_TOAST', toastId: '1' }).toasts.map((t) => t.id)).toEqual(['2']);
+    expect(reducer(two, { type: 'REMOVE_TOAST', toastId: '1' }).toasts.map((t) => t.id)).toEqual([
+      '2',
+    ]);
     expect(reducer(two, { type: 'REMOVE_TOAST' }).toasts).toEqual([]);
   });
 });

@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import api, { githubApi } from "@/lib/api";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import api, { githubApi } from '@/lib/api';
 
 interface ExperienceEntry {
   company: string;
@@ -33,8 +33,6 @@ interface CertificationEntry {
   credential_id?: string;
   url?: string;
 }
-
-
 
 interface ProfileData {
   id: string;
@@ -73,17 +71,20 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
   // GitHub ingestion state
   const [ingesting, setIngesting] = useState(false);
   const [linkedInUrlPrompt, setLinkedInUrlPrompt] = useState(false);
-  const [linkedInUrlInput, setLinkedInUrlInput] = useState("");
-  const [ingestionStatus, setIngestionStatus] = useState<string>("none");
+  const [linkedInUrlInput, setLinkedInUrlInput] = useState('');
+  const [ingestionStatus, setIngestionStatus] = useState<string>('none');
   const [ingestionSummary, setIngestionSummary] = useState<{
-    total: number; processed: number; failed: number; lastRunAt: string;
+    total: number;
+    processed: number;
+    failed: number;
+    lastRunAt: string;
   } | null>(null);
   const [projects, setProjects] = useState<Array<Record<string, unknown>>>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     loadProfile();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey, externalRefreshKey]);
 
   // Poll ingestion status and load projects on mount
@@ -98,7 +99,9 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
     try {
       const res = await githubApi.listProjects();
       setProjects(res.data as Array<Record<string, unknown>>);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const pollCountRef = useRef(0);
@@ -111,23 +114,34 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
       setIngestionStatus(s);
       setIngestionSummary(res.data.summary);
 
-      if (s === "done") {
+      if (s === 'done') {
         stopPolling();
         setIngesting(false);
         await loadProjects();
         // Reload profile so newly-added skills appear immediately
         try {
-          const profileRes = await api.get("/api/auth/profile");
+          const profileRes = await api.get('/api/auth/profile');
           setProfile(profileRes.data);
         } catch {}
-        toast({ title: "Import Complete", description: `${res.data.summary?.processed ?? 0} projects imported.` });
-      } else if (s === "failed" || s === "stale") {
+        toast({
+          title: 'Import Complete',
+          description: `${res.data.summary?.processed ?? 0} projects imported.`,
+        });
+      } else if (s === 'failed' || s === 'stale') {
         stopPolling();
         setIngesting(false);
-        if (s === "stale") {
-          toast({ title: "Import Timed Out", description: "The previous import did not complete. Please try again.", variant: "destructive" });
+        if (s === 'stale') {
+          toast({
+            title: 'Import Timed Out',
+            description: 'The previous import did not complete. Please try again.',
+            variant: 'destructive',
+          });
         } else {
-          toast({ title: "Import Failed", description: "Check your GitHub connection and try again.", variant: "destructive" });
+          toast({
+            title: 'Import Failed',
+            description: 'Check your GitHub connection and try again.',
+            variant: 'destructive',
+          });
         }
       } else {
         // Safety cap: stop polling after MAX_POLLS attempts
@@ -135,7 +149,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         if (pollCountRef.current >= MAX_POLLS) {
           stopPolling();
           setIngesting(false);
-          toast({ title: "Import Timed Out", description: "The import is taking too long. Please try again.", variant: "destructive" });
+          toast({
+            title: 'Import Timed Out',
+            description: 'The import is taking too long. Please try again.',
+            variant: 'destructive',
+          });
         }
       }
     } catch {
@@ -162,14 +180,16 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         const s = res.data.status;
         setIngestionStatus(s);
         setIngestionSummary(res.data.summary);
-        if (s === "in_progress") {
+        if (s === 'in_progress') {
           startPolling();
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       await loadProjects();
     })();
     return () => stopPolling();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRefreshRepos = async () => {
@@ -179,13 +199,15 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
       // Ingest is synchronous — skills are already updated in DynamoDB.
       // Reload profile immediately so the skills field reflects the new data.
       try {
-        const profileRes = await api.get("/api/auth/profile");
+        const profileRes = await api.get('/api/auth/profile');
         setProfile(profileRes.data);
-      } catch { /* silent — UI still shows old skills */ }
+      } catch {
+        /* silent — UI still shows old skills */
+      }
       await loadProjects();
       setIngesting(false);
-      setIngestionStatus("done");
-      toast({ title: "Sync complete", description: "Projects refreshed and skills updated." });
+      setIngestionStatus('done');
+      toast({ title: 'Sync complete', description: 'Projects refreshed and skills updated.' });
     } catch {
       // Ingest may be running as a background job — fall back to polling.
       startPolling();
@@ -195,16 +217,16 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/auth/profile");
+      const response = await api.get('/api/auth/profile');
       setProfile(response.data);
     } catch (error: unknown) {
       const msg =
-        (error as { response?: { data?: { detail?: string } } }).response?.data
-          ?.detail || "Failed to load profile";
+        (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+        'Failed to load profile';
       toast({
-        title: "Error",
+        title: 'Error',
         description: msg,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -216,7 +238,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
 
     try {
       setSaving(true);
-      const response = await api.put("/api/auth/profile", {
+      const response = await api.put('/api/auth/profile', {
         name: profile.name,
         headline: profile.headline,
         summary: profile.summary,
@@ -242,17 +264,17 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
       });
       setProfile(response.data);
       toast({
-        title: "Success",
-        description: "Profile updated successfully",
+        title: 'Success',
+        description: 'Profile updated successfully',
       });
     } catch (error: unknown) {
       const msg =
-        (error as { response?: { data?: { detail?: string } } }).response?.data
-          ?.detail || "Failed to save profile";
+        (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
+        'Failed to save profile';
       toast({
-        title: "Error",
+        title: 'Error',
         description: msg,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -278,7 +300,9 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">No profile data found</p>
-          <p className="text-sm text-muted-foreground">Upload a resume in Settings to auto-fill your profile</p>
+          <p className="text-sm text-muted-foreground">
+            Upload a resume in Settings to auto-fill your profile
+          </p>
         </div>
       </div>
     );
@@ -288,18 +312,21 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
     const urlToUse = overrideUrl || profile.linkedin_url;
     if (!urlToUse) {
       // No URL stored — show inline prompt
-      setLinkedInUrlInput("");
+      setLinkedInUrlInput('');
       setLinkedInUrlPrompt(true);
       return;
     }
     setLinkedInUrlPrompt(false);
     try {
       toast({
-        title: "Opening LinkedIn…",
-        description: "A browser will open. Please log in to LinkedIn if needed, then wait while we import your profile.",
+        title: 'Opening LinkedIn…',
+        description:
+          'A browser will open. Please log in to LinkedIn if needed, then wait while we import your profile.',
       });
 
-      const response = await api.post('/api/auth/linkedin/import-profile', { linkedin_url: urlToUse });
+      const response = await api.post('/api/auth/linkedin/import-profile', {
+        linkedin_url: urlToUse,
+      });
 
       if (response.data.success) {
         const updatedProfile = await api.get('/api/auth/profile');
@@ -317,18 +344,21 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         if (imp?.website) parts.push('website');
 
         toast({
-          title: "Import Complete!",
-          description: parts.length > 0
-            ? `Imported: ${parts.join(', ')}`
-            : "Profile imported (no new data found).",
+          title: 'Import Complete!',
+          description:
+            parts.length > 0
+              ? `Imported: ${parts.join(', ')}`
+              : 'Profile imported (no new data found).',
         });
       }
     } catch (error: any) {
       console.error('Error importing LinkedIn profile:', error);
       toast({
-        title: "Import Failed",
-        description: error.response?.data?.detail || "Failed to import from LinkedIn. Make sure you logged in when the browser opened.",
-        variant: "destructive",
+        title: 'Import Failed',
+        description:
+          error.response?.data?.detail ||
+          'Failed to import from LinkedIn. Make sure you logged in when the browser opened.',
+        variant: 'destructive',
       });
     }
   };
@@ -348,7 +378,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             Import from LinkedIn
           </Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save Changes"}
+            {saving ? 'Saving…' : 'Save Changes'}
           </Button>
         </div>
         {linkedInUrlPrompt && (
@@ -360,8 +390,9 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               value={linkedInUrlInput}
               onChange={(e) => setLinkedInUrlInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && linkedInUrlInput.trim()) handleLinkedInImport(linkedInUrlInput.trim());
-                if (e.key === "Escape") setLinkedInUrlPrompt(false);
+                if (e.key === 'Enter' && linkedInUrlInput.trim())
+                  handleLinkedInImport(linkedInUrlInput.trim());
+                if (e.key === 'Escape') setLinkedInUrlPrompt(false);
               }}
               className="flex-1 px-3 py-1.5 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-[#0077B5]/40"
             />
@@ -373,7 +404,9 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             >
               Import
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setLinkedInUrlPrompt(false)}>Cancel</Button>
+            <Button size="sm" variant="ghost" onClick={() => setLinkedInUrlPrompt(false)}>
+              Cancel
+            </Button>
           </div>
         )}
       </div>
@@ -390,19 +423,14 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Label htmlFor="name">Full Name</Label>
               <Input
                 id="name"
-                value={profile.name || ""}
-                onChange={(e) => handleChange("name", e.target.value)}
+                value={profile.name || ''}
+                onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="Your full name"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                value={profile.email || ""}
-                disabled
-                className="bg-muted"
-              />
+              <Input id="email" value={profile.email || ''} disabled className="bg-muted" />
             </div>
           </div>
 
@@ -410,8 +438,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             <Label htmlFor="headline">Headline</Label>
             <Input
               id="headline"
-              value={profile.headline || ""}
-              onChange={(e) => handleChange("headline", e.target.value)}
+              value={profile.headline || ''}
+              onChange={(e) => handleChange('headline', e.target.value)}
               placeholder="Your professional headline"
             />
           </div>
@@ -420,8 +448,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             <Label htmlFor="summary">Summary</Label>
             <Textarea
               id="summary"
-              value={profile.summary || ""}
-              onChange={(e) => handleChange("summary", e.target.value)}
+              value={profile.summary || ''}
+              onChange={(e) => handleChange('summary', e.target.value)}
               placeholder="Professional summary"
               rows={5}
             />
@@ -441,8 +469,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
-                value={profile.phone || ""}
-                onChange={(e) => handleChange("phone", e.target.value)}
+                value={profile.phone || ''}
+                onChange={(e) => handleChange('phone', e.target.value)}
                 placeholder="+1-234-567-8900"
               />
             </div>
@@ -450,8 +478,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Label htmlFor="location">Location</Label>
               <Input
                 id="location"
-                value={profile.location || ""}
-                onChange={(e) => handleChange("location", e.target.value)}
+                value={profile.location || ''}
+                onChange={(e) => handleChange('location', e.target.value)}
                 placeholder="City, State"
               />
             </div>
@@ -462,8 +490,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Label htmlFor="website">Website</Label>
               <Input
                 id="website"
-                value={profile.website || ""}
-                onChange={(e) => handleChange("website", e.target.value)}
+                value={profile.website || ''}
+                onChange={(e) => handleChange('website', e.target.value)}
                 placeholder="https://yourwebsite.com"
               />
             </div>
@@ -471,8 +499,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Label htmlFor="linkedin_url">LinkedIn</Label>
               <Input
                 id="linkedin_url"
-                value={profile.linkedin_url || ""}
-                onChange={(e) => handleChange("linkedin_url", e.target.value)}
+                value={profile.linkedin_url || ''}
+                onChange={(e) => handleChange('linkedin_url', e.target.value)}
                 placeholder="https://linkedin.com/in/yourprofile"
               />
             </div>
@@ -491,8 +519,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             <Label htmlFor="address_line1">Address Line 1</Label>
             <Input
               id="address_line1"
-              value={profile.address_line1 || ""}
-              onChange={(e) => handleChange("address_line1", e.target.value)}
+              value={profile.address_line1 || ''}
+              onChange={(e) => handleChange('address_line1', e.target.value)}
               placeholder="Street address"
             />
           </div>
@@ -500,8 +528,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             <Label htmlFor="address_line2">Address Line 2</Label>
             <Input
               id="address_line2"
-              value={profile.address_line2 || ""}
-              onChange={(e) => handleChange("address_line2", e.target.value)}
+              value={profile.address_line2 || ''}
+              onChange={(e) => handleChange('address_line2', e.target.value)}
               placeholder="Apartment, suite, etc. (optional)"
             />
           </div>
@@ -511,8 +539,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Label htmlFor="city">City</Label>
               <Input
                 id="city"
-                value={profile.city || ""}
-                onChange={(e) => handleChange("city", e.target.value)}
+                value={profile.city || ''}
+                onChange={(e) => handleChange('city', e.target.value)}
                 placeholder="City"
               />
             </div>
@@ -520,8 +548,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Label htmlFor="state">State</Label>
               <Input
                 id="state"
-                value={profile.state || ""}
-                onChange={(e) => handleChange("state", e.target.value)}
+                value={profile.state || ''}
+                onChange={(e) => handleChange('state', e.target.value)}
                 placeholder="State"
               />
             </div>
@@ -529,8 +557,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Label htmlFor="zip_code">ZIP Code</Label>
               <Input
                 id="zip_code"
-                value={profile.zip_code || ""}
-                onChange={(e) => handleChange("zip_code", e.target.value)}
+                value={profile.zip_code || ''}
+                onChange={(e) => handleChange('zip_code', e.target.value)}
                 placeholder="ZIP"
               />
             </div>
@@ -540,8 +568,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             <Label htmlFor="country">Country</Label>
             <Input
               id="country"
-              value={profile.country || ""}
-              onChange={(e) => handleChange("country", e.target.value)}
+              value={profile.country || ''}
+              onChange={(e) => handleChange('country', e.target.value)}
               placeholder="Country"
             />
           </div>
@@ -562,13 +590,13 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               size="sm"
               onClick={() => {
                 const newExp: ExperienceEntry = {
-                  company: "",
-                  title: "",
-                  dates: "",
-                  location: "",
-                  highlights: [""],
+                  company: '',
+                  title: '',
+                  dates: '',
+                  location: '',
+                  highlights: [''],
                 };
-                handleChange("experience", [...(profile.experience || []), newExp]);
+                handleChange('experience', [...(profile.experience || []), newExp]);
               }}
             >
               Add Experience
@@ -576,7 +604,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {(!profile.experience || profile.experience.length === 0) ? (
+          {!profile.experience || profile.experience.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               No work experience added yet. Click &quot;Add Experience&quot; to get started.
             </p>
@@ -591,7 +619,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                     size="sm"
                     onClick={() => {
                       const newExperience = profile.experience!.filter((_, i) => i !== idx);
-                      handleChange("experience", newExperience);
+                      handleChange('experience', newExperience);
                     }}
                   >
                     Remove
@@ -606,7 +634,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       onChange={(e) => {
                         const newExperience = [...profile.experience!];
                         newExperience[idx].company = e.target.value;
-                        handleChange("experience", newExperience);
+                        handleChange('experience', newExperience);
                       }}
                       placeholder="Company name"
                     />
@@ -618,7 +646,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       onChange={(e) => {
                         const newExperience = [...profile.experience!];
                         newExperience[idx].title = e.target.value;
-                        handleChange("experience", newExperience);
+                        handleChange('experience', newExperience);
                       }}
                       placeholder="e.g., Senior Software Engineer"
                     />
@@ -633,7 +661,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       onChange={(e) => {
                         const newExperience = [...profile.experience!];
                         newExperience[idx].dates = e.target.value;
-                        handleChange("experience", newExperience);
+                        handleChange('experience', newExperience);
                       }}
                       placeholder="e.g., Jan 2020 - Present"
                     />
@@ -641,11 +669,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                   <div className="space-y-2">
                     <Label>Location (optional)</Label>
                     <Input
-                      value={exp.location || ""}
+                      value={exp.location || ''}
                       onChange={(e) => {
                         const newExperience = [...profile.experience!];
                         newExperience[idx].location = e.target.value;
-                        handleChange("experience", newExperience);
+                        handleChange('experience', newExperience);
                       }}
                       placeholder="e.g., San Francisco, CA"
                     />
@@ -661,8 +689,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       size="sm"
                       onClick={() => {
                         const newExperience = [...profile.experience!];
-                        newExperience[idx].highlights.push("");
-                        handleChange("experience", newExperience);
+                        newExperience[idx].highlights.push('');
+                        handleChange('experience', newExperience);
                       }}
                     >
                       Add Highlight
@@ -675,7 +703,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                         onChange={(e) => {
                           const newExperience = [...profile.experience!];
                           newExperience[idx].highlights[hIdx] = e.target.value;
-                          handleChange("experience", newExperience);
+                          handleChange('experience', newExperience);
                         }}
                         placeholder="Describe your achievement or responsibility"
                       />
@@ -685,8 +713,10 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                         size="sm"
                         onClick={() => {
                           const newExperience = [...profile.experience!];
-                          newExperience[idx].highlights = newExperience[idx].highlights.filter((_, i) => i !== hIdx);
-                          handleChange("experience", newExperience);
+                          newExperience[idx].highlights = newExperience[idx].highlights.filter(
+                            (_, i) => i !== hIdx
+                          );
+                          handleChange('experience', newExperience);
                         }}
                       >
                         ×
@@ -714,14 +744,14 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               size="sm"
               onClick={() => {
                 const newEdu: EducationEntry = {
-                  school: "",
-                  degree: "",
-                  field: "",
-                  dates: "",
-                  location: "",
-                  gpa: "",
+                  school: '',
+                  degree: '',
+                  field: '',
+                  dates: '',
+                  location: '',
+                  gpa: '',
                 };
-                handleChange("education", [...(profile.education || []), newEdu]);
+                handleChange('education', [...(profile.education || []), newEdu]);
               }}
             >
               Add Education
@@ -729,7 +759,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {(!profile.education || profile.education.length === 0) ? (
+          {!profile.education || profile.education.length === 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center py-4">
                 No education entries added yet. Click &quot;Add Education&quot; to get started.
@@ -743,8 +773,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                     <Label htmlFor="institution">Institution</Label>
                     <Input
                       id="institution"
-                      value={profile.institution || ""}
-                      onChange={(e) => handleChange("institution", e.target.value)}
+                      value={profile.institution || ''}
+                      onChange={(e) => handleChange('institution', e.target.value)}
                       placeholder="University or college name"
                     />
                   </div>
@@ -753,8 +783,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       <Label htmlFor="degree">Degree</Label>
                       <Input
                         id="degree"
-                        value={profile.degree || ""}
-                        onChange={(e) => handleChange("degree", e.target.value)}
+                        value={profile.degree || ''}
+                        onChange={(e) => handleChange('degree', e.target.value)}
                         placeholder="Bachelor of Science"
                       />
                     </div>
@@ -762,8 +792,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       <Label htmlFor="field_of_study">Field of Study</Label>
                       <Input
                         id="field_of_study"
-                        value={profile.field_of_study || ""}
-                        onChange={(e) => handleChange("field_of_study", e.target.value)}
+                        value={profile.field_of_study || ''}
+                        onChange={(e) => handleChange('field_of_study', e.target.value)}
                         placeholder="Computer Science"
                       />
                     </div>
@@ -772,8 +802,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                     <Label htmlFor="graduation_year">Graduation Year</Label>
                     <Input
                       id="graduation_year"
-                      value={profile.graduation_year || ""}
-                      onChange={(e) => handleChange("graduation_year", e.target.value)}
+                      value={profile.graduation_year || ''}
+                      onChange={(e) => handleChange('graduation_year', e.target.value)}
                       placeholder="2024"
                     />
                   </div>
@@ -791,7 +821,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                     size="sm"
                     onClick={() => {
                       const newEducation = profile.education!.filter((_, i) => i !== idx);
-                      handleChange("education", newEducation);
+                      handleChange('education', newEducation);
                     }}
                   >
                     Remove
@@ -805,7 +835,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                     onChange={(e) => {
                       const newEducation = [...profile.education!];
                       newEducation[idx].school = e.target.value;
-                      handleChange("education", newEducation);
+                      handleChange('education', newEducation);
                     }}
                     placeholder="University or college name"
                   />
@@ -819,7 +849,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       onChange={(e) => {
                         const newEducation = [...profile.education!];
                         newEducation[idx].degree = e.target.value;
-                        handleChange("education", newEducation);
+                        handleChange('education', newEducation);
                       }}
                       placeholder="e.g., Bachelor of Science"
                     />
@@ -831,7 +861,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       onChange={(e) => {
                         const newEducation = [...profile.education!];
                         newEducation[idx].field = e.target.value;
-                        handleChange("education", newEducation);
+                        handleChange('education', newEducation);
                       }}
                       placeholder="e.g., Computer Science"
                     />
@@ -846,7 +876,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       onChange={(e) => {
                         const newEducation = [...profile.education!];
                         newEducation[idx].dates = e.target.value;
-                        handleChange("education", newEducation);
+                        handleChange('education', newEducation);
                       }}
                       placeholder="e.g., 2018 - 2022"
                     />
@@ -854,11 +884,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                   <div className="space-y-2">
                     <Label>Location (optional)</Label>
                     <Input
-                      value={edu.location || ""}
+                      value={edu.location || ''}
                       onChange={(e) => {
                         const newEducation = [...profile.education!];
                         newEducation[idx].location = e.target.value;
-                        handleChange("education", newEducation);
+                        handleChange('education', newEducation);
                       }}
                       placeholder="e.g., Boston, MA"
                     />
@@ -866,11 +896,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                   <div className="space-y-2">
                     <Label>GPA (optional)</Label>
                     <Input
-                      value={edu.gpa || ""}
+                      value={edu.gpa || ''}
                       onChange={(e) => {
                         const newEducation = [...profile.education!];
                         newEducation[idx].gpa = e.target.value;
-                        handleChange("education", newEducation);
+                        handleChange('education', newEducation);
                       }}
                       placeholder="e.g., 3.8/4.0"
                     />
@@ -897,13 +927,13 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               <Button
                 onClick={() => {
                   const newCert: CertificationEntry = {
-                    name: "",
-                    issuer: "",
-                    date: "",
-                    credential_id: "",
-                    url: "",
+                    name: '',
+                    issuer: '',
+                    date: '',
+                    credential_id: '',
+                    url: '',
                   };
-                  handleChange("certifications", [...(profile.certifications || []), newCert]);
+                  handleChange('certifications', [...(profile.certifications || []), newCert]);
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
@@ -913,7 +943,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {(!profile.certifications || profile.certifications.length === 0) ? (
+          {!profile.certifications || profile.certifications.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
               <p className="text-sm">
                 No certifications added yet. Import from LinkedIn or add manually.
@@ -921,7 +951,10 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             </div>
           ) : (
             profile.certifications.map((cert, idx) => (
-              <div key={idx} className="p-4 border rounded-lg space-y-4 bg-amber-50 dark:bg-amber-950">
+              <div
+                key={idx}
+                className="p-4 border rounded-lg space-y-4 bg-amber-50 dark:bg-amber-950"
+              >
                 <div className="flex justify-between items-start">
                   <h4 className="font-semibold text-foreground">Certification {idx + 1}</h4>
                   <Button
@@ -929,7 +962,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                     size="sm"
                     onClick={() => {
                       const newCertifications = profile.certifications!.filter((_, i) => i !== idx);
-                      handleChange("certifications", newCertifications);
+                      handleChange('certifications', newCertifications);
                     }}
                     className="text-destructive hover:text-destructive/80 hover:bg-destructive/5"
                   >
@@ -944,8 +977,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       value={cert.name}
                       onChange={(e) => {
                         const newCertifications = [...profile.certifications!];
-                        newCertifications[idx] = { ...newCertifications[idx], name: e.target.value };
-                        handleChange("certifications", newCertifications);
+                        newCertifications[idx] = {
+                          ...newCertifications[idx],
+                          name: e.target.value,
+                        };
+                        handleChange('certifications', newCertifications);
                       }}
                       placeholder="AWS Certified Solutions Architect"
                     />
@@ -957,8 +993,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       value={cert.issuer}
                       onChange={(e) => {
                         const newCertifications = [...profile.certifications!];
-                        newCertifications[idx] = { ...newCertifications[idx], issuer: e.target.value };
-                        handleChange("certifications", newCertifications);
+                        newCertifications[idx] = {
+                          ...newCertifications[idx],
+                          issuer: e.target.value,
+                        };
+                        handleChange('certifications', newCertifications);
                       }}
                       placeholder="Amazon Web Services"
                     />
@@ -970,8 +1009,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       value={cert.date}
                       onChange={(e) => {
                         const newCertifications = [...profile.certifications!];
-                        newCertifications[idx] = { ...newCertifications[idx], date: e.target.value };
-                        handleChange("certifications", newCertifications);
+                        newCertifications[idx] = {
+                          ...newCertifications[idx],
+                          date: e.target.value,
+                        };
+                        handleChange('certifications', newCertifications);
                       }}
                       placeholder="January 2024"
                     />
@@ -980,11 +1022,14 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                     <Label htmlFor={`cert-id-${idx}`}>Credential ID</Label>
                     <Input
                       id={`cert-id-${idx}`}
-                      value={cert.credential_id || ""}
+                      value={cert.credential_id || ''}
                       onChange={(e) => {
                         const newCertifications = [...profile.certifications!];
-                        newCertifications[idx] = { ...newCertifications[idx], credential_id: e.target.value };
-                        handleChange("certifications", newCertifications);
+                        newCertifications[idx] = {
+                          ...newCertifications[idx],
+                          credential_id: e.target.value,
+                        };
+                        handleChange('certifications', newCertifications);
                       }}
                       placeholder="ABC123XYZ"
                     />
@@ -993,11 +1038,11 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                     <Label htmlFor={`cert-url-${idx}`}>Credential URL</Label>
                     <Input
                       id={`cert-url-${idx}`}
-                      value={cert.url || ""}
+                      value={cert.url || ''}
                       onChange={(e) => {
                         const newCertifications = [...profile.certifications!];
                         newCertifications[idx] = { ...newCertifications[idx], url: e.target.value };
-                        handleChange("certifications", newCertifications);
+                        handleChange('certifications', newCertifications);
                       }}
                       placeholder="https://www.credly.com/badges/..."
                     />
@@ -1016,7 +1061,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             <div>
               <CardTitle className="flex items-center gap-2">
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                 </svg>
                 GitHub Projects
               </CardTitle>
@@ -1029,14 +1074,30 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             >
               {ingesting ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Importing…
                 </>
               ) : (
-                "Refresh Repos"
+                'Refresh Repos'
               )}
             </Button>
           </div>
@@ -1044,24 +1105,25 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         <CardContent>
           {/* Status region */}
           <div aria-live="polite" className="mb-4">
-            {ingestionStatus === "in_progress" && (
+            {ingestionStatus === 'in_progress' && (
               <p className="text-sm text-primary animate-pulse">
                 Importing repositories… This may take a minute.
               </p>
             )}
-            {ingestionStatus === "pending" && (
+            {ingestionStatus === 'pending' && (
               <p className="text-sm text-[hsl(var(--accent))] animate-pulse">
                 Initial import pending…
               </p>
             )}
-            {ingestionStatus === "done" && ingestionSummary && (
+            {ingestionStatus === 'done' && ingestionSummary && (
               <p className="text-sm text-[hsl(var(--success))]">
                 {ingestionSummary.processed} projects imported
                 {ingestionSummary.failed > 0 && ` (${ingestionSummary.failed} failed)`}
-                {ingestionSummary.lastRunAt && ` — last run ${new Date(ingestionSummary.lastRunAt).toLocaleString()}`}
+                {ingestionSummary.lastRunAt &&
+                  ` — last run ${new Date(ingestionSummary.lastRunAt).toLocaleString()}`}
               </p>
             )}
-            {ingestionStatus === "failed" && (
+            {ingestionStatus === 'failed' && (
               <p className="text-sm text-destructive">
                 Import failed. Check your GitHub connection and try again.
               </p>
@@ -1072,7 +1134,8 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
           {projects.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
               <p className="text-sm">
-                No projects imported yet. Click &quot;Refresh Repos&quot; to import your GitHub repositories.
+                No projects imported yet. Click &quot;Refresh Repos&quot; to import your GitHub
+                repositories.
               </p>
             </div>
           ) : (
@@ -1092,15 +1155,12 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-1">
-                      {String(proj.oneLiner || proj.description || "")}
+                      {String(proj.oneLiner || proj.description || '')}
                     </p>
                     {Array.isArray(proj.technologies) && proj.technologies.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {(proj.technologies as string[]).slice(0, 6).map((tech) => (
-                          <span
-                            key={tech}
-                            className="text-xs px-1.5 py-0.5 bg-muted rounded"
-                          >
+                          <span key={tech} className="text-xs px-1.5 py-0.5 bg-muted rounded">
                             {tech}
                           </span>
                         ))}
@@ -1140,8 +1200,13 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             <Label htmlFor="skills">Skills (comma-separated)</Label>
             <Textarea
               id="skills"
-              value={profile.skills?.join(", ") || ""}
-              onChange={(e) => handleChange("skills", e.target.value.split(",").map(s => s.trim()))}
+              value={profile.skills?.join(', ') || ''}
+              onChange={(e) =>
+                handleChange(
+                  'skills',
+                  e.target.value.split(',').map((s) => s.trim())
+                )
+              }
               placeholder="Python, JavaScript, React, etc."
               rows={4}
             />
@@ -1158,10 +1223,13 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                 <span className="text-2xl">🌟</span>
                 Achievements
               </CardTitle>
-              <CardDescription>Awards, honors, and notable accomplishments — each line becomes a bullet on your resume</CardDescription>
+              <CardDescription>
+                Awards, honors, and notable accomplishments — each line becomes a bullet on your
+                resume
+              </CardDescription>
             </div>
             <Button
-              onClick={() => handleChange("achievements", [...(profile.achievements || []), ""])}
+              onClick={() => handleChange('achievements', [...(profile.achievements || []), ''])}
               className="bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700"
             >
               Add Achievement
@@ -1169,12 +1237,16 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {(!profile.achievements || profile.achievements.length === 0) ? (
+          {!profile.achievements || profile.achievements.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
               <p className="text-sm font-medium mb-1">No achievements added yet.</p>
               <p className="text-xs">
-                Each bullet should be self-contained, e.g.:<br />
-                <span className="italic">100% Merit Scholarship Recipient, Saveetha Engineering College (Full tuition waiver, 4 years)</span>
+                Each bullet should be self-contained, e.g.:
+                <br />
+                <span className="italic">
+                  100% Merit Scholarship Recipient, Saveetha Engineering College (Full tuition
+                  waiver, 4 years)
+                </span>
               </p>
             </div>
           ) : (
@@ -1186,7 +1258,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                   onChange={(e) => {
                     const updated = [...profile.achievements!];
                     updated[idx] = e.target.value;
-                    handleChange("achievements", updated);
+                    handleChange('achievements', updated);
                   }}
                   placeholder="e.g. Smart India Hackathon 2025 Finalist – India's premier national innovation challenge"
                   className="flex-1"
@@ -1194,7 +1266,12 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleChange("achievements", profile.achievements!.filter((_, i) => i !== idx))}
+                  onClick={() =>
+                    handleChange(
+                      'achievements',
+                      profile.achievements!.filter((_, i) => i !== idx)
+                    )
+                  }
                   className="text-destructive hover:text-destructive/80 hover:bg-destructive/5 shrink-0"
                 >
                   ×
@@ -1208,7 +1285,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
       {/* Save Button (bottom) */}
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} size="lg">
-          {saving ? "Saving…" : "Save Changes"}
+          {saving ? 'Saving…' : 'Save Changes'}
         </Button>
       </div>
     </div>

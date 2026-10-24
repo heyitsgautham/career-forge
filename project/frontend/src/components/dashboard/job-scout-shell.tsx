@@ -5,15 +5,42 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Briefcase, Loader2, Timer, TrendingUp, CalendarClock, ChevronLeft, ChevronRight, X, Linkedin, CheckCircle2 } from 'lucide-react';
-import { jobMatchApi, tailorApi, resumesApi, userApi, applicationsApi, type Job, type TrackingStatuses, type Application } from '@/lib/api';
+import {
+  Search,
+  Briefcase,
+  Loader2,
+  Timer,
+  TrendingUp,
+  CalendarClock,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Linkedin,
+  CheckCircle2,
+} from 'lucide-react';
+import {
+  jobMatchApi,
+  tailorApi,
+  resumesApi,
+  userApi,
+  applicationsApi,
+  type Job,
+  type TrackingStatuses,
+  type Application,
+} from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { timeAgo, getUserId } from './job-scout/format';
 import { useCountdown } from './job-scout/use-countdown';
 import { StatCard } from './job-scout/stat-card';
 import { JobRow } from './job-scout/job-row';
 import { JobDetailModal } from './job-scout/job-detail-modal';
-import { CATEGORIES, ROWS_PER_PAGE, KANBAN_STATUSES, SOURCES, SourceFilter } from './job-scout/constants';
+import {
+  CATEGORIES,
+  ROWS_PER_PAGE,
+  KANBAN_STATUSES,
+  SOURCES,
+  SourceFilter,
+} from './job-scout/constants';
 
 export function JobScoutShell() {
   const { toast } = useToast();
@@ -30,7 +57,8 @@ export function JobScoutShell() {
   // ── Query: fetch user's resumes to derive jobId → resumeId map ────────────
   const { data: userResumes = [] } = useQuery({
     queryKey: ['resumes'],
-    queryFn: async () => (await resumesApi.list()).data as Array<{ id: string; job_id?: string; type?: string }>,
+    queryFn: async () =>
+      (await resumesApi.list()).data as Array<{ id: string; job_id?: string; type?: string }>,
     staleTime: 2 * 60_000,
   });
 
@@ -117,9 +145,13 @@ export function JobScoutShell() {
 
   // Keep refs so the async onSuccess closure always sees fresh data
   const appByJobIdRef = useRef(appByJobId);
-  useEffect(() => { appByJobIdRef.current = appByJobId; }, [appByJobId]);
+  useEffect(() => {
+    appByJobIdRef.current = appByJobId;
+  }, [appByJobId]);
   const jobsRef = useRef(jobs);
-  useEffect(() => { jobsRef.current = jobs; }, [jobs]);
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
 
   // ── Tracking mutation ──────────────────────────────────────────────────
 
@@ -222,17 +254,20 @@ export function JobScoutShell() {
       setImportResult(data.imported);
       toast({
         title: 'LinkedIn profile imported!',
-        description: [
-          data.imported.name && `Name: ${data.imported.name}`,
-          data.imported.headline && 'Headline',
-          data.imported.summary && 'Summary',
-          data.imported.website && 'Website',
-          data.imported.phone && 'Phone',
-          data.imported.education_added > 0 && `${data.imported.education_added} education entries`,
-          data.imported.certifications_added > 0 && `${data.imported.certifications_added} certifications`,
-        ]
-          .filter(Boolean)
-          .join(' · ') || 'Profile updated',
+        description:
+          [
+            data.imported.name && `Name: ${data.imported.name}`,
+            data.imported.headline && 'Headline',
+            data.imported.summary && 'Summary',
+            data.imported.website && 'Website',
+            data.imported.phone && 'Phone',
+            data.imported.education_added > 0 &&
+              `${data.imported.education_added} education entries`,
+            data.imported.certifications_added > 0 &&
+              `${data.imported.certifications_added} certifications`,
+          ]
+            .filter(Boolean)
+            .join(' · ') || 'Profile updated',
       });
     },
     onError: (err: any) => {
@@ -286,10 +321,7 @@ export function JobScoutShell() {
   // ── Pagination ─────────────────────────────────────────────────────────
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
-  const paginated = filtered.slice(
-    page * ROWS_PER_PAGE,
-    (page + 1) * ROWS_PER_PAGE
-  );
+  const paginated = filtered.slice(page * ROWS_PER_PAGE, (page + 1) * ROWS_PER_PAGE);
 
   // ── Render ─────────────────────────────────────────────────────────────
 
@@ -302,7 +334,10 @@ export function JobScoutShell() {
           variant="outline"
           size="sm"
           className="gap-2 border-[#0A66C2]/30 text-[#0A66C2] hover:bg-[#0A66C2]/10 dark:border-[#0A66C2]/40 dark:text-[#4FA3FF]"
-          onClick={() => { setImportResult(null); setShowLinkedInModal(true); }}
+          onClick={() => {
+            setImportResult(null);
+            setShowLinkedInModal(true);
+          }}
         >
           <Linkedin className="h-4 w-4" />
           Import from LinkedIn
@@ -353,9 +388,7 @@ export function JobScoutShell() {
                   : 'Last Scrape Failed'}
               </span>
               {' — '}
-              <span className="text-muted-foreground">
-                {scheduler.lastScrape.message}
-              </span>
+              <span className="text-muted-foreground">{scheduler.lastScrape.message}</span>
             </div>
           </CardContent>
         </Card>
@@ -402,11 +435,16 @@ export function JobScoutShell() {
                     <span>Source</span>
                     <select
                       value={activeSource}
-                      onChange={(e) => { setActiveSource(e.target.value as SourceFilter); setPage(0); }}
+                      onChange={(e) => {
+                        setActiveSource(e.target.value as SourceFilter);
+                        setPage(0);
+                      }}
                       className="mt-0.5 w-24 rounded border border-border/60 bg-background px-1 py-0.5 text-[10px] font-normal normal-case text-foreground cursor-pointer"
                     >
                       {SOURCES.map((s) => (
-                        <option key={s} value={s}>{s === 'All' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                        <option key={s} value={s}>
+                          {s === 'All' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -444,9 +482,7 @@ export function JobScoutShell() {
                     key={job.jobId}
                     job={job}
                     trackingStatus={tracking[job.jobId]?.status || 'pending'}
-                    onTrack={(status) =>
-                      trackMutation.mutate({ jobId: job.jobId, status })
-                    }
+                    onTrack={(status) => trackMutation.mutate({ jobId: job.jobId, status })}
                     onTailor={() => tailorMutation.mutate(job.jobId)}
                     isTailoring={tailoringJobId === job.jobId}
                     onTitleClick={() => setSelectedJob(job)}
@@ -500,7 +536,10 @@ export function JobScoutShell() {
                   <h2 className="text-base font-semibold">Import from LinkedIn</h2>
                 </div>
                 <button
-                  onClick={() => { setShowLinkedInModal(false); setImportResult(null); }}
+                  onClick={() => {
+                    setShowLinkedInModal(false);
+                    setImportResult(null);
+                  }}
                   className="rounded-sm opacity-70 hover:opacity-100 transition-opacity"
                 >
                   <X className="h-4 w-4" />
@@ -511,7 +550,9 @@ export function JobScoutShell() {
                 /* ── Success state ── */
                 <div className="space-y-4">
                   <div className="rounded-lg border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 p-4 space-y-2">
-                    <p className="text-sm font-medium text-[hsl(var(--success))]">Import complete!</p>
+                    <p className="text-sm font-medium text-[hsl(var(--success))]">
+                      Import complete!
+                    </p>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       {importResult.name && (
                         <li className="flex items-center gap-2">
@@ -559,16 +600,23 @@ export function JobScoutShell() {
                         <li className="flex flex-col gap-0.5">
                           <span className="flex items-center gap-2">
                             <CheckCircle2 className="h-3.5 w-3.5 text-[hsl(var(--success))]" />
-                            {importResult.education_added} education entr{importResult.education_added === 1 ? 'y' : 'ies'} added
+                            {importResult.education_added} education entr
+                            {importResult.education_added === 1 ? 'y' : 'ies'} added
                           </span>
                           {importResult.education && importResult.education.length > 0 && (
                             <ul className="ml-6 mt-0.5 space-y-0.5">
                               {importResult.education.map((e, i) => (
                                 <li key={i} className="text-xs">
                                   <span className="font-medium">{e.school}</span>
-                                  {e.degree && <span className="text-muted-foreground/70"> · {e.degree}</span>}
-                                  {e.field && <span className="text-muted-foreground/70">, {e.field}</span>}
-                                  {e.dates && <span className="text-muted-foreground/50"> ({e.dates})</span>}
+                                  {e.degree && (
+                                    <span className="text-muted-foreground/70"> · {e.degree}</span>
+                                  )}
+                                  {e.field && (
+                                    <span className="text-muted-foreground/70">, {e.field}</span>
+                                  )}
+                                  {e.dates && (
+                                    <span className="text-muted-foreground/50"> ({e.dates})</span>
+                                  )}
                                 </li>
                               ))}
                             </ul>
@@ -578,14 +626,18 @@ export function JobScoutShell() {
                       {importResult.certifications_added > 0 && (
                         <li className="flex items-center gap-2">
                           <CheckCircle2 className="h-3.5 w-3.5 text-[hsl(var(--success))]" />
-                          {importResult.certifications_added} certification{importResult.certifications_added === 1 ? '' : 's'} added
+                          {importResult.certifications_added} certification
+                          {importResult.certifications_added === 1 ? '' : 's'} added
                         </li>
                       )}
                     </ul>
                   </div>
                   <Button
                     className="w-full"
-                    onClick={() => { setShowLinkedInModal(false); setImportResult(null); }}
+                    onClick={() => {
+                      setShowLinkedInModal(false);
+                      setImportResult(null);
+                    }}
                   >
                     Done
                   </Button>
@@ -594,8 +646,8 @@ export function JobScoutShell() {
                 /* ── Input state ── */
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Enter your LinkedIn profile URL to import your education,
-                    certifications, summary, contact info, and website.
+                    Enter your LinkedIn profile URL to import your education, certifications,
+                    summary, contact info, and website.
                   </p>
                   <p className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
                     <strong>Note:</strong> A browser window may open on first use for a one-time

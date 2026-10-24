@@ -9,7 +9,11 @@ const fakeAdapter: AxiosAdapter = async (config) => {
   sent.push(config);
   const response = { data: { ok: true }, status: nextStatus, statusText: '', headers: {}, config };
   if (nextStatus >= 400) {
-    const error = Object.assign(new Error(`HTTP ${nextStatus}`), { response, config, isAxiosError: true });
+    const error = Object.assign(new Error(`HTTP ${nextStatus}`), {
+      response,
+      config,
+      isAxiosError: true,
+    });
     throw error;
   }
   return response;
@@ -53,7 +57,11 @@ describe('api client', () => {
   it('posts register payloads with the backend field names', async () => {
     await authApi.register('a@example.com', 'pw', 'Asha Example');
     expect(sent[0].url).toBe('/api/auth/register');
-    expect(JSON.parse(sent[0].data)).toEqual({ email: 'a@example.com', password: 'pw', full_name: 'Asha Example' });
+    expect(JSON.parse(sent[0].data)).toEqual({
+      email: 'a@example.com',
+      password: 'pw',
+      full_name: 'Asha Example',
+    });
   });
 
   it('clears the token and sends the user to login on a 401', async () => {

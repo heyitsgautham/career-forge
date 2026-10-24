@@ -115,7 +115,10 @@ describe('ProjectsList', () => {
     const buttons = within(card).getAllByRole('button');
     await user.click(buttons[buttons.length - 1]);
     await waitFor(() =>
-      expect(toast).toHaveBeenCalledWith({ title: 'Failed to delete project', variant: 'destructive' }),
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Failed to delete project',
+        variant: 'destructive',
+      })
     );
     expect(await screen.findByText('notes-app')).toBeInTheDocument();
   });

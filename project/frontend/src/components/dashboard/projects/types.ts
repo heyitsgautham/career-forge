@@ -14,4 +14,8 @@ export interface Project {
 }
 
 /** One repository in an in-flight GitHub import, shown by the progress banner and skeleton cards. */
-export type ImportProgressItem = { name: string; fullName: string; status: 'queued' | 'processing' | 'done' | 'failed' };
+export type ImportProgressItem = {
+  name: string;
+  fullName: string;
+  status: 'queued' | 'processing' | 'done' | 'failed';
+};

@@ -48,7 +48,9 @@ export function JobDetailModal({
                 </span>
               )}
               {job.jobType && (
-                <Badge variant="secondary" className="text-xs">{job.jobType}</Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {job.jobType}
+                </Badge>
               )}
             </div>
           </div>
@@ -59,7 +61,6 @@ export function JobDetailModal({
 
         {/* ── Scrollable body ──────────────────────────────────────── */}
         <div className="overflow-y-auto p-6 space-y-5" style={{ maxHeight: 'calc(85vh - 10rem)' }}>
-
           {/* Quick info badges row */}
           <div className="flex flex-wrap gap-2">
             {job.salary && (
@@ -72,11 +73,11 @@ export function JobDetailModal({
                 <Star className="h-3 w-3" /> {job.experienceLevel}
               </Badge>
             )}
-            {job.category && (
-              <Badge variant="outline">{job.category}</Badge>
-            )}
+            {job.category && <Badge variant="outline">{job.category}</Badge>}
             {job.source && (
-              <Badge variant="secondary" className="text-xs">{job.source}</Badge>
+              <Badge variant="secondary" className="text-xs">
+                {job.source}
+              </Badge>
             )}
             {job.datePosted && job.datePosted !== 'nan' && (
               <Badge variant="secondary" className="gap-1 text-xs">
@@ -92,7 +93,11 @@ export function JobDetailModal({
               <div className="flex items-center gap-2 mb-3">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold">Match Score</h3>
-                <span className="ml-auto text-lg font-bold text-primary">                  {typeof job.matchScore === 'number' ? `${Math.round(job.matchScore)}%` : job.matchScore}
+                <span className="ml-auto text-lg font-bold text-primary">
+                  {' '}
+                  {typeof job.matchScore === 'number'
+                    ? `${Math.round(job.matchScore)}%`
+                    : job.matchScore}
                 </span>
               </div>
               {job.matchBreakdown && (
@@ -100,25 +105,35 @@ export function JobDetailModal({
                   {job.matchBreakdown.vectorScore != null && (
                     <div>
                       <p className="text-xs text-muted-foreground">Vector Similarity</p>
-                      <p className="font-medium">{Math.round(job.matchBreakdown.vectorScore * 100)}%</p>
+                      <p className="font-medium">
+                        {Math.round(job.matchBreakdown.vectorScore * 100)}%
+                      </p>
                     </div>
                   )}
                   {job.matchBreakdown.keywordScore != null && (
                     <div>
                       <p className="text-xs text-muted-foreground">Keyword Match</p>
-                      <p className="font-medium">{Math.round(job.matchBreakdown.keywordScore * 100)}%</p>
+                      <p className="font-medium">
+                        {Math.round(job.matchBreakdown.keywordScore * 100)}%
+                      </p>
                     </div>
                   )}
-                  {job.matchBreakdown.matchedSkills && job.matchBreakdown.matchedSkills.length > 0 && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-muted-foreground mb-1">Matched Skills</p>
-                      <div className="flex flex-wrap gap-1">
-                        {job.matchBreakdown.matchedSkills.map((s) => (
-                          <Badge key={s} className="text-xs bg-primary/10 text-primary border-primary/30">{s}</Badge>
-                        ))}
+                  {job.matchBreakdown.matchedSkills &&
+                    job.matchBreakdown.matchedSkills.length > 0 && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground mb-1">Matched Skills</p>
+                        <div className="flex flex-wrap gap-1">
+                          {job.matchBreakdown.matchedSkills.map((s) => (
+                            <Badge
+                              key={s}
+                              className="text-xs bg-primary/10 text-primary border-primary/30"
+                            >
+                              {s}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                   {job.matchBreakdown.explanation && (
                     <div className="col-span-2">
                       <p className="text-xs text-muted-foreground mb-1">Explanation</p>
@@ -146,7 +161,9 @@ export function JobDetailModal({
               <h3 className="text-sm font-semibold text-muted-foreground mb-2">Required Skills</h3>
               <div className="flex flex-wrap gap-1.5">
                 {job.requiredSkills.map((skill) => (
-                  <Badge key={skill} variant="default" className="text-xs">{skill}</Badge>
+                  <Badge key={skill} variant="default" className="text-xs">
+                    {skill}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -158,7 +175,9 @@ export function JobDetailModal({
               <h3 className="text-sm font-semibold text-muted-foreground mb-2">Preferred Skills</h3>
               <div className="flex flex-wrap gap-1.5">
                 {job.preferredSkills.map((skill) => (
-                  <Badge key={skill} variant="outline" className="text-xs">{skill}</Badge>
+                  <Badge key={skill} variant="outline" className="text-xs">
+                    {skill}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -167,10 +186,14 @@ export function JobDetailModal({
           {/* Missing Skills */}
           {job.missingSkills && job.missingSkills.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-2">Skills You&apos;re Missing</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+                Skills You&apos;re Missing
+              </h3>
               <div className="flex flex-wrap gap-1.5">
                 {job.missingSkills.map((skill) => (
-                  <Badge key={skill} variant="destructive" className="text-xs">{skill}</Badge>
+                  <Badge key={skill} variant="destructive" className="text-xs">
+                    {skill}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -182,7 +205,9 @@ export function JobDetailModal({
               <h3 className="text-sm font-semibold text-muted-foreground mb-2">ATS Keywords</h3>
               <div className="flex flex-wrap gap-1.5">
                 {job.atsKeywords.map((kw) => (
-                  <Badge key={kw} variant="secondary" className="text-xs">{kw}</Badge>
+                  <Badge key={kw} variant="secondary" className="text-xs">
+                    {kw}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -199,7 +224,9 @@ export function JobDetailModal({
             onChange={(e) => onTrack(e.target.value)}
           >
             {TRACKING_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
             ))}
           </select>
 

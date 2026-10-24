@@ -21,13 +21,20 @@ export function AddProjectModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: () => projectsApi.create({
-      title,
-      description,
-      technologies: technologies.split(',').map(t => t.trim()).filter(Boolean),
-      highlights: highlights.split('\n').map(h => h.trim()).filter(Boolean),
-      url: url || undefined,
-    }),
+    mutationFn: () =>
+      projectsApi.create({
+        title,
+        description,
+        technologies: technologies
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean),
+        highlights: highlights
+          .split('\n')
+          .map((h) => h.trim())
+          .filter(Boolean),
+        url: url || undefined,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast({ title: 'Project created successfully' });
@@ -37,7 +44,7 @@ export function AddProjectModal({ onClose }: { onClose: () => void }) {
       toast({
         title: 'Failed to create project',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     },
   });
@@ -109,7 +116,9 @@ export function AddProjectModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex gap-2 justify-end pt-4">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
             <Button
               onClick={() => createMutation.mutate()}
               disabled={!title || !description || createMutation.isPending}

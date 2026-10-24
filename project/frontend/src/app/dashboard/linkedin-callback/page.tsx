@@ -12,7 +12,7 @@ function LinkedInCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       const code = searchParams.get('code');
-      
+
       if (!code) {
         toast({
           title: 'Error',
@@ -40,7 +40,7 @@ function LinkedInCallback() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ code }),
         });

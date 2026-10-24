@@ -25,9 +25,7 @@ export function StatCard({
               {title}
             </p>
             <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
-            {subtitle && (
-              <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
-            )}
+            {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
           </div>
           <div className="rounded-lg bg-primary/10 p-2.5">
             <Icon className="h-5 w-5 text-primary" />

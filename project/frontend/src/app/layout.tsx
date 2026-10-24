@@ -16,15 +16,12 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'CareerForge',
-  description: 'Turn your GitHub into a job engine — resumes, skill gap analysis, learning roadmaps, and job matching powered by Amazon\u00A0Bedrock.',
+  description:
+    'Turn your GitHub into a job engine — resumes, skill gap analysis, learning roadmaps, and job matching powered by Amazon\u00A0Bedrock.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -35,7 +32,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://avatars.githubusercontent.com" />
       </head>
       <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans`}>
-        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-primary focus:text-primary-foreground">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-primary focus:text-primary-foreground"
+        >
           Skip to content
         </a>
         <Providers>

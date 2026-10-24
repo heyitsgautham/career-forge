@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 // Monaco editor must be dynamically imported (no SSR)
 const LatexEditor = dynamic(
   () => import('@/components/resume-editor/latex-editor').then((m) => m.LatexEditor),
-  { ssr: false, loading: () => <div className="flex-1 bg-[#1e1e1e]" /> },
+  { ssr: false, loading: () => <div className="flex-1 bg-[#1e1e1e]" /> }
 );
 
 type CompileStatus = 'idle' | 'compiling' | 'success' | 'error';
@@ -102,7 +102,7 @@ export default function ResumeEditorPage() {
         toast({ title: 'Save failed', variant: 'destructive' });
       }
     },
-    [resumeId, toast],
+    [resumeId, toast]
   );
 
   // ─── Compile ─────────────────────────────────────────────────────────────────
@@ -154,7 +154,7 @@ export default function ResumeEditorPage() {
         autoCompileTimerRef.current = setTimeout(() => doCompile(), AUTO_COMPILE_DELAY);
       }
     },
-    [doSave, doCompile, autoCompile],
+    [doSave, doCompile, autoCompile]
   );
 
   // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ export default function ResumeEditorPage() {
       autoSaveTimerRef.current = setTimeout(() => doSave(latex), AUTO_SAVE_DELAY);
       toast({ title: 'AI changes applied to editor' });
     },
-    [doSave, toast],
+    [doSave, toast]
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -229,7 +229,9 @@ export default function ResumeEditorPage() {
         <FileText className="h-12 w-12 text-muted-foreground opacity-30" />
         <p className="text-muted-foreground">Resume not found.</p>
         <Link href="/dashboard">
-          <Button variant="outline" size="sm">Back to Dashboard</Button>
+          <Button variant="outline" size="sm">
+            Back to Dashboard
+          </Button>
         </Link>
       </div>
     );
@@ -260,7 +262,7 @@ export default function ResumeEditorPage() {
             'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
             activeTab === 'code'
               ? 'bg-violet-600 text-white'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
           )}
         >
           <Code2 className="h-3.5 w-3.5" />
@@ -278,7 +280,7 @@ export default function ResumeEditorPage() {
             'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
             activeTab === 'preview'
               ? 'bg-violet-600 text-white'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
           )}
         >
           <Eye className="h-3.5 w-3.5" />
@@ -307,11 +309,7 @@ export default function ResumeEditorPage() {
         {activeTab === 'preview' && (
           <div className="h-full bg-[#525659]">
             {pdfUrl ? (
-              <iframe
-                src={pdfUrl}
-                title="Resume PDF preview"
-                className="w-full h-full border-0"
-              />
+              <iframe src={pdfUrl} title="Resume PDF preview" className="w-full h-full border-0" />
             ) : (
               <div className="h-full flex items-center justify-center">
                 <p className="text-sm text-muted-foreground">No PDF yet — compile first</p>
@@ -424,4 +422,3 @@ export default function ResumeEditorPage() {
     </div>
   );
 }
-
