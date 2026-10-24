@@ -3,22 +3,9 @@
 import asyncio
 import uuid
 
-import pytest
-
 from app.core.database import AsyncSessionLocal
 from app.models.resume import Resume
 from app.models.template import Template
-
-
-@pytest.fixture
-def auth(client):
-    email = f"pdf-{uuid.uuid4().hex[:8]}@example.com"
-    token = client.post(
-        "/api/auth/register",
-        json={"email": email, "password": "pw-for-tests", "full_name": "Pdf Tester"},
-    ).json()["access_token"]
-    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
-    return {"headers": {"Authorization": f"Bearer {token}"}, "user_id": uuid.UUID(me["id"])}
 
 
 def add_resume(user_id, pdf_path):
