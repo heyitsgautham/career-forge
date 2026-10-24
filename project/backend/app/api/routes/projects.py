@@ -344,8 +344,10 @@ async def ingest_github_repos(
         for url in request.repo_urls:
             m = re.search(r"github\.com/([^/]+)/([^/]+)", url)
             if m:
-                full_name = f"{m.group(1)}/{m.group(2)}".rstrip(".git")
-                name = m.group(2).rstrip(".git")
+                # removesuffix, not rstrip: rstrip(".git") strips any trailing
+                # '.', 'g', 'i' or 't', so "job-scout" became "job-scou"
+                name = m.group(2).removesuffix(".git")
+                full_name = f"{m.group(1)}/{name}"
                 repos_meta.append({"full_name": full_name, "name": name})
                 logger.info(f"[INGEST] queued repo: full_name={full_name}")
             else:
