@@ -85,7 +85,7 @@ pyee==13.0.1
 pygithub==2.1.1
 pygments==2.21.0
 pyjwt==2.15.1
-pymupdf==1.24.14
+pymupdf==2.0
 pynacl==1.6.2
 pypika==0.51.1
 python-dateutil==2.9.0.post0
