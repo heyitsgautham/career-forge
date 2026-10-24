@@ -62,11 +62,6 @@ def test_unreachable_secret_keeps_env_value(fake_sm):
     assert settings.JWT_SECRET_KEY == "change-me-in-production"
 
 
-def test_gemini_keys_skip_empty_slots():
-    settings = Settings(USE_SECRETS_MANAGER=False, GEMINI_API_KEY_1="a", GEMINI_API_KEY_3="c")
-    assert settings.gemini_api_keys == ["a", "c"]
-
-
 def test_max_upload_size_bytes():
     settings = Settings(USE_SECRETS_MANAGER=False, MAX_UPLOAD_SIZE_MB=2)
     assert settings.max_upload_size_bytes == 2 * 1024 * 1024

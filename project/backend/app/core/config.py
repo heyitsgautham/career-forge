@@ -12,7 +12,7 @@ Secret loading order (highest priority wins):
 
 import logging
 from functools import lru_cache
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
@@ -72,27 +72,10 @@ class Settings(BaseSettings):
     # Database (SQLite for local dev fallback)
     DATABASE_URL: str = "sqlite+aiosqlite:///./latex_agent.db"
 
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379/0"
-
     # ChromaDB
     CHROMA_HOST: str = "localhost"
     CHROMA_PORT: int = 8001
     CHROMA_PERSIST_DIRECTORY: str = "./chroma_data"
-
-    # Gemini API Keys (legacy — kept for fallback)
-    GEMINI_API_KEY_1: Optional[str] = None
-    GEMINI_API_KEY_2: Optional[str] = None
-    GEMINI_API_KEY_3: Optional[str] = None
-    GEMINI_API_KEY_4: Optional[str] = None
-    GEMINI_API_KEY_5: Optional[str] = None
-    GEMINI_API_KEY_6: Optional[str] = None
-
-    # Gemini Model Configuration (legacy)
-    GEMINI_MODEL: str = "gemini-2.0-flash-lite"
-    GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
-    GEMINI_TEMPERATURE: float = 0.2
-    GEMINI_MAX_TOKENS: int = 8192
 
     # GitHub App (replaces OAuth App — see M1.6)
     GITHUB_APP_ID: Optional[str] = None
@@ -130,19 +113,6 @@ class Settings(BaseSettings):
     # LaTeX Compilation
     LATEX_COMPILER_TIMEOUT: int = 30
     LATEX_COMPILER_MEMORY_LIMIT: str = "256m"
-
-    @property
-    def gemini_api_keys(self) -> List[str]:
-        """Get all configured Gemini API keys."""
-        keys = [
-            self.GEMINI_API_KEY_1,
-            self.GEMINI_API_KEY_2,
-            self.GEMINI_API_KEY_3,
-            self.GEMINI_API_KEY_4,
-            self.GEMINI_API_KEY_5,
-            self.GEMINI_API_KEY_6,
-        ]
-        return [k for k in keys if k]
 
     @property
     def max_upload_size_bytes(self) -> int:
