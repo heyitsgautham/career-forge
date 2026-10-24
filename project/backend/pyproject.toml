@@ -33,7 +33,7 @@ dependencies = [
     "python-dotenv==1.2.4",
     # Security
     "cryptography==50.0.2",
-    "bcrypt==4.1.2",
+    "bcrypt==5.0.0",
     # Scraping
     "beautifulsoup4==4.12.3",
     "playwright>=1.49.0",
