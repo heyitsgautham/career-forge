@@ -15,7 +15,7 @@ from typing import Optional
 import secrets
 import logging
 
-from jose import JWTError, jwt
+import jwt
 import bcrypt
 from cryptography.fernet import Fernet, InvalidToken
 import base64
@@ -70,7 +70,7 @@ def decode_access_token(token: str) -> Optional[dict]:
             algorithms=[settings.JWT_ALGORITHM]
         )
         return payload
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 
