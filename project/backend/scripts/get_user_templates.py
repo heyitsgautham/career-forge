@@ -1,16 +1,27 @@
-import sqlite3
+"""Print the LaTeX templates a user owns in the local SQLite database.
 
-conn = sqlite3.connect("latex_agent.db")
+Usage:
+    uv run python scripts/get_user_templates.py <email> [path/to/latex_agent.db]
+"""
+
+import sqlite3
+import sys
+
+if len(sys.argv) not in (2, 3):
+    sys.exit("usage: get_user_templates.py <email> [db_path]")
+
+email = sys.argv[1]
+db_path = sys.argv[2] if len(sys.argv) == 3 else "latex_agent.db"
+
+conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
-# Find user
-cursor.execute('SELECT id, email, name FROM users WHERE email = "xmyhiruthik2020@gmail.com"')
+cursor.execute("SELECT id, email, name FROM users WHERE email = ?", (email,))
 user = cursor.fetchone()
 print(f"User: {user}")
 
 if user:
     user_id = user[0]
-    # Get templates for this user
     cursor.execute(
         "SELECT id, name, description, latex_content, is_system FROM templates WHERE user_id = ?",
         (user_id,),

@@ -14,7 +14,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
-USER_ID = "fd76cb4e-81e4-484f-9199-4b7239d8b173"
+# Pass the DynamoDB userId to generate for: smoke_resume_gen.py <user_id>
+USER_ID = sys.argv[1] if len(sys.argv) > 1 else ""
 
 
 async def get_user_data():
@@ -200,4 +201,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    if not USER_ID:
+        sys.exit("usage: smoke_resume_gen.py <user_id>")
     asyncio.run(main())
