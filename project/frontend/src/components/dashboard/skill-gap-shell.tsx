@@ -6,17 +6,41 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Target, BookOpen, ArrowRight, TrendingUp, CheckCircle2,
-  Loader2, ExternalLink, ChevronDown, ChevronUp, Clock,
-  Server, Monitor, Layers, Brain, BarChart3, Cloud, Smartphone, Shield,
+  Target,
+  BookOpen,
+  ArrowRight,
+  TrendingUp,
+  CheckCircle2,
+  Loader2,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Server,
+  Monitor,
+  Layers,
+  Brain,
+  BarChart3,
+  Cloud,
+  Smartphone,
+  Shield,
 } from 'lucide-react';
 import {
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  ResponsiveContainer, Legend,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  ResponsiveContainer,
+  Legend,
 } from 'recharts';
 import {
-  skillGapApi, roadmapApi,
-  type Role, type SkillGapReport, type SkillGap, type Roadmap,
+  skillGapApi,
+  roadmapApi,
+  type Role,
+  type SkillGapReport,
+  type SkillGap,
+  type Roadmap,
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,7 +59,8 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
 /* ─── Priority color helper ──────────────────────────────────────────────── */
 function priorityColor(p: string) {
   if (p === 'high') return 'bg-destructive/10 text-destructive border-destructive/20';
-  if (p === 'medium') return 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))] border-[hsl(var(--accent))]/20';
+  if (p === 'medium')
+    return 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))] border-[hsl(var(--accent))]/20';
   return 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20';
 }
 
@@ -58,8 +83,8 @@ export function SkillGapShell() {
       const res = await skillGapApi.getRoles();
       return res.data.roles || [];
     },
-    staleTime: 60 * 60 * 1000,   // 1 hour — static data
-    gcTime: 2 * 60 * 60 * 1000,  // 2 hours
+    staleTime: 60 * 60 * 1000, // 1 hour — static data
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
   });
 
   // Run analysis
@@ -73,9 +98,16 @@ export function SkillGapShell() {
       const res = await skillGapApi.analyse(selectedRole);
       if (res.data && res.data.reportId) {
         setReport(res.data);
-        toast({ title: 'Analysis complete!', description: `Overall fit: ${res.data.overallFitPercent}%` });
+        toast({
+          title: 'Analysis complete!',
+          description: `Overall fit: ${res.data.overallFitPercent}%`,
+        });
       } else {
-        toast({ title: 'No results', description: 'Could not compute gap analysis.', variant: 'destructive' });
+        toast({
+          title: 'No results',
+          description: 'Could not compute gap analysis.',
+          variant: 'destructive',
+        });
       }
     } catch (err: any) {
       toast({
@@ -112,18 +144,21 @@ export function SkillGapShell() {
   }, [selectedRole, report, toast]);
 
   // Mark milestone complete
-  const handleMarkComplete = useCallback(async (week: number) => {
-    if (!roadmap) return;
-    try {
-      const res = await roadmapApi.markComplete(roadmap.roadmapId, week);
-      if (res.data) {
-        setRoadmap(res.data);
-        toast({ title: `Week ${week} completed!` });
+  const handleMarkComplete = useCallback(
+    async (week: number) => {
+      if (!roadmap) return;
+      try {
+        const res = await roadmapApi.markComplete(roadmap.roadmapId, week);
+        if (res.data) {
+          setRoadmap(res.data);
+          toast({ title: `Week ${week} completed!` });
+        }
+      } catch {
+        toast({ title: 'Failed to update milestone', variant: 'destructive' });
       }
-    } catch {
-      toast({ title: 'Failed to update milestone', variant: 'destructive' });
-    }
-  }, [roadmap, toast]);
+    },
+    [roadmap, toast]
+  );
 
   // ─── Radar chart data ─────────────────────────────────────────────────
   const radarData = report
@@ -141,7 +176,8 @@ export function SkillGapShell() {
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Skill Gap Analysis</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Identify gaps between your current skills and target roles — powered by Amazon&nbsp;Bedrock
+          Identify gaps between your current skills and target roles — powered by
+          Amazon&nbsp;Bedrock
         </p>
       </div>
 
@@ -164,11 +200,13 @@ export function SkillGapShell() {
                     : 'border-border'
                 }`}
               >
-                <span className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                  selectedRole === role.roleId
-                    ? 'bg-primary/20 text-primary'
-                    : 'bg-muted text-muted-foreground group-hover:text-primary'
-                }`}>
+                <span
+                  className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                    selectedRole === role.roleId
+                      ? 'bg-primary/20 text-primary'
+                      : 'bg-muted text-muted-foreground group-hover:text-primary'
+                  }`}
+                >
                   {ROLE_ICONS[role.icon] || <Target className="h-5 w-5" aria-hidden="true" />}
                 </span>
                 <span className="text-xs font-medium leading-tight">{role.role}</span>
@@ -206,9 +244,7 @@ export function SkillGapShell() {
                   <Target className="h-4 w-4 text-primary" aria-hidden="true" />
                   Skill Radar — {report.roleName}
                 </CardTitle>
-                <CardDescription>
-                  Your profile (indigo) vs. role benchmark (amber)
-                </CardDescription>
+                <CardDescription>Your profile (indigo) vs. role benchmark (amber)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div aria-label="Skill gap radar chart" role="img">
@@ -219,11 +255,7 @@ export function SkillGapShell() {
                         dataKey="domain"
                         tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                       />
-                      <PolarRadiusAxis
-                        angle={90}
-                        domain={[0, 100]}
-                        tick={{ fontSize: 10 }}
-                      />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
                       <Radar
                         name="Your Score"
                         dataKey="user"
@@ -278,7 +310,8 @@ export function SkillGapShell() {
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Based on {report.projectCount} GitHub project{report.projectCount !== 1 ? 's' : ''} analysed by AI
+                  Based on {report.projectCount} GitHub project
+                  {report.projectCount !== 1 ? 's' : ''} analysed by AI
                 </p>
 
                 {/* Missing skills badges */}
@@ -313,9 +346,15 @@ export function SkillGapShell() {
                   <thead>
                     <tr className="border-b text-left">
                       <th className="py-2 pr-4 font-medium text-muted-foreground">Domain</th>
-                      <th className="py-2 pr-4 font-medium text-muted-foreground text-right">Your Score</th>
-                      <th className="py-2 pr-4 font-medium text-muted-foreground text-right">Required</th>
-                      <th className="py-2 pr-4 font-medium text-muted-foreground text-right">Gap</th>
+                      <th className="py-2 pr-4 font-medium text-muted-foreground text-right">
+                        Your Score
+                      </th>
+                      <th className="py-2 pr-4 font-medium text-muted-foreground text-right">
+                        Required
+                      </th>
+                      <th className="py-2 pr-4 font-medium text-muted-foreground text-right">
+                        Gap
+                      </th>
                       <th className="py-2 font-medium text-muted-foreground">Priority</th>
                     </tr>
                   </thead>
@@ -323,17 +362,29 @@ export function SkillGapShell() {
                     {report.gaps.map((g) => (
                       <tr key={g.domain} className="border-b last:border-0">
                         <td className="py-2.5 pr-4 font-medium">{g.domain}</td>
-                        <td className="py-2.5 pr-4 text-right" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <td
+                          className="py-2.5 pr-4 text-right"
+                          style={{ fontVariantNumeric: 'tabular-nums' }}
+                        >
                           {g.userScore}
                         </td>
-                        <td className="py-2.5 pr-4 text-right" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <td
+                          className="py-2.5 pr-4 text-right"
+                          style={{ fontVariantNumeric: 'tabular-nums' }}
+                        >
                           {g.requiredScore}
                         </td>
-                        <td className="py-2.5 pr-4 text-right font-medium" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <td
+                          className="py-2.5 pr-4 text-right font-medium"
+                          style={{ fontVariantNumeric: 'tabular-nums' }}
+                        >
                           {g.gap > 0 ? `−${g.gap}` : '0'}
                         </td>
                         <td className="py-2.5">
-                          <Badge variant="outline" className={`text-xs ${priorityColor(g.priority)}`}>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${priorityColor(g.priority)}`}
+                          >
                             {g.priority}
                           </Badge>
                         </td>
@@ -377,7 +428,11 @@ export function SkillGapShell() {
                     onClick={() => setRoadmapOpen(!roadmapOpen)}
                     aria-label={roadmapOpen ? 'Collapse roadmap' : 'Expand roadmap'}
                   >
-                    {roadmapOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {roadmapOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
                 {/* Progress bar */}
@@ -389,16 +444,19 @@ export function SkillGapShell() {
                     <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {roadmap.totalWeeks > 0
                         ? Math.round((roadmap.completedWeeks / roadmap.totalWeeks) * 100)
-                        : 0}%
+                        : 0}
+                      %
                     </span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-500"
                       style={{
-                        width: `${roadmap.totalWeeks > 0
-                          ? (roadmap.completedWeeks / roadmap.totalWeeks) * 100
-                          : 0}%`,
+                        width: `${
+                          roadmap.totalWeeks > 0
+                            ? (roadmap.completedWeeks / roadmap.totalWeeks) * 100
+                            : 0
+                        }%`,
                       }}
                     />
                   </div>
@@ -416,11 +474,13 @@ export function SkillGapShell() {
                       return (
                         <div key={week.week} className="relative flex gap-4 pb-6 last:pb-0">
                           {/* Timeline dot */}
-                          <div className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 ${
-                            done
-                              ? 'border-[hsl(var(--success))] bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
-                              : 'border-border bg-background text-muted-foreground'
-                          }`}>
+                          <div
+                            className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 ${
+                              done
+                                ? 'border-[hsl(var(--success))] bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
+                                : 'border-border bg-background text-muted-foreground'
+                            }`}
+                          >
                             {done ? (
                               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                             ) : (
@@ -429,14 +489,20 @@ export function SkillGapShell() {
                           </div>
 
                           {/* Card */}
-                          <div className={`flex-1 rounded-lg border p-4 ${done ? 'bg-muted/30' : ''}`}>
+                          <div
+                            className={`flex-1 rounded-lg border p-4 ${done ? 'bg-muted/30' : ''}`}
+                          >
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <h4 className={`font-medium ${done ? 'line-through text-muted-foreground' : ''}`}>
+                                <h4
+                                  className={`font-medium ${done ? 'line-through text-muted-foreground' : ''}`}
+                                >
                                   Week {week.week}: {week.projectTitle}
                                 </h4>
                                 {week.description && (
-                                  <p className="text-xs text-muted-foreground mt-1">{week.description}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {week.description}
+                                  </p>
                                 )}
                               </div>
                               {!done && (
@@ -451,7 +517,10 @@ export function SkillGapShell() {
                                 </Button>
                               )}
                               {done && (
-                                <Badge variant="outline" className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20 text-xs">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/20 text-xs"
+                                >
                                   Done
                                 </Badge>
                               )}
@@ -460,24 +529,22 @@ export function SkillGapShell() {
                             {/* Tech stack chips */}
                             <div className="flex flex-wrap gap-1.5 mt-3">
                               {week.techStack.map((tech) => (
-                                <Badge
-                                  key={tech}
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
+                                <Badge key={tech} variant="secondary" className="text-xs">
                                   {tech}
                                 </Badge>
                               ))}
                               <Badge variant="outline" className="text-xs gap-1">
-                                <Clock className="h-3 w-3" aria-hidden="true" />
-                                ~{week.estimatedHours}h
+                                <Clock className="h-3 w-3" aria-hidden="true" />~
+                                {week.estimatedHours}h
                               </Badge>
                             </div>
 
                             {/* Resources */}
                             {week.resources.length > 0 && (
                               <div className="mt-3 space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground">Resources</p>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                  Resources
+                                </p>
                                 {week.resources.map((r, i) => (
                                   <a
                                     key={i}

@@ -2,12 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  type DropResult,
-} from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,21 +24,34 @@ import {
   X,
   BarChart3,
 } from 'lucide-react';
-import {
-  applicationsApi,
-  jobMatchApi,
-  type Application,
-  type Job,
-} from '@/lib/api';
+import { applicationsApi, jobMatchApi, type Application, type Job } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
 
 const COLUMNS = [
   { key: 'applied', label: 'Applied', icon: Send, color: 'text-primary', bg: 'bg-primary/10' },
-  { key: 'interviewing', label: 'Interviewing', icon: PhoneCall, color: 'text-[hsl(var(--accent))]', bg: 'bg-[hsl(var(--accent))]/10' },
-  { key: 'offered', label: 'Offer', icon: CheckCircle2, color: 'text-[hsl(var(--success))]', bg: 'bg-[hsl(var(--success))]/10' },
-  { key: 'rejected', label: 'Rejected', icon: XCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
+  {
+    key: 'interviewing',
+    label: 'Interviewing',
+    icon: PhoneCall,
+    color: 'text-[hsl(var(--accent))]',
+    bg: 'bg-[hsl(var(--accent))]/10',
+  },
+  {
+    key: 'offered',
+    label: 'Offer',
+    icon: CheckCircle2,
+    color: 'text-[hsl(var(--success))]',
+    bg: 'bg-[hsl(var(--success))]/10',
+  },
+  {
+    key: 'rejected',
+    label: 'Rejected',
+    icon: XCircle,
+    color: 'text-destructive',
+    bg: 'bg-destructive/10',
+  },
 ] as const;
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -128,9 +136,7 @@ function ApplicationCard({
             )}
           </div>
 
-          {app.notes && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{app.notes}</p>
-          )}
+          {app.notes && <p className="text-xs text-muted-foreground line-clamp-2">{app.notes}</p>}
         </div>
       )}
     </Draggable>
@@ -178,9 +184,7 @@ function KanbanColumn({
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={`min-h-[180px] rounded-lg border border-dashed p-2 space-y-2 transition-colors ${
-              snapshot.isDraggingOver
-                ? 'border-primary/50 bg-primary/5'
-                : 'border-border/50'
+              snapshot.isDraggingOver ? 'border-primary/50 bg-primary/5' : 'border-border/50'
             }`}
           >
             {apps.map((app, idx) => (
@@ -213,10 +217,7 @@ function StatsBar({ applications }: { applications: Application[] }) {
   if (applications.length === 0) return null;
 
   return (
-    <div
-      className="flex flex-wrap gap-3 text-sm"
-      style={{ fontVariantNumeric: 'tabular-nums' }}
-    >
+    <div className="flex flex-wrap gap-3 text-sm" style={{ fontVariantNumeric: 'tabular-nums' }}>
       <div className="flex items-center gap-1.5">
         <BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         <span className="text-muted-foreground">Total:</span>
@@ -224,7 +225,9 @@ function StatsBar({ applications }: { applications: Application[] }) {
       </div>
       <span className="text-primary font-medium">{counts.applied} Applied</span>
       <span className="text-muted-foreground">&middot;</span>
-      <span className="text-[hsl(var(--accent))] font-medium">{counts.interviewing} Interviewing</span>
+      <span className="text-[hsl(var(--accent))] font-medium">
+        {counts.interviewing} Interviewing
+      </span>
       <span className="text-muted-foreground">&middot;</span>
       <span className="text-[hsl(var(--success))] font-medium">{counts.offered} Offer</span>
       <span className="text-muted-foreground">&middot;</span>
@@ -326,13 +329,19 @@ function AddApplicationModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground" htmlFor="add-app-company">
+              <label
+                className="text-xs font-medium text-muted-foreground"
+                htmlFor="add-app-company"
+              >
                 Company *
               </label>
               <Input
                 id="add-app-company"
                 value={company}
-                onChange={(e) => { setCompany(e.target.value); setIsDirty(true); }}
+                onChange={(e) => {
+                  setCompany(e.target.value);
+                  setIsDirty(true);
+                }}
                 placeholder="e.g. Stripe"
               />
             </div>
@@ -343,7 +352,10 @@ function AddApplicationModal({
               <Input
                 id="add-app-role"
                 value={role}
-                onChange={(e) => { setRole(e.target.value); setIsDirty(true); }}
+                onChange={(e) => {
+                  setRole(e.target.value);
+                  setIsDirty(true);
+                }}
                 placeholder="e.g. Backend SDE"
               />
             </div>
@@ -356,7 +368,10 @@ function AddApplicationModal({
             <Input
               id="add-app-url"
               value={url}
-              onChange={(e) => { setUrl(e.target.value); setIsDirty(true); }}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setIsDirty(true);
+              }}
               placeholder="https://..."
             />
           </div>
@@ -368,7 +383,10 @@ function AddApplicationModal({
             <Textarea
               id="add-app-notes"
               value={notes}
-              onChange={(e) => { setNotes(e.target.value); setIsDirty(true); }}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                setIsDirty(true);
+              }}
               placeholder="Applied via referral, etc."
               className="min-h-[60px]"
             />
@@ -474,7 +492,9 @@ export function ApplyTrackShell() {
   // Update application mutation (for DnD status changes)
   const updateMutation = useMutation({
     mutationFn: (params: { applicationId: string; status: string }) =>
-      applicationsApi.update(params.applicationId, { status: params.status as Application['status'] }),
+      applicationsApi.update(params.applicationId, {
+        status: params.status as Application['status'],
+      }),
     onError: (err: any) => {
       // Rollback on error — refetch
       queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -507,26 +527,26 @@ export function ApplyTrackShell() {
       const draggedApp = applications.find((a) => a.applicationId === draggableId);
 
       // Optimistic update in cache
-      queryClient.setQueryData(
-        ['applications', userId],
-        (old: Application[] | undefined) => {
-          if (!old) return old;
-          return old.map((app) =>
-            app.applicationId === draggableId
-              ? { ...app, status: newStatus as Application['status'] }
-              : app
-          );
-        }
-      );
+      queryClient.setQueryData(['applications', userId], (old: Application[] | undefined) => {
+        if (!old) return old;
+        return old.map((app) =>
+          app.applicationId === draggableId
+            ? { ...app, status: newStatus as Application['status'] }
+            : app
+        );
+      });
 
       // Persist application status to API
       updateMutation.mutate({ applicationId: draggableId, status: newStatus });
 
       // Sync tracking status back to Job Scout (fire-and-forget)
       if (draggedApp && !draggedApp.jobId.startsWith('manual-')) {
-        jobMatchApi.track(draggedApp.jobId, newStatus)
+        jobMatchApi
+          .track(draggedApp.jobId, newStatus)
           .then(() => queryClient.invalidateQueries({ queryKey: ['jobs', 'tracking'] }))
-          .catch(() => { /* sync failure is non-critical */ });
+          .catch(() => {
+            /* sync failure is non-critical */
+          });
       }
     },
     [queryClient, userId, updateMutation, applications]
@@ -598,7 +618,8 @@ export function ApplyTrackShell() {
                 <Briefcase className="h-5 w-5 text-primary" aria-hidden="true" />
               </div>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Your application tracker is empty. Add applications manually or track jobs from Job Scout.
+                Your application tracker is empty. Add applications manually or track jobs from Job
+                Scout.
               </p>
             </div>
           )}

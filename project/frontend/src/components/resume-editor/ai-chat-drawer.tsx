@@ -12,8 +12,8 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
-  pendingLatex?: string | null;   // AI-proposed full .tex
-  originalLatex?: string;          // snapshot of editor at send time
+  pendingLatex?: string | null; // AI-proposed full .tex
+  originalLatex?: string; // snapshot of editor at send time
   appliedLatex?: boolean;
   rejectedLatex?: boolean;
   isStreaming?: boolean;
@@ -44,22 +44,21 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
   }, [messages]);
 
   const appendToAssistant = useCallback((id: string, chunk: string) => {
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, text: m.text + chunk } : m,
-      ),
-    );
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: m.text + chunk } : m)));
   }, []);
 
-  const finalizeAssistant = useCallback((id: string, pendingLatex: string | null, fullText: string) => {
-    // The server guarantees no <latex> leaks, but trim as a last-resort safety net.
-    const cleanText = fullText.replace(/<latex[\s\S]*/i, '').trimEnd();
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === id ? { ...m, text: cleanText, isStreaming: false, pendingLatex } : m,
-      ),
-    );
-  }, []);
+  const finalizeAssistant = useCallback(
+    (id: string, pendingLatex: string | null, fullText: string) => {
+      // The server guarantees no <latex> leaks, but trim as a last-resort safety net.
+      const cleanText = fullText.replace(/<latex[\s\S]*/i, '').trimEnd();
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id ? { ...m, text: cleanText, isStreaming: false, pendingLatex } : m
+        )
+      );
+    },
+    []
+  );
 
   const handleSend = useCallback(async () => {
     const message = input.trim();
@@ -73,7 +72,14 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
     setMessages((prev) => [
       ...prev,
       { id: userMsgId, role: 'user', text: message },
-      { id: assistantMsgId, role: 'assistant', text: '', isStreaming: true, pendingLatex: null, originalLatex: currentLatex },
+      {
+        id: assistantMsgId,
+        role: 'assistant',
+        text: '',
+        isStreaming: true,
+        pendingLatex: null,
+        originalLatex: currentLatex,
+      },
     ]);
     setInput('');
     setIsStreaming(true);
@@ -89,7 +95,7 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
       const decoder = new TextDecoder();
       let buffer = '';
       let collectedLatex: string | null = null;
-      let fullText = '';  // accumulate for finalize cleanup
+      let fullText = ''; // accumulate for finalize cleanup
 
       while (true) {
         const { done, value } = await reader.read();
@@ -126,9 +132,14 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMsgId
-              ? { ...m, isStreaming: false, text: 'Something went wrong. Please try again.', error: true }
-              : m,
-          ),
+              ? {
+                  ...m,
+                  isStreaming: false,
+                  text: 'Something went wrong. Please try again.',
+                  error: true,
+                }
+              : m
+          )
         );
       }
     } finally {
@@ -141,15 +152,15 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
     (msgId: string, latex: string) => {
       onApplyLatex(latex);
       setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, appliedLatex: true, pendingLatex: null } : m)),
+        prev.map((m) => (m.id === msgId ? { ...m, appliedLatex: true, pendingLatex: null } : m))
       );
     },
-    [onApplyLatex],
+    [onApplyLatex]
   );
 
   const handleReject = useCallback((msgId: string) => {
     setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, rejectedLatex: true, pendingLatex: null } : m)),
+      prev.map((m) => (m.id === msgId ? { ...m, rejectedLatex: true, pendingLatex: null } : m))
     );
   }, []);
 
@@ -195,7 +206,8 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
             <div>
               <p className="text-sm font-medium">Ask Claude to improve your resume</p>
               <p className="text-xs opacity-70 mt-1">
-                E.g. &quot;Make the summary more concise&quot; or &quot;Add stronger action verbs&quot;
+                E.g. &quot;Make the summary more concise&quot; or &quot;Add stronger action
+                verbs&quot;
               </p>
             </div>
           </div>
@@ -204,10 +216,7 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={cn(
-              'flex gap-2',
-              msg.role === 'user' ? 'justify-end' : 'justify-start',
-            )}
+            className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}
           >
             {msg.role === 'assistant' && (
               <div className="h-6 w-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0 mt-0.5">
@@ -221,7 +230,7 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
                 msg.role === 'user'
                   ? 'bg-violet-600 text-white rounded-tr-sm'
                   : 'bg-muted rounded-tl-sm',
-                msg.error && 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400',
+                msg.error && 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400'
               )}
             >
               {/* Message text */}
@@ -238,10 +247,7 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
               {/* Diff view + Accept / Reject */}
               {!msg.isStreaming && msg.pendingLatex && !msg.appliedLatex && !msg.rejectedLatex && (
                 <div className="mt-2">
-                  <LatexDiffViewer
-                    original={msg.originalLatex ?? ''}
-                    modified={msg.pendingLatex}
-                  />
+                  <LatexDiffViewer original={msg.originalLatex ?? ''} modified={msg.pendingLatex} />
                   <div className="mt-2 flex gap-2">
                     <Button
                       size="sm"
@@ -281,9 +287,7 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
               )}
 
               {/* Error icon */}
-              {msg.error && (
-                <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-1" />
-              )}
+              {msg.error && <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-1" />}
             </div>
 
             {msg.role === 'user' && (
@@ -323,7 +327,8 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
         </div>
         <p className="text-[10px] text-muted-foreground mt-1.5 ml-0.5">
           Claude will explain changes and show an Apply button for the updated LaTeX.{' '}
-          <kbd className="px-1 py-0.5 rounded border text-[10px] font-mono">Ctrl+Enter</kbd> to send.
+          <kbd className="px-1 py-0.5 rounded border text-[10px] font-mono">Ctrl+Enter</kbd> to
+          send.
         </p>
       </div>
     </div>

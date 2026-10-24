@@ -5,7 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { ExternalLink, X } from 'lucide-react';
 import type { Project } from './types';
 
-export function ProjectDetailsModal({ project, onClose }: { project: Project; onClose: () => void }) {
+export function ProjectDetailsModal({
+  project,
+  onClose,
+}: {
+  project: Project;
+  onClose: () => void;
+}) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in-up">
@@ -43,7 +49,9 @@ export function ProjectDetailsModal({ project, onClose }: { project: Project; on
               <h3 className="font-semibold text-sm text-muted-foreground mb-2">Key Highlights</h3>
               <ul className="list-disc list-inside space-y-1">
                 {project.highlights.map((highlight, idx) => (
-                  <li key={idx} className="text-sm">{highlight}</li>
+                  <li key={idx} className="text-sm">
+                    {highlight}
+                  </li>
                 ))}
               </ul>
             </div>

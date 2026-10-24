@@ -91,7 +91,9 @@ export function PdfPreview({
               onClick={onRecompile}
               disabled={compileStatus === 'compiling'}
             >
-              <RefreshCw className={cn('h-3 w-3', compileStatus === 'compiling' && 'animate-spin')} />
+              <RefreshCw
+                className={cn('h-3 w-3', compileStatus === 'compiling' && 'animate-spin')}
+              />
               Recompile
             </Button>
           )}
@@ -162,8 +164,9 @@ export function PdfPreview({
             <div>
               <p className="font-medium text-sm">No PDF yet</p>
               <p className="text-xs mt-1 opacity-70">
-                Press <kbd className="px-1.5 py-0.5 rounded border text-xs font-mono">Ctrl+Enter</kbd> or click{' '}
-                <strong>Compile</strong> to generate the preview.
+                Press{' '}
+                <kbd className="px-1.5 py-0.5 rounded border text-xs font-mono">Ctrl+Enter</kbd> or
+                click <strong>Compile</strong> to generate the preview.
               </p>
             </div>
           </div>

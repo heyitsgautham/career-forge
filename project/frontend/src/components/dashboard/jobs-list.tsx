@@ -37,8 +37,8 @@ export function JobsList() {
       const res = await jobsApi.list();
       return res.data as JobDescription[];
     },
-    staleTime: 2 * 60 * 1000,   // 2 min
-    gcTime: 15 * 60 * 1000,     // 15 min
+    staleTime: 2 * 60 * 1000, // 2 min
+    gcTime: 15 * 60 * 1000, // 15 min
   });
 
   const deleteMutation = useMutation({
@@ -59,7 +59,7 @@ export function JobsList() {
       toast({
         title: 'Analysis failed',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     },
   });
@@ -110,7 +110,10 @@ export function JobsList() {
   return (
     <>
       <div className="flex justify-end mb-4">
-        <Button onClick={() => setShowAddModal(true)} className="shadow-md shadow-primary/20 hover:shadow-lg">
+        <Button
+          onClick={() => setShowAddModal(true)}
+          className="shadow-md shadow-primary/20 hover:shadow-lg"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Job Description
         </Button>
@@ -118,7 +121,11 @@ export function JobsList() {
 
       <div className="grid gap-4 md:grid-cols-2">
         {jobs.map((job) => (
-          <Card key={job.id} className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border-l-4 border-l-[hsl(var(--accent))]" onClick={() => setSelectedJob(job)}>
+          <Card
+            key={job.id}
+            className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer border-l-4 border-l-[hsl(var(--accent))]"
+            onClick={() => setSelectedJob(job)}
+          >
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -129,9 +136,7 @@ export function JobsList() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-1">
-                  {job.is_analyzed && (
-                    <Badge variant="default">Analyzed</Badge>
-                  )}
+                  {job.is_analyzed && <Badge variant="default">Analyzed</Badge>}
                   {job.source_url && (
                     <Button variant="ghost" size="icon" asChild>
                       <a href={job.source_url} target="_blank" rel="noopener noreferrer">
@@ -315,12 +320,13 @@ function AddJobModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: () => jobsApi.create({
-      title,
-      company,
-      raw_text: rawText,
-      url: url || undefined,
-    }),
+    mutationFn: () =>
+      jobsApi.create({
+        title,
+        company,
+        raw_text: rawText,
+        url: url || undefined,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       toast({ title: 'Job description added' });
@@ -330,7 +336,7 @@ function AddJobModal({ onClose }: { onClose: () => void }) {
       toast({
         title: 'Failed to add job description',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     },
   });
@@ -388,7 +394,9 @@ function AddJobModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex gap-2 justify-end pt-4">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
             <Button
               onClick={() => createMutation.mutate()}
               disabled={!title || !rawText || createMutation.isPending}

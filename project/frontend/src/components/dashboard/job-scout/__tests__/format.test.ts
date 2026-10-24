@@ -53,7 +53,9 @@ describe('formatPostedDate', () => {
   });
 
   it('falls back to datePosted when createdAt is missing', () => {
-    expect(formatPostedDate(new Date(2026, 0, 21, 18, 30).toISOString(), null)).toBe('21st January, 18:30');
+    expect(formatPostedDate(new Date(2026, 0, 21, 18, 30).toISOString(), null)).toBe(
+      '21st January, 18:30'
+    );
   });
 
   it('returns the raw text for unparseable dates and a dash for empty ones', () => {

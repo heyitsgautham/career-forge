@@ -24,7 +24,7 @@ export function ordinalSuffix(d: number) {
 
 export function formatPostedDate(
   datePosted: string | undefined | null,
-  createdAt: string | undefined | null,
+  createdAt: string | undefined | null
 ): string {
   // Prefer createdAt (has time); fall back to datePosted
   const src = createdAt || datePosted;

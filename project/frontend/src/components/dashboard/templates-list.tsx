@@ -36,8 +36,8 @@ export function TemplatesList() {
       const res = await templatesApi.list();
       return res.data as Template[];
     },
-    staleTime: 30 * 60 * 1000,   // 30 min — templates rarely change
-    gcTime: 60 * 60 * 1000,      // 60 min
+    staleTime: 30 * 60 * 1000, // 30 min — templates rarely change
+    gcTime: 60 * 60 * 1000, // 60 min
   });
 
   const deleteMutation = useMutation({
@@ -65,8 +65,8 @@ export function TemplatesList() {
   }
 
   // Separate system and user templates
-  const systemTemplates = templates?.filter(t => t.is_system) || [];
-  const userTemplates = templates?.filter(t => !t.is_system) || [];
+  const systemTemplates = templates?.filter((t) => t.is_system) || [];
+  const userTemplates = templates?.filter((t) => !t.is_system) || [];
 
   return (
     <div className="space-y-8">
@@ -139,7 +139,7 @@ function TemplateCard({
   template,
   isSystem = false,
   onPreview,
-  onDelete
+  onDelete,
 }: {
   template: Template;
   isSystem?: boolean;
@@ -170,9 +170,7 @@ function TemplateCard({
             </Badge>
           )}
         </div>
-        <CardDescription className="line-clamp-2 text-xs">
-          {template.description}
-        </CardDescription>
+        <CardDescription className="line-clamp-2 text-xs">{template.description}</CardDescription>
       </CardHeader>
 
       <CardContent className="pt-0">
@@ -205,12 +203,13 @@ function AddTemplateModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: () => templatesApi.create({
-      name,
-      description,
-      latex_content: latexContent,
-      category,
-    }),
+    mutationFn: () =>
+      templatesApi.create({
+        name,
+        description,
+        latex_content: latexContent,
+        category,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       toast({ title: 'Template created' });
@@ -220,7 +219,7 @@ function AddTemplateModal({ onClose }: { onClose: () => void }) {
       toast({
         title: 'Failed to create template',
         description: error.response?.data?.detail || 'Unknown error',
-        variant: 'destructive'
+        variant: 'destructive',
       });
     },
   });
@@ -280,7 +279,9 @@ function AddTemplateModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex gap-2 justify-end pt-4">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
             <Button
               onClick={() => createMutation.mutate()}
               disabled={!name || !latexContent || createMutation.isPending}
@@ -302,16 +303,18 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
       const res = await templatesApi.get(template.id);
       return res.data;
     },
-    staleTime: 30 * 60 * 1000,   // 30 min
-    gcTime: 60 * 60 * 1000,      // 60 min
+    staleTime: 30 * 60 * 1000, // 30 min
+    gcTime: 60 * 60 * 1000, // 60 min
   });
 
   // Parse LaTeX to simple HTML preview
   const renderPreview = (latex: string) => {
     // Extract sections and content from LaTeX
     const getName = () => {
-      const match = latex.match(/\\textbf\{([^}]+)\}|\\LARGE[^{]*\{([^}]+)\}|<<NAME>>|\{\{NAME\}\}/);
-      return match ? (match[1] || match[2] || 'Your Name') : 'Your Name';
+      const match = latex.match(
+        /\\textbf\{([^}]+)\}|\\LARGE[^{]*\{([^}]+)\}|<<NAME>>|\{\{NAME\}\}/
+      );
+      return match ? match[1] || match[2] || 'Your Name' : 'Your Name';
     };
 
     const getSections = () => {
@@ -327,7 +330,10 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
     const sections = getSections();
 
     return (
-      <div className="bg-white text-black p-8 shadow-lg max-w-[8.5in] mx-auto" style={{ fontFamily: 'Times New Roman, serif' }}>
+      <div
+        className="bg-white text-black p-8 shadow-lg max-w-[8.5in] mx-auto"
+        style={{ fontFamily: 'Times New Roman, serif' }}
+      >
         {/* Header */}
         <div className="text-center border-b-2 border-black pb-4 mb-4">
           <h1 className="text-2xl font-bold">{getName()}</h1>
@@ -343,7 +349,9 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
               <h2 className="text-lg font-bold border-b border-gray-400 mb-2">{section.title}</h2>
               <div className="text-sm text-gray-700">
                 {section.content.includes('<<') || section.content.includes('{{') ? (
-                  <p className="italic text-gray-500">[Content will be generated based on your projects and job description]</p>
+                  <p className="italic text-gray-500">
+                    [Content will be generated based on your projects and job description]
+                  </p>
                 ) : (
                   <p className="whitespace-pre-wrap">{section.content.slice(0, 200)}...</p>
                 )}
@@ -354,7 +362,9 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
           <>
             <div className="mb-4">
               <h2 className="text-lg font-bold border-b border-gray-400 mb-2">Summary</h2>
-              <p className="text-sm italic text-gray-500">[Professional summary will appear here]</p>
+              <p className="text-sm italic text-gray-500">
+                [Professional summary will appear here]
+              </p>
             </div>
             <div className="mb-4">
               <h2 className="text-lg font-bold border-b border-gray-400 mb-2">Experience</h2>
@@ -375,8 +385,14 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-fade-in-up"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">{template.name}</h2>
           <div className="flex items-center gap-2">
@@ -407,7 +423,9 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
             <div className="text-center py-8 text-muted-foreground">Loading…</div>
           ) : viewMode === 'preview' ? (
             <div className="overflow-auto max-h-[60vh]">
-              {fullTemplate?.latex_content ? renderPreview(fullTemplate.latex_content) : (
+              {fullTemplate?.latex_content ? (
+                renderPreview(fullTemplate.latex_content)
+              ) : (
                 <p className="text-center text-muted-foreground">No content available</p>
               )}
             </div>
@@ -434,7 +452,9 @@ function PreviewModal({ template, onClose }: { template: Template; onClose: () =
             >
               Copy LaTeX
             </Button>
-            <Button variant="outline" onClick={onClose}>Close</Button>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
           </div>
         </div>
       </div>

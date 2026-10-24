@@ -27,8 +27,7 @@ export default function HomePage() {
       <div
         className="absolute inset-0 opacity-[0.25] pointer-events-none"
         style={{
-          backgroundImage:
-            'radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px)',
           backgroundSize: '32px 32px',
         }}
       />
@@ -37,12 +36,20 @@ export default function HomePage() {
       <header className="relative z-10 border-b border-border/40 bg-card/70 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="CareerForge logo" className="h-11 w-11 rounded-full bg-white p-0.5 object-contain shadow-lg shadow-primary/25" />
+            <img
+              src="/logo.svg"
+              alt="CareerForge logo"
+              className="h-11 w-11 rounded-full bg-white p-0.5 object-contain shadow-lg shadow-primary/25"
+            />
             <span className="font-bold text-xl tracking-tight">CareerForge</span>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+              >
                 Sign In
               </Button>
             </Link>
@@ -67,13 +74,12 @@ export default function HomePage() {
         <h1 className="animate-fade-in-up text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-balance max-w-4xl mx-auto mb-6 leading-[1.08]">
           Turn Your GitHub
           <br />
-          Into a{' '}
-          <span className="text-gradient-primary">Job Engine</span>
+          Into a <span className="text-gradient-primary">Job Engine</span>
         </h1>
 
         <p className="animate-fade-in-up text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-12 text-pretty leading-relaxed">
-          CareerForge extracts real skills from your code, generates ATS-ready resumes,
-          maps your skill gaps, and matches you to jobs &mdash; all from your GitHub profile.
+          CareerForge extracts real skills from your code, generates ATS-ready resumes, maps your
+          skill gaps, and matches you to jobs &mdash; all from your GitHub profile.
         </p>
 
         <div className="animate-fade-in-up flex flex-col sm:flex-row gap-4 justify-center">
@@ -152,13 +158,11 @@ export default function HomePage() {
               <div className="h-10 w-10 rounded-xl bg-[hsl(var(--success))]/10 flex items-center justify-center">
                 <Shield className="h-5 w-5 text-[hsl(var(--success))]" aria-hidden="true" />
               </div>
-              <h2 className="text-2xl font-bold tracking-tight">
-                Grounded in Reality
-              </h2>
+              <h2 className="text-2xl font-bold tracking-tight">Grounded in Reality</h2>
             </div>
             <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-              Unlike generic AI resume builders, CareerForge never invents projects, skills, or experience.
-              Every data point traces back to your actual GitHub repos.
+              Unlike generic AI resume builders, CareerForge never invents projects, skills, or
+              experience. Every data point traces back to your actual GitHub repos.
             </p>
             <div className="grid sm:grid-cols-2 gap-3 stagger-children">
               <TrustItem text="Projects sourced only from your GitHub" />
@@ -216,7 +220,9 @@ function FeatureCard({
   return (
     <div className="group relative rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1.5">
       <div className="relative">
-        <div className={`inline-flex items-center justify-center rounded-xl ${iconBg} p-2.5 mb-4 transition-transform duration-300 group-hover:scale-110`}>
+        <div
+          className={`inline-flex items-center justify-center rounded-xl ${iconBg} p-2.5 mb-4 transition-transform duration-300 group-hover:scale-110`}
+        >
           {icon}
         </div>
         <h3 className="text-base font-semibold mb-2">{title}</h3>

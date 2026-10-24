@@ -5,27 +5,27 @@
 @layer base {
   :root {
     /* CareerForge — Warm Indigo palette */
-    --background: 60 9% 98%;          /* #FAFAF9  Cream White   */
-    --foreground: 24 10% 10%;         /* #1C1917  Charcoal      */
-    --card: 0 0% 100%;                /* #FFFFFF  Pure White     */
-    --card-foreground: 24 10% 10%;    /* #1C1917                */
+    --background: 60 9% 98%; /* #FAFAF9  Cream White   */
+    --foreground: 24 10% 10%; /* #1C1917  Charcoal      */
+    --card: 0 0% 100%; /* #FFFFFF  Pure White     */
+    --card-foreground: 24 10% 10%; /* #1C1917                */
     --popover: 0 0% 100%;
     --popover-foreground: 24 10% 10%;
-    --primary: 210 90% 40%;           /* #0A66C2  LinkedIn Blue  */
-    --primary-foreground: 0 0% 100%;  /* White on blue          */
+    --primary: 210 90% 40%; /* #0A66C2  LinkedIn Blue  */
+    --primary-foreground: 0 0% 100%; /* White on blue          */
     --secondary: 60 5% 96%;
     --secondary-foreground: 24 10% 10%;
     --muted: 60 5% 96%;
-    --muted-foreground: 24 5% 45%;    /* #78716C  Warm Gray     */
-    --accent: 38 92% 50%;             /* #F59E0B  Amber Gold    */
+    --muted-foreground: 24 5% 45%; /* #78716C  Warm Gray     */
+    --accent: 38 92% 50%; /* #F59E0B  Amber Gold    */
     --accent-foreground: 24 10% 10%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 20 6% 90%;              /* #E7E5E4  Stone Gray    */
+    --border: 20 6% 90%; /* #E7E5E4  Stone Gray    */
     --input: 20 6% 90%;
-    --ring: 210 90% 40%;              /* matches primary        */
+    --ring: 210 90% 40%; /* matches primary        */
     --radius: 0.75rem;
-    --success: 160 84% 39%;           /* #10B981  Emerald       */
+    --success: 160 84% 39%; /* #10B981  Emerald       */
     --warning: 38 92% 50%;
     --match-high: 160 84% 39%;
     --match-mid: 38 92% 50%;
@@ -68,7 +68,9 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
   }
 
   /* Tabular numbers for scores and counts */
@@ -78,7 +80,7 @@
 
   /* Touch optimization for all buttons */
   button,
-  [role="button"] {
+  [role='button'] {
     touch-action: manipulation;
   }
 }
@@ -95,7 +97,6 @@
 
 /* Respect prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
@@ -139,7 +140,13 @@
 }
 
 /* Smooth transitions on interactive elements */
-a, button, [role="button"], input, select, textarea, .card {
+a,
+button,
+[role='button'],
+input,
+select,
+textarea,
+.card {
   transition-property: color, background-color, border-color, box-shadow, opacity, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -147,11 +154,15 @@ a, button, [role="button"], input, select, textarea, .card {
 
 /* Card hover lift effect */
 .card-hover {
-  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s cubic-bezier(0.4,0,0.2,1);
+  transition:
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card-hover:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px -6px rgba(10, 102, 194, 0.12), 0 6px 12px -4px rgba(10, 102, 194, 0.08);
+  box-shadow:
+    0 12px 28px -6px rgba(10, 102, 194, 0.12),
+    0 6px 12px -4px rgba(10, 102, 194, 0.08);
 }
 
 /* Fade-in animation for page content */
@@ -185,14 +196,30 @@ a, button, [role="button"], input, select, textarea, .card {
 .stagger-children > * {
   animation: stagger-in 0.4s ease-out both;
 }
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
-.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
-.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 180ms;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 240ms;
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: 300ms;
+}
+.stagger-children > *:nth-child(7) {
+  animation-delay: 360ms;
+}
+.stagger-children > *:nth-child(8) {
+  animation-delay: 420ms;
+}
 
 /* Gradient text utility */
 .text-gradient-primary {
@@ -211,10 +238,19 @@ a, button, [role="button"], input, select, textarea, .card {
 
 /* Floating blob animation */
 @keyframes blob {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(20px, -30px) scale(1.05); }
-  50% { transform: translate(-10px, 15px) scale(0.95); }
-  75% { transform: translate(-20px, -10px) scale(1.02); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(20px, -30px) scale(1.05);
+  }
+  50% {
+    transform: translate(-10px, 15px) scale(0.95);
+  }
+  75% {
+    transform: translate(-20px, -10px) scale(1.02);
+  }
 }
 .animate-blob {
   animation: blob 10s ease-in-out infinite;
@@ -233,7 +269,7 @@ a, button, [role="button"], input, select, textarea, .card {
 
 /* Noise texture overlay for depth */
 .noise-bg::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   opacity: 0.03;
@@ -267,7 +303,7 @@ a, button, [role="button"], input, select, textarea, .card {
 }
 
 /* Range slider custom styling for roadmap hours picker */
-input[type="range"]::-webkit-slider-thumb {
+input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 20px;
@@ -277,15 +313,17 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
   border: 3px solid hsl(var(--background));
   box-shadow: 0 0 0 2px hsl(var(--primary) / 0.3);
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition:
+    box-shadow 0.2s,
+    transform 0.2s;
 }
 
-input[type="range"]::-webkit-slider-thumb:hover {
+input[type='range']::-webkit-slider-thumb:hover {
   box-shadow: 0 0 0 4px hsl(var(--primary) / 0.2);
   transform: scale(1.1);
 }
 
-input[type="range"]::-moz-range-thumb {
+input[type='range']::-moz-range-thumb {
   width: 20px;
   height: 20px;
   border-radius: 50%;

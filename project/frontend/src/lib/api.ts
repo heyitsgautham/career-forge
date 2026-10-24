@@ -188,8 +188,7 @@ api.interceptors.response.use(
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  login: (email: string, password: string) =>
-    api.post('/api/auth/login', { email, password }),
+  login: (email: string, password: string) => api.post('/api/auth/login', { email, password }),
 
   register: (email: string, password: string, full_name: string) =>
     api.post('/api/auth/register', { email, password, full_name }),
@@ -241,8 +240,7 @@ export const authApi = {
     window.location.href = `https://${domain}/oauth2/authorize?client_id=${clientId}&response_type=code&scope=openid+email+profile&redirect_uri=${redirectUri}&identity_provider=Google`;
   },
 
-  cognitoCallback: (code: string) =>
-    api.post('/api/auth/cognito/callback', { code }),
+  cognitoCallback: (code: string) => api.post('/api/auth/cognito/callback', { code }),
 
   getProfile: () => api.get('/api/auth/profile'),
 };
@@ -254,8 +252,7 @@ export const userApi = {
 
   getProfile: () => api.get('/api/auth/profile'),
 
-  updateProfile: (data: Partial<User>) =>
-    api.put('/api/auth/profile', data),
+  updateProfile: (data: Partial<User>) => api.put('/api/auth/profile', data),
 
   getGithubStatus: () => api.get('/api/auth/github/status'),
 
@@ -267,8 +264,7 @@ export const userApi = {
   importLinkedInProfile: (linkedinUrl?: string) =>
     api.post('/api/auth/linkedin/import-profile', linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
 
-  scrapeCertifications: () =>
-    api.post('/api/auth/linkedin/scrape-certifications'),
+  scrapeCertifications: () => api.post('/api/auth/linkedin/scrape-certifications'),
 };
 
 // ─── Projects API ─────────────────────────────────────────────────────────────
@@ -288,15 +284,18 @@ export const projectsApi = {
     end_date?: string;
   }) => api.post('/api/projects', data),
 
-  update: (id: string, data: Partial<{
-    title: string;
-    description: string;
-    technologies: string[];
-    url: string;
-    highlights: string[];
-    start_date: string;
-    end_date: string;
-  }>) => api.patch(`/api/projects/${id}`, data),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      description: string;
+      technologies: string[];
+      url: string;
+      highlights: string[];
+      start_date: string;
+      end_date: string;
+    }>
+  ) => api.patch(`/api/projects/${id}`, data),
 
   delete: (id: string) => api.delete(`/api/projects/${id}`),
 
@@ -304,11 +303,10 @@ export const projectsApi = {
 
   importGithub: (fullNames: string[]) =>
     api.post('/api/projects/ingest/github', {
-      full_names: fullNames
+      full_names: fullNames,
     }),
 
-  syncAllGithub: () =>
-    api.post('/api/projects/ingest/github', { sync_all: true }),
+  syncAllGithub: () => api.post('/api/projects/ingest/github', { sync_all: true }),
 
   syncGithub: (id: string) => api.post(`/api/projects/${id}/sync`),
 
@@ -322,19 +320,18 @@ export const templatesApi = {
 
   get: (id: string) => api.get(`/api/templates/${id}`),
 
-  create: (data: {
-    name: string;
-    description: string;
-    latex_content: string;
-    category?: string;
-  }) => api.post('/api/templates', data),
+  create: (data: { name: string; description: string; latex_content: string; category?: string }) =>
+    api.post('/api/templates', data),
 
-  update: (id: string, data: Partial<{
-    name: string;
-    description: string;
-    latex_content: string;
-    category: string;
-  }>) => api.patch(`/api/templates/${id}`, data),
+  update: (
+    id: string,
+    data: Partial<{
+      name: string;
+      description: string;
+      latex_content: string;
+      category: string;
+    }>
+  ) => api.patch(`/api/templates/${id}`, data),
 
   delete: (id: string) => api.delete(`/api/templates/${id}`),
 
@@ -348,19 +345,18 @@ export const jobsApi = {
 
   get: (id: string) => api.get(`/api/jobs/${id}`),
 
-  create: (data: {
-    title: string;
-    company: string;
-    raw_text: string;
-    url?: string;
-  }) => api.post('/api/jobs', data),
+  create: (data: { title: string; company: string; raw_text: string; url?: string }) =>
+    api.post('/api/jobs', data),
 
-  update: (id: string, data: Partial<{
-    title: string;
-    company: string;
-    raw_text: string;
-    url: string;
-  }>) => api.patch(`/api/jobs/${id}`, data),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      company: string;
+      raw_text: string;
+      url: string;
+    }>
+  ) => api.patch(`/api/jobs/${id}`, data),
 
   delete: (id: string) => api.delete(`/api/jobs/${id}`),
 
@@ -391,34 +387,37 @@ export const resumesApi = {
       status: string;
     }>('/api/resumes/generate', { jd: jd || null }),
 
-  generate: (id: string, data?: {
-    personal?: {
-      name: string;
-      email: string;
-      phone?: string;
-      location?: string;
-      linkedin?: string;
-      github?: string;
-      website?: string;
-    };
-    skills?: string[];
-    experience?: Array<{
-      title: string;
-      company: string;
-      location?: string;
-      start_date: string;
-      end_date?: string;
-      highlights: string[];
-    }>;
-    education?: Array<{
-      degree: string;
-      school: string;
-      location?: string;
-      graduation_date: string;
-      gpa?: string;
-    }>;
-    tailor_to_jd?: boolean;
-  }) => api.post(`/api/resumes/${id}/generate`, data || {}),
+  generate: (
+    id: string,
+    data?: {
+      personal?: {
+        name: string;
+        email: string;
+        phone?: string;
+        location?: string;
+        linkedin?: string;
+        github?: string;
+        website?: string;
+      };
+      skills?: string[];
+      experience?: Array<{
+        title: string;
+        company: string;
+        location?: string;
+        start_date: string;
+        end_date?: string;
+        highlights: string[];
+      }>;
+      education?: Array<{
+        degree: string;
+        school: string;
+        location?: string;
+        graduation_date: string;
+        gpa?: string;
+      }>;
+      tailor_to_jd?: boolean;
+    }
+  ) => api.post(`/api/resumes/${id}/generate`, data || {}),
 
   compile: (id: string) => api.post(`/api/resumes/${id}/compile`),
 
@@ -426,7 +425,7 @@ export const resumesApi = {
   compileWithContent: (id: string, latex_content?: string) =>
     api.post<{ pdf_url: string | null; status: string; error_message: string | null }>(
       `/api/resumes/${id}/compile`,
-      latex_content ? { latex_content } : {},
+      latex_content ? { latex_content } : {}
     ),
 
   updateLatex: (id: string, latex_content: string) =>
@@ -436,19 +435,16 @@ export const resumesApi = {
   saveLaTeX: (id: string, latex_content: string) =>
     api.put<{ id: string; updated_at: string }>(`/api/resumes/${id}/latex`, { latex_content }),
 
-  downloadPdf: (id: string) =>
-    api.get(`/api/resumes/${id}/pdf`, { responseType: 'blob' }),
+  downloadPdf: (id: string) => api.get(`/api/resumes/${id}/pdf`, { responseType: 'blob' }),
 
   /** Get presigned S3 URL for PDF preview (no Content-Disposition) */
-  getPdfUrl: (id: string) =>
-    api.get<{ url: string }>(`/api/resumes/${id}/pdf-url`),
+  getPdfUrl: (id: string) => api.get<{ url: string }>(`/api/resumes/${id}/pdf-url`),
 
   /** Get presigned S3 URL with Content-Disposition: attachment for download */
   getPdfDownloadUrl: (id: string) =>
     api.get<{ url: string }>(`/api/resumes/${id}/pdf-url?download=true`),
 
-  downloadTex: (id: string) =>
-    api.get(`/api/resumes/${id}/tex`, { responseType: 'blob' }),
+  downloadTex: (id: string) => api.get(`/api/resumes/${id}/tex`, { responseType: 'blob' }),
 
   delete: (id: string) => api.delete(`/api/resumes/${id}`),
 
@@ -484,7 +480,9 @@ export const githubApi = {
 
   /** Import repos not yet in the Projects table */
   importNew: (includeForks: boolean = false) =>
-    api.post('/api/github/ingest', null, { params: { include_forks: includeForks, mode: 'import_new' } }),
+    api.post('/api/github/ingest', null, {
+      params: { include_forks: includeForks, mode: 'import_new' },
+    }),
 
   /** @deprecated use sync() */
   ingest: (includeForks: boolean = false) =>
@@ -492,13 +490,19 @@ export const githubApi = {
 
   /** Poll ingestion status */
   getIngestStatus: () =>
-    api.get<{ status: string; summary: { total: number; processed: number; failed: number; mode?: string; lastRunAt: string } | null }>(
-      '/api/github/ingest-status'
-    ),
+    api.get<{
+      status: string;
+      summary: {
+        total: number;
+        processed: number;
+        failed: number;
+        mode?: string;
+        lastRunAt: string;
+      } | null;
+    }>('/api/github/ingest-status'),
 
   /** List all ingested projects for current user */
-  listProjects: () =>
-    api.get<Array<Record<string, unknown>>>('/api/github/projects'),
+  listProjects: () => api.get<Array<Record<string, unknown>>>('/api/github/projects'),
 };
 
 // ─── Skill Gap API ────────────────────────────────────────────────────────────
@@ -513,12 +517,10 @@ export interface Role {
 
 export const skillGapApi = {
   /** List available career roles */
-  getRoles: () =>
-    api.get<{ roles: Role[] }>('/api/skill-gap/roles'),
+  getRoles: () => api.get<{ roles: Role[] }>('/api/skill-gap/roles'),
 
   /** Run skill gap analysis for user vs role */
-  analyse: (roleId: string) =>
-    api.post<SkillGapReport>('/api/skill-gap/analyse', { roleId }),
+  analyse: (roleId: string) => api.post<SkillGapReport>('/api/skill-gap/analyse', { roleId }),
 
   /** Fetch cached gap report */
   getReport: (roleId?: string) =>
@@ -535,12 +537,10 @@ export const roadmapApi = {
     api.post<Roadmap>('/api/skill-gap/roadmap/generate', { roleId, reportId }),
 
   /** Fetch a specific roadmap */
-  get: (roadmapId: string) =>
-    api.get<Roadmap>(`/api/skill-gap/roadmap/${roadmapId}`),
+  get: (roadmapId: string) => api.get<Roadmap>(`/api/skill-gap/roadmap/${roadmapId}`),
 
   /** List all roadmaps for current user */
-  list: () =>
-    api.get<{ roadmaps: Roadmap[] }>('/api/skill-gap/roadmaps'),
+  list: () => api.get<{ roadmaps: Roadmap[] }>('/api/skill-gap/roadmaps'),
 
   /** Mark a milestone week as complete */
   markComplete: (roadmapId: string, weekNumber: number) =>
@@ -578,12 +578,7 @@ export const jobMatchApi = {
   list: () => api.get<Job[]>('/api/jobs/matches'),
 
   /** List with filters */
-  listFiltered: (params: {
-    role?: string;
-    minMatch?: number;
-    sortBy?: string;
-    limit?: number;
-  }) =>
+  listFiltered: (params: { role?: string; minMatch?: number; sortBy?: string; limit?: number }) =>
     api.get<Job[]>('/api/jobs/matches', { params: { ...params } }),
 
   /** Get full detail for one job */
@@ -605,23 +600,19 @@ export const jobMatchApi = {
   delete: (jobId: string) => api.delete(`/api/jobs/scout/${jobId}`),
 
   /** Scheduler status */
-  schedulerStatus: () =>
-    api.get<SchedulerStatus>('/api/jobs/scheduler/status'),
+  schedulerStatus: () => api.get<SchedulerStatus>('/api/jobs/scheduler/status'),
 
   /** Track a job (set status) */
   track: (jobId: string, status: string, notes?: string) =>
     api.post(`/api/jobs/scout/${jobId}/track`, { status, notes }),
 
   /** Get all user tracking statuses */
-  getTracking: () =>
-    api.get<TrackingStatuses>('/api/jobs/tracking'),
+  getTracking: () => api.get<TrackingStatuses>('/api/jobs/tracking'),
 
   /** Blacklist CRUD (admin) */
-  getBlacklist: () =>
-    api.get<BlacklistedCompany[]>('/api/jobs/blacklist'),
+  getBlacklist: () => api.get<BlacklistedCompany[]>('/api/jobs/blacklist'),
 
-  addBlacklist: (companyName: string) =>
-    api.post('/api/jobs/blacklist', { companyName }),
+  addBlacklist: (companyName: string) => api.post('/api/jobs/blacklist', { companyName }),
 
   removeBlacklist: (companyName: string) =>
     api.delete(`/api/jobs/blacklist/${encodeURIComponent(companyName)}`),
@@ -657,18 +648,15 @@ export interface ApplicationStats {
 
 export const tailorApi = {
   /** Generate a tailored resume for a specific job */
-  generate: (jobId: string) =>
-    api.post<TailorResponse>('/api/resumes/tailor', { jobId }),
+  generate: (jobId: string) => api.post<TailorResponse>('/api/resumes/tailor', { jobId }),
 
   /** Fetch existing tailored resume for a job */
-  getForJob: (jobId: string) =>
-    api.get<TailorResponse>(`/api/resumes/job/${jobId}`),
+  getForJob: (jobId: string) => api.get<TailorResponse>(`/api/resumes/job/${jobId}`),
 };
 
 export const applicationsApi = {
   /** List all applications for the current user */
-  list: (userId: string) =>
-    api.get<Application[]>(`/api/applications/user/${userId}`),
+  list: (userId: string) => api.get<Application[]>(`/api/applications/user/${userId}`),
 
   /** List with status filter */
   listFiltered: (userId: string, status: string) =>
@@ -688,19 +676,20 @@ export const applicationsApi = {
   }) => api.post<Application>('/api/applications', data),
 
   /** Update application status or notes */
-  update: (applicationId: string, data: {
-    status?: Application['status'];
-    notes?: string;
-    resumeId?: string;
-  }) => api.patch<Application>(`/api/applications/${applicationId}`, data),
+  update: (
+    applicationId: string,
+    data: {
+      status?: Application['status'];
+      notes?: string;
+      resumeId?: string;
+    }
+  ) => api.patch<Application>(`/api/applications/${applicationId}`, data),
 
   /** Delete an application */
-  delete: (applicationId: string) =>
-    api.delete(`/api/applications/${applicationId}`),
+  delete: (applicationId: string) => api.delete(`/api/applications/${applicationId}`),
 
   /** Get stats summary */
-  stats: (userId: string) =>
-    api.get<ApplicationStats>(`/api/applications/stats/${userId}`),
+  stats: (userId: string) => api.get<ApplicationStats>(`/api/applications/stats/${userId}`),
 };
 
 // ─── Project Roadmap API ──────────────────────────────────────────────────────
@@ -761,12 +750,10 @@ export const projectRoadmapApi = {
   }) => api.post<ProjectRoadmap>('/api/project-roadmap/plan', data),
 
   /** List all project roadmaps for current user */
-  list: () =>
-    api.get<{ roadmaps: ProjectRoadmap[] }>('/api/project-roadmap/list'),
+  list: () => api.get<{ roadmaps: ProjectRoadmap[] }>('/api/project-roadmap/list'),
 
   /** Fetch a specific roadmap */
-  get: (roadmapId: string) =>
-    api.get<ProjectRoadmap>(`/api/project-roadmap/${roadmapId}`),
+  get: (roadmapId: string) => api.get<ProjectRoadmap>(`/api/project-roadmap/${roadmapId}`),
 
   /** Mark a day as complete */
   markDayComplete: (roadmapId: string, dayNumber: number) =>

@@ -30,7 +30,9 @@ export function EditorLayout({ left, right, className }: EditorLayoutProps) {
   if (!mounted) {
     return (
       <div className={cn('flex-1 overflow-hidden flex', className)}>
-        <div className="h-full flex flex-col" style={{ flex: '0 0 42%' }}>{left}</div>
+        <div className="h-full flex flex-col" style={{ flex: '0 0 42%' }}>
+          {left}
+        </div>
         <div className="w-1.5 shrink-0 bg-border" />
         <div className="h-full flex flex-col flex-1">{right}</div>
       </div>
@@ -38,19 +40,14 @@ export function EditorLayout({ left, right, className }: EditorLayoutProps) {
   }
 
   return (
-    <PanelGroup
-      orientation="horizontal"
-      className={cn('flex-1 overflow-hidden', className)}
-    >
+    <PanelGroup orientation="horizontal" className={cn('flex-1 overflow-hidden', className)}>
       {/* Left: AI chat panel — always visible */}
       <Panel defaultSize={42} minSize={25}>
         <div className="h-full flex flex-col">{left}</div>
       </Panel>
 
       {/* Drag handle */}
-      <PanelSeparator
-        className="w-1.5 bg-border hover:bg-violet-400/60 transition-colors cursor-col-resize"
-      />
+      <PanelSeparator className="w-1.5 bg-border hover:bg-violet-400/60 transition-colors cursor-col-resize" />
 
       {/* Right: code editor OR pdf preview */}
       <Panel defaultSize={58} minSize={30}>
