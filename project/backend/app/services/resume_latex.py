@@ -94,21 +94,28 @@ JAKES_PREAMBLE = r"""\documentclass[letterpaper,11pt]{article}
 # LaTeX helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+_LATEX_ESCAPES = {
+    "\\": "\\textbackslash{}",
+    "&": "\\&",
+    "%": "\\%",
+    "$": "\\$",
+    "#": "\\#",
+    "_": "\\_",
+    "{": "\\{",
+    "}": "\\}",
+    "~": "\\textasciitilde{}",
+    "^": "\\textasciicircum{}",
+}
+
+
 def _escape_latex(text: str) -> str:
-    """Escape LaTeX special characters in plain text values."""
+    """Escape LaTeX special characters in plain text values.
+
+    Works in one pass, so the braces in \\textbackslash{} are never escaped again.
+    """
     if not text:
         return ""
-    text = text.replace("\\", "\\textbackslash{}")
-    text = text.replace("&", "\\&")
-    text = text.replace("%", "\\%")
-    text = text.replace("$", "\\$")
-    text = text.replace("#", "\\#")
-    text = text.replace("_", "\\_")
-    text = text.replace("{", "\\{")
-    text = text.replace("}", "\\}")
-    text = text.replace("~", "\\textasciitilde{}")
-    text = text.replace("^", "\\textasciicircum{}")
-    return text
+    return "".join(_LATEX_ESCAPES.get(ch, ch) for ch in text)
 
 
 def _coerce_dict(val) -> dict:

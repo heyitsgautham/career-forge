@@ -148,3 +148,9 @@ def test_clear_analysis_cache_empties_cache():
     _analysis_cache["k"] = {"v": 1}
     clear_analysis_cache()
     assert _analysis_cache == {}
+
+
+def test_escape_latex_backslash_is_not_double_escaped():
+    # A backslash must become \textbackslash{} with real braces, not \{\}.
+    assert _escape_latex("C:\\Users") == r"C:\textbackslash{}Users"
+    assert _escape_latex("a~b^c") == r"a\textasciitilde{}b\textasciicircum{}c"
