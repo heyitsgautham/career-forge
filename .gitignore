@@ -65,3 +65,12 @@ old_9fps_processed/
 weights/
 checkpoint/
 project/frontend/public/sequence/
+
+# Test and coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+coverage/
+project/backend/uploads/
