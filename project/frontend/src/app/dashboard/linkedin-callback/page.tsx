@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
-export default function LinkedInCallbackPage() {
+function LinkedInCallback() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -73,6 +73,10 @@ export default function LinkedInCallbackPage() {
     handleCallback();
   }, [searchParams, router, toast]);
 
+  return <ConnectingLinkedIn />;
+}
+
+function ConnectingLinkedIn() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
@@ -80,5 +84,14 @@ export default function LinkedInCallbackPage() {
         <p className="text-muted-foreground">Connecting LinkedIn...</p>
       </div>
     </div>
+  );
+}
+
+/* useSearchParams needs a Suspense boundary so the page can prerender */
+export default function LinkedInCallbackPage() {
+  return (
+    <Suspense fallback={<ConnectingLinkedIn />}>
+      <LinkedInCallback />
+    </Suspense>
   );
 }
