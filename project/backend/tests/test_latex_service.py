@@ -54,3 +54,22 @@ def test_log_errors_carry_line_numbers_and_suggestions():
 
 def test_clean_log_has_no_findings():
     assert latex_service._parse_log("Output written on resume.pdf (1 page).") == ([], [])
+
+
+@pytest.mark.parametrize(
+    "snippet",
+    [
+        r"\input{/etc/passwd}",
+        r"\include{../../.env}",
+        r"\input {~/.aws/credentials}",
+        r"\InputIfFileExists{/etc/hosts}{}{}",
+    ],
+)
+def test_reading_files_outside_the_build_dir_is_flagged(snippet):
+    is_safe, issues = latex_service.validate_latex_safety(SAFE_DOC + snippet)
+    assert not is_safe
+    assert "Input from an absolute or parent path detected" in issues
+
+
+def test_relative_input_inside_the_build_dir_is_allowed():
+    assert latex_service.validate_latex_safety(SAFE_DOC + r"\input{sections/projects}")[0]
