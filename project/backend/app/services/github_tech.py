@@ -7,6 +7,7 @@ summary Markdown. No network or AWS calls.
 """
 
 import json
+import re
 from typing import Any, Dict, List
 
 # Mapping of package names to canonical technology names
@@ -84,6 +85,10 @@ TECH_MAPPING = {
 }
 
 
+# Characters that end the package name in a requirements.txt line (PEP 508)
+_REQUIREMENT_NAME_END = re.compile(r"[<>=!~;\[\s@]")
+
+
 def parse_package_json(content: str) -> List[str]:
     """Parse package.json and extract technologies."""
     technologies = []
@@ -118,8 +123,8 @@ def parse_requirements_txt(content: str) -> List[str]:
         if not line or line.startswith("#"):
             continue
 
-        # Extract package name (before ==, >=, etc.)
-        pkg_name = line.split("==")[0].split(">=")[0].split("<=")[0].split("[")[0].strip()
+        # Package name is everything before a version specifier, extra, marker or URL
+        pkg_name = _REQUIREMENT_NAME_END.split(line, maxsplit=1)[0].strip()
         canonical = TECH_MAPPING.get(pkg_name.lower())
         if canonical:
             technologies.append(canonical)

@@ -75,3 +75,18 @@ def test_summary_markdown_lists_every_section():
     assert "- **Infrastructure/Tools:** " in lines
     assert lines[-1] == "- 500 postings a day"
     assert "- Scrapes 4 portals" in lines
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "fastapi~=0.110",
+        "fastapi>0.100",
+        "fastapi!=0.99",
+        "fastapi ; python_version >= '3.11'",
+        "FastAPI==0.110.0",
+        "fastapi @ git+https://github.com/tiangolo/fastapi",
+    ],
+)
+def test_requirements_txt_understands_every_version_specifier(line):
+    assert "FastAPI" in parse_requirements_txt(line)
