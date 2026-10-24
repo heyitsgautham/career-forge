@@ -195,7 +195,7 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
             <div>
               <p className="text-sm font-medium">Ask Claude to improve your resume</p>
               <p className="text-xs opacity-70 mt-1">
-                E.g. "Make the summary more concise" or "Add stronger action verbs"
+                E.g. &quot;Make the summary more concise&quot; or &quot;Add stronger action verbs&quot;
               </p>
             </div>
           </div>

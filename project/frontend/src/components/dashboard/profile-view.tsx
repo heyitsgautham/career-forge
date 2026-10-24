@@ -578,7 +578,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         <CardContent className="space-y-6">
           {(!profile.experience || profile.experience.length === 0) ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No work experience added yet. Click "Add Experience" to get started.
+              No work experience added yet. Click &quot;Add Experience&quot; to get started.
             </p>
           ) : (
             profile.experience.map((exp, idx) => (
@@ -732,7 +732,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
           {(!profile.education || profile.education.length === 0) ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center py-4">
-                No education entries added yet. Click "Add Education" to get started.
+                No education entries added yet. Click &quot;Add Education&quot; to get started.
               </p>
 
               {/* Legacy single education fields */}

@@ -507,7 +507,7 @@ export function ProjectsList() {
           <div className="bg-background p-6 rounded-xl border border-border/60 w-full max-w-sm">
             <h2 className="text-lg font-bold mb-2">Clear All Projects?</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              This will permanently delete all {projects?.length ?? 0} projects. You can re-import specific ones afterwards using "Import from GitHub".
+              This will permanently delete all {projects?.length ?? 0} projects. You can re-import specific ones afterwards using &quot;Import from GitHub&quot;.
             </p>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowClearConfirm(false)}>Cancel</Button>
@@ -687,7 +687,7 @@ function AddProjectModal({ onClose }: { onClose: () => void }) {
               rows={3}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              💡 Leave empty and we'll generate 3 technical bullet points automatically
+              💡 Leave empty and we&apos;ll generate 3 technical bullet points automatically
             </p>
           </div>
 
@@ -1003,7 +1003,7 @@ function GithubImportModal({
                   </div>
 
                   <p className="text-sm text-muted-foreground">
-                    💡 Select one or more repositories to import. We'll analyze each to extract project details via AI.
+                    💡 Select one or more repositories to import. We&apos;ll analyze each to extract project details via AI.
                   </p>
                 </>
               ) : (
