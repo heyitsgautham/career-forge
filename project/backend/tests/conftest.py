@@ -8,6 +8,7 @@ AWS credentials so boto3 never looks for a real profile.
 
 import os
 import tempfile
+import uuid
 
 _TMP = tempfile.mkdtemp(prefix="careerforge-tests-")
 
@@ -40,3 +41,20 @@ def client():
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+def register_user(client, name="Test Person"):
+    """Register a synthetic user and return its auth headers and id."""
+    email = f"user-{uuid.uuid4().hex[:8]}@example.com"
+    token = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "pw-for-tests", "full_name": name},
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    me = client.get("/api/auth/me", headers=headers).json()
+    return {"headers": headers, "user_id": uuid.UUID(me["id"]), "email": email}
+
+
+@pytest.fixture
+def auth(client):
+    return register_user(client)
