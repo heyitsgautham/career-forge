@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,15 @@ from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
+
+# LinkedIn profile slugs are letters, digits, hyphens and underscores (plus
+# percent-encoded non-ASCII). Anything else is rejected before it reaches a script.
+_SLUG = r"(?P<slug>[A-Za-z0-9_%-]{3,100})"
+_PROFILE_URL = re.compile(
+    r"(?:https?://)?(?:[a-z]{2,3}\.)?(?:www\.)?linkedin\.com/in/" + _SLUG + r"(?:[/?#].*)?",
+    re.DOTALL,
+)
+_PROFILE_SLUG = re.compile(_SLUG)
 
 
 def _get_chrome_user_data_dir() -> Optional[str]:
@@ -53,9 +63,9 @@ import time
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-profile_url = "{profile_url}"
-certs_url = "{certs_url}"
-chrome_user_data = r"{chrome_user_data}"
+profile_url = {profile_url!r}
+certs_url = {certs_url!r}
+chrome_user_data = {chrome_user_data!r}
 
 # Fallback persistent dir for Playwright's own Chromium
 fallback_data_dir = os.path.join(os.path.expanduser("~"), ".linkedin_playwright_data")
@@ -397,10 +407,16 @@ async def scrape_linkedin_certifications(profile_url: str) -> List[Dict[str, str
 
 def parse_linkedin_url(url: str) -> Optional[str]:
     """
-    Validate and normalize LinkedIn profile URL.
+    Validate and normalize a LinkedIn profile URL.
+
+    Accepts [https://][www.|xx.]linkedin.com/in/<slug>, with any trailing path,
+    query or fragment, or a bare <slug>, and returns
+    https://www.linkedin.com/in/<slug>. Anything else returns None.
+    The result is embedded in a generated Playwright script, so only the
+    characters LinkedIn allows in a profile slug get through.
 
     Args:
-        url: LinkedIn profile URL
+        url: LinkedIn profile URL or username
 
     Returns:
         Normalized URL or None if invalid
@@ -408,18 +424,11 @@ def parse_linkedin_url(url: str) -> Optional[str]:
     if not url:
         return None
 
-    # Remove trailing slashes
-    url = url.rstrip("/")
-
-    # Check if it's a valid LinkedIn profile URL
-    if "linkedin.com/in/" in url:
-        return url
-
-    # If it's just a username, construct full URL
-    if not url.startswith("http"):
-        return f"https://www.linkedin.com/in/{url}"
-
-    return None
+    url = url.strip()
+    match = _PROFILE_URL.fullmatch(url) or _PROFILE_SLUG.fullmatch(url)
+    if not match:
+        return None
+    return f"https://www.linkedin.com/in/{match.group('slug')}"
 
 
 def _run_playwright_profile_script(profile_url: str) -> str:
@@ -442,11 +451,11 @@ from playwright.sync_api import sync_playwright
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-profile_url  = "{profile_url}"
-edu_url      = "{edu_url}"
-certs_url    = "{certs_url}"
-contact_url  = "{contact_url}"
-chrome_user_data = r"{chrome_user_data}"
+profile_url  = {profile_url!r}
+edu_url      = {edu_url!r}
+certs_url    = {certs_url!r}
+contact_url  = {contact_url!r}
+chrome_user_data = {chrome_user_data!r}
 fallback_data_dir = os.path.join(os.path.expanduser("~"), ".linkedin_playwright_data")
 os.makedirs(fallback_data_dir, exist_ok=True)
 
