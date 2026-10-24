@@ -1,0 +1,46 @@
+# Local stack: FastAPI backend on SQLite plus the Next.js frontend.
+# Runs without AWS credentials. Bedrock-backed features (resume generation,
+# skill scoring, JD analysis) need real AWS credentials in project/backend/.env.
+services:
+  backend:
+    build:
+      context: ./project/backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: ./project/backend/.env
+        required: false
+    environment:
+      APP_ENV: local
+      DEBUG: "false"
+      USE_DYNAMO: "false"
+      USE_SECRETS_MANAGER: "false"
+      DATABASE_URL: sqlite+aiosqlite:////app/data/careerforge.db
+      UPLOAD_DIR: /app/uploads
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-dev-jwt-secret-change-me-0123456789}
+      SECRET_KEY: ${SECRET_KEY:-local-dev-app-secret-change-me}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - backend-data:/app/data
+      - backend-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./project/frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend-data:
+  backend-uploads:
