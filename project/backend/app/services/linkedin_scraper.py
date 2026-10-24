@@ -254,15 +254,6 @@ async def scrape_linkedin_certifications(profile_url: str) -> List[Dict[str, str
         loop = asyncio.get_event_loop()
         html = await loop.run_in_executor(None, _run_playwright_script, profile_url)
 
-        # Save HTML for debugging
-        debug_path = os.path.join(os.path.dirname(__file__), "..", "..", "linkedin_debug.html")
-        try:
-            with open(debug_path, "w", encoding="utf-8") as f:
-                f.write(html)
-            logger.info(f"Saved debug HTML to: {debug_path}")
-        except Exception as e:
-            logger.warning(f"Could not save debug HTML: {e}")
-
         soup = BeautifulSoup(html, "html.parser")
         certifications = []
 
