@@ -1,0 +1,13 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  // Fail on high and critical advisories in runtime dependencies.
+  "high": true,
+  "skip-dev": true,
+  "allowlist": [
+    // Every remaining Next.js advisory, and the PostCSS copy bundled inside Next,
+    // is fixed only in Next 15.5. Remove these once the app moves to Next 15 and React 19.
+    "next",
+    "GHSA-6g55-p6wh-862q|next>postcss",
+    "GHSA-r28c-9q8g-f849|next>postcss"
+  ]
+}
