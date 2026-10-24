@@ -4,16 +4,14 @@ Matching Engine
 Ranks projects against job descriptions using multi-signal scoring.
 """
 
-from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime, date
-import re
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from app.services.bedrock_client import bedrock_client
 from app.services.embedding_service import embedding_service
-from app.services.vector_store import vector_store, VectorStoreService
-
+from app.services.vector_store import VectorStoreService, vector_store
 
 logger = structlog.get_logger()
 

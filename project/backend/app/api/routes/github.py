@@ -10,13 +10,13 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
 import structlog
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.config import settings
 from app.api.deps import get_current_user_dynamo
-from app.services.github_service import github_service
+from app.core.config import settings
 from app.services.dynamo_service import dynamo_service
+from app.services.github_service import github_service
 
 logger = structlog.get_logger()
 
@@ -167,7 +167,7 @@ async def run_ingestion(
         )
         return summary
 
-    except Exception as e:
+    except Exception:
         await dynamo_service.update_item(
             table=f"{settings.DYNAMO_TABLE_PREFIX}Users",
             key={"userId": user_id},
@@ -204,7 +204,7 @@ async def ingest_github_repos(
         )
         return {"status": "done", **summary}
     except Exception as e:
-        raise HTTPException(500, f"Ingestion failed: {e}")
+        raise HTTPException(500, f"Ingestion failed: {e}") from e
 
 
 @router.get("/ingest-status")

@@ -19,10 +19,11 @@ import socketserver
 import threading
 import time
 from pathlib import Path
-from urllib.parse import urlencode
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlencode
 
-from playwright.async_api import async_playwright, Response as PwResponse
+from playwright.async_api import Response as PwResponse
+from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 from pyvirtualdisplay import Display
 
@@ -312,8 +313,8 @@ if __name__ == "__main__":
     print("  Naukri Scrape Demo")
     print(f"  Keyword  : {SEARCH_KEYWORD}")
     print(f"  Locations: {', '.join(LOCATIONS)}")
-    print(f"  Windows  : 1d / 7d / 30d   ×   internships + full-time jobs")
-    print(f"  Browser  : runs invisibly via Xvfb (no popup)")
+    print("  Windows  : 1d / 7d / 30d   ×   internships + full-time jobs")
+    print("  Browser  : runs invisibly via Xvfb (no popup)")
     print("=" * 60)
 
     results = asyncio.run(run_all())

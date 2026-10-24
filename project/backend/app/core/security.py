@@ -10,18 +10,17 @@ Encryption strategy:
                        Fernet on decrypt so existing DynamoDB ciphertext keeps working.
 """
 
-from datetime import datetime, timedelta
-from typing import Optional
-import secrets
-import logging
-
-import jwt
-import bcrypt
-from cryptography.fernet import Fernet, InvalidToken
 import base64
 import hashlib
+import logging
+import secrets
+from datetime import datetime, timedelta
+from typing import Optional
+
+import bcrypt
 import boto3
-from botocore.exceptions import ClientError
+import jwt
+from cryptography.fernet import Fernet, InvalidToken
 
 from app.core.config import settings
 

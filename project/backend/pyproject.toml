@@ -75,4 +75,18 @@ line-length = 100
 extend-exclude = ["migrations"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP"]
+select = ["E", "F", "W", "I", "B"]
+ignore = [
+    "E501",  # ruff format owns line length; long prompt strings stay intact
+    "B008",  # FastAPI declares dependencies as Depends() defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Models import related models at the bottom to break circular imports
+"app/models/*" = ["E402"]
+# main.py configures logging before importing modules that log at import time
+"app/main.py" = ["E402"]
+# Scripts put the backend on sys.path before importing app modules
+"scripts/*" = ["E402"]
+# Pydantic request models have a field named status
+"app/api/routes/applications.py" = ["F811"]

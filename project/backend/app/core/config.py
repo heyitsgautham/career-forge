@@ -10,12 +10,12 @@ Secret loading order (highest priority wins):
 3. Hard-coded defaults   — only safe for non-secret config; never for prod secrets
 """
 
-from typing import List, Optional
-from pydantic_settings import BaseSettings
-from pydantic import model_validator
-from functools import lru_cache
 import logging
-import os
+from functools import lru_cache
+from typing import List, Optional
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
 

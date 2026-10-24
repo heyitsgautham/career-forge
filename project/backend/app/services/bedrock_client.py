@@ -8,21 +8,19 @@ Works with any Bedrock model (Anthropic, Amazon Nova, etc.)
 
 import asyncio
 import json
-import re
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-import structlog
+from typing import Any, Dict, List, Optional
+
 import boto3
+import structlog
 from botocore.exceptions import ClientError
 from tenacity import (
     retry,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception,
 )
 
 from app.core.config import settings
-
 
 logger = structlog.get_logger()
 

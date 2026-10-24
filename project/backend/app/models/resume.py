@@ -6,10 +6,11 @@ Generated resumes with versioning support.
 
 import uuid
 from datetime import datetime
-from typing import Optional, List
 from enum import Enum
+from typing import Optional
 
-from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, Enum as SQLEnum
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -96,6 +97,6 @@ class Resume(Base):
 
 
 # Import for type hints
-from app.models.user import User
-from app.models.template import Template
 from app.models.job_description import JobDescription
+from app.models.template import Template
+from app.models.user import User

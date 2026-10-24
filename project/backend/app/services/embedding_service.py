@@ -6,10 +6,10 @@ Uses AWS Bedrock Titan v2 for embeddings (1024 dimensions).
 """
 
 from typing import List, Optional
+
 import structlog
 
 from app.services.bedrock_client import bedrock_client
-
 
 logger = structlog.get_logger()
 

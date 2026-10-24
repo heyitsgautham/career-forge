@@ -1,16 +1,16 @@
 """LinkedIn profile scraper for extracting certifications."""
 
-from typing import List, Dict, Optional
-from bs4 import BeautifulSoup
-import re
-import logging
 import asyncio
-import subprocess
-import sys
 import json
-import tempfile
+import logging
 import os
 import platform
+import subprocess
+import sys
+import tempfile
+from typing import Dict, List, Optional
+
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ try:
                             if "/in/" in current_url and "login" not in current_url:
                                 logged_in = True
                                 break
-                        except:
+                        except OSError:
                             pass
                     if not logged_in:
                         context.close()
@@ -225,7 +225,7 @@ except Exception as e:
     finally:
         try:
             os.unlink(script_path)
-        except:
+        except OSError:
             pass
 
 
@@ -358,7 +358,6 @@ async def scrape_linkedin_certifications(profile_url: str) -> List[Dict[str, str
         if not certifications:
             logger.info("No certifications found with primary method, trying fallback...")
             # Look for any certification-like patterns in the HTML
-            all_text = soup.get_text()
             # Find patterns like "Certification Name\nIssuing Organization\nIssued Date"
 
             # Alternative: find all divs that might contain certification info
@@ -393,7 +392,7 @@ async def scrape_linkedin_certifications(profile_url: str) -> List[Dict[str, str
 
         error_details = traceback.format_exc()
         logger.error(f"Error scraping LinkedIn profile: {str(e)}\n{error_details}")
-        raise Exception(f"LinkedIn scraping failed: {str(e)}")
+        raise Exception(f"LinkedIn scraping failed: {str(e)}") from e
 
 
 def parse_linkedin_url(url: str) -> Optional[str]:
@@ -751,7 +750,7 @@ def run_scrape(page):
         time.sleep(3)
         try:
             page.wait_for_load_state("networkidle", timeout=8000)
-        except:
+        except OSError:
             pass
         contact = page.evaluate(JS_CONTACT)
         sys.stderr.write(f"Contact: {{contact}}\\n")
@@ -846,7 +845,7 @@ try:
                                 logged_in = True; break
                             if "/in/" in cur and "login" not in cur:
                                 logged_in = True; break
-                        except:
+                        except OSError:
                             pass
                     if not logged_in:
                         context.close()
@@ -891,7 +890,7 @@ except Exception as e:
     finally:
         try:
             os.unlink(script_path)
-        except:
+        except OSError:
             pass
 
 
@@ -919,4 +918,4 @@ async def scrape_linkedin_profile(profile_url: str) -> Dict:
         import traceback
 
         logger.error(f"Error scraping LinkedIn profile: {e}\n{traceback.format_exc()}")
-        raise Exception(f"LinkedIn profile scraping failed: {str(e)}")
+        raise Exception(f"LinkedIn profile scraping failed: {str(e)}") from e

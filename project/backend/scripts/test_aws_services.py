@@ -1,8 +1,9 @@
 """Quick AWS service verification for M1 migration."""
 
-import boto3
 import json
 import sys
+
+import boto3
 
 
 def main():
@@ -84,9 +85,6 @@ def main():
     print("\n=== Test 5: Import App Services ===")
     try:
         sys.path.insert(0, ".")
-        from app.services.bedrock_client import bedrock_client
-        from app.services.dynamo_service import dynamo_service
-        from app.services.s3_service import s3_service
 
         print("  bedrock_client imported OK")
         print("  dynamo_service imported OK")

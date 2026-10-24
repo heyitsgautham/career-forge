@@ -7,7 +7,6 @@ sys.path.insert(0, "/Users/gauthamkrishna/Projects/career-forge/project/backend"
 
 from app.services.resume_tailor import tailor_resume_for_job
 
-
 USER_ID = "fd76cb4e-81e4-484f-9199-4b7239d8b173"
 JOB_ID = "2e3778d1-0b54-4185-9948-36ce54271dbb"  # Sprinklr Software Engineer
 

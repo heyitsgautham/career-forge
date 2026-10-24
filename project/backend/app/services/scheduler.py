@@ -5,7 +5,6 @@ APScheduler-based hourly cron for scraping jobs across all search queries.
 Runs once for all users — jobs are shared.
 """
 
-import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -38,9 +37,9 @@ async def _scheduled_scrape():
     logger.info("Scheduled scrape starting...")
 
     try:
-        from app.services.job_scraper import job_scraper
-        from app.services.jd_analyzer import jd_analyzer
         from app.services.dynamo_service import dynamo_service
+        from app.services.jd_analyzer import jd_analyzer
+        from app.services.job_scraper import job_scraper
 
         # 1. Scrape all search queries (shared, no userId)
         result = await job_scraper.scrape_all_queries()

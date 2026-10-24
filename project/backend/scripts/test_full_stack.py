@@ -7,10 +7,10 @@ import asyncio
 
 
 async def main():
+    from app.core.config import get_settings
     from app.services.bedrock_client import bedrock_client
     from app.services.dynamo_service import dynamo_service
     from app.services.s3_service import s3_service
-    from app.core.config import get_settings
 
     s = get_settings()
     print(f"Config: MODEL={s.BEDROCK_MODEL_ID}, DYNAMO={s.USE_DYNAMO}, S3={s.S3_BUCKET}")

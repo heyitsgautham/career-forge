@@ -6,9 +6,9 @@ User account and GitHub connections.
 
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
-from sqlalchemy import String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -163,8 +163,8 @@ class GithubConnection(Base):
 
 
 # Import for type hints (avoid circular imports)
-from app.models.project import Project, GithubRepo
 from app.models.document import Document
-from app.models.template import Template
-from app.models.resume import Resume
 from app.models.job_description import JobDescription
+from app.models.project import GithubRepo, Project
+from app.models.resume import Resume
+from app.models.template import Template

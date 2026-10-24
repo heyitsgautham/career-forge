@@ -15,12 +15,12 @@ To run:
 
 import argparse
 import asyncio
+import json
 import os
 import re
 import subprocess
 import sys
 import time
-import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -285,7 +285,7 @@ async def _fetch_naukri_descriptions_batch(jobs: list, dry_run: bool) -> dict:
                         results[job_id] = captured[0]
                         print(f"    ✓ {len(captured[0])} chars")
                     else:
-                        print(f"    ✗ No description found")
+                        print("    ✗ No description found")
 
                 except Exception as e:
                     print(f"    ✗ Page error: {e}")
@@ -399,7 +399,7 @@ async def backfill(dry_run: bool = False, only_source: str = None, limit: int = 
                     print(f"    ✗ DynamoDB write failed: {e}")
                     failed += 1
             else:
-                print(f"    ✗ No description retrieved")
+                print("    ✗ No description retrieved")
                 failed += 1
 
             # Rate limit between requests

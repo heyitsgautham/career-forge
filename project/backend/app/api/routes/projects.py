@@ -4,21 +4,20 @@ Projects Routes
 Project management and GitHub ingestion endpoints.
 """
 
-from typing import List, Optional
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 import re
 import uuid
+from datetime import datetime
+from typing import List, Optional
 
 import structlog
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
+from app.api.deps import get_current_user_dynamo
 from app.core.config import settings
-from app.api.deps import get_current_user, get_current_user_dynamo
-from app.services.github_service import github_service
-from app.services.dynamo_service import dynamo_service
 from app.services.bedrock_client import bedrock_client
-
+from app.services.dynamo_service import dynamo_service
+from app.services.github_service import github_service
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -244,7 +243,7 @@ async def update_project(
     }
     updates["updatedAt"] = datetime.utcnow().isoformat()
 
-    updated = await dynamo_service.update_item(
+    await dynamo_service.update_item(
         table=f"{settings.DYNAMO_TABLE_PREFIX}Projects",
         key={"userId": current_user["userId"], "projectId": project_id},
         updates=updates,

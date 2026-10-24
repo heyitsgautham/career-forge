@@ -9,11 +9,11 @@ Supports multi-query scraping with filtering and deduplication.
 import asyncio
 import hashlib
 import re
-from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
 import structlog
 
-from app.core.config import settings
 from app.services.dynamo_service import dynamo_service
 from app.services.naukri_scraper import naukri_scraper
 from app.services.unstop_scraper import unstop_scraper

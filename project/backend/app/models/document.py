@@ -6,10 +6,11 @@ Uploaded documents (resumes, certificates, project docs).
 
 import uuid
 from datetime import datetime
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
-from sqlalchemy import String, DateTime, Text, ForeignKey, Integer, Enum as SQLEnum
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base

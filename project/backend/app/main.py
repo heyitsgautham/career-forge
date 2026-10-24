@@ -6,10 +6,11 @@ A JD-aware, GitHub-grounded resume generation system.
 
 import logging
 from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import structlog
 
 # Set stdlib logging level so structlog's filter_by_level passes INFO through
 logging.basicConfig(
@@ -17,22 +18,21 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
-from app.core.config import settings
-from app.core.database import init_db
-from app.core.cache_middleware import CacheControlMiddleware
 from app.api.routes import (
+    applications,
+    auth,
+    github,
+    health,
+    jobs,
+    project_roadmap,
     projects,
     resumes,
-    templates,
-    jobs,
-    auth,
-    health,
-    github,
     skill_gap,
-    applications,
-    project_roadmap,
+    templates,
 )
-
+from app.core.cache_middleware import CacheControlMiddleware
+from app.core.config import settings
+from app.core.database import init_db
 
 # Configure structured logging
 structlog.configure(

@@ -5,11 +5,11 @@ Portable types that work with both PostgreSQL and SQLite.
 """
 
 import json
-from typing import Any
 
-from sqlalchemy import TypeDecorator, String, Text
+from sqlalchemy import Text, TypeDecorator
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.types import CHAR
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB as PG_JSONB
 
 
 class GUID(TypeDecorator):

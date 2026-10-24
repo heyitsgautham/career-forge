@@ -9,22 +9,22 @@ Two-step flow:
   PATCH /{id}/day/{n}/complete → mark a day done
 """
 
-from typing import List, Optional
+from typing import List
+
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-import structlog
 
 from app.api.deps import get_current_user
 from app.services.project_roadmap_service import (
-    suggest_projects,
+    delete_project_roadmap,
     generate_day_plan,
     get_project_roadmap,
     get_user_project_roadmaps,
     mark_day_complete,
+    suggest_projects,
     unlock_all_days,
-    delete_project_roadmap,
 )
-
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -58,10 +58,10 @@ async def suggest(
             domain=body.domain,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Suggest failed", error=str(e))
-        raise HTTPException(status_code=500, detail="Failed to suggest projects")
+        raise HTTPException(status_code=500, detail="Failed to suggest projects") from e
 
 
 @router.post("/plan")
@@ -81,10 +81,10 @@ async def plan(
             tech_stack=body.techStack,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Plan generation failed", error=str(e), userId=user_id)
-        raise HTTPException(status_code=500, detail="Failed to generate project plan")
+        raise HTTPException(status_code=500, detail="Failed to generate project plan") from e
 
 
 @router.get("/list")
@@ -126,10 +126,10 @@ async def complete_day(
         )
         return result
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Day completion failed", error=str(e), roadmapId=roadmap_id, day=day_number)
-        raise HTTPException(status_code=500, detail="Failed to mark day complete")
+        raise HTTPException(status_code=500, detail="Failed to mark day complete") from e
 
 
 @router.patch("/{roadmap_id}/unlock-all")
@@ -143,10 +143,10 @@ async def unlock_all(
         result = await unlock_all_days(roadmap_id=roadmap_id, user_id=user_id)
         return result
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Unlock all failed", error=str(e), roadmapId=roadmap_id)
-        raise HTTPException(status_code=500, detail="Failed to unlock all days")
+        raise HTTPException(status_code=500, detail="Failed to unlock all days") from e
 
 
 @router.delete("/{roadmap_id}")
@@ -160,7 +160,7 @@ async def remove_roadmap(
         await delete_project_roadmap(roadmap_id=roadmap_id, user_id=user_id)
         return {"deleted": True}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Delete roadmap failed", error=str(e), roadmapId=roadmap_id)
-        raise HTTPException(status_code=500, detail="Failed to delete roadmap")
+        raise HTTPException(status_code=500, detail="Failed to delete roadmap") from e

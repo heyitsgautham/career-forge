@@ -4,14 +4,14 @@ Vector Store Service
 ChromaDB integration for semantic search.
 """
 
-from typing import List, Optional, Dict, Any
 import uuid
-import structlog
+from typing import Any, Dict, List, Optional
+
 import chromadb
+import structlog
 from chromadb.config import Settings as ChromaSettings
 
 from app.core.config import settings
-
 
 logger = structlog.get_logger()
 

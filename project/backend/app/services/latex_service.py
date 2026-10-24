@@ -4,18 +4,18 @@ LaTeX Compilation Service
 Compiles LaTeX to PDF using Docker-sandboxed TeX Live.
 """
 
-from typing import Optional, List, Tuple
+import asyncio
+import re
+import shutil
+import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
-import asyncio
-import tempfile
-import shutil
-import uuid
-import re
+from typing import List, Optional, Tuple
+
 import structlog
 
 from app.core.config import settings
-
 
 logger = structlog.get_logger()
 
@@ -416,7 +416,7 @@ class LaTeXCompilationService:
 
         lines = log.split("\n")
 
-        for i, line in enumerate(lines):
+        for line in lines:
             # Check for error patterns
             for pattern, error_type in self.ERROR_PATTERNS:
                 match = re.search(pattern, line)

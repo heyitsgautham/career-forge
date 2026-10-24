@@ -5,14 +5,14 @@ Shared dependencies for API routes.
 Supports both SQLite (legacy) and DynamoDB (AWS) backends.
 """
 
-from typing import Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import uuid
+from typing import Optional
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
 from app.core.security import decode_access_token
-
 
 security = HTTPBearer()
 
@@ -63,18 +63,18 @@ async def get_current_user(
         # Return a dict-like object that mimics the SQLAlchemy User fields
         return DynamoUser(user)
     else:
-        from sqlalchemy.ext.asyncio import AsyncSession
         from sqlalchemy import select
-        from app.core.database import get_db, AsyncSessionLocal
+
+        from app.core.database import AsyncSessionLocal
         from app.models.user import User
 
         try:
             user_uuid = uuid.UUID(user_id)
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid user ID in token",
-            )
+            ) from exc
 
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(User).where(User.id == user_uuid))

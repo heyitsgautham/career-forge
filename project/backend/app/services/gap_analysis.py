@@ -6,14 +6,13 @@ and a target career role using Bedrock Claude for scoring.
 """
 
 import json
-import os
-from typing import Dict, Any, List, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from app.services.bedrock_client import bedrock_client
 from app.services.dynamo_service import dynamo_service
-
 
 logger = structlog.get_logger()
 
@@ -100,7 +99,7 @@ async def score_user_skills(
         if techs:
             projects_text += f"Technologies: {', '.join(techs)}\n"
         if highlights:
-            projects_text += f"Highlights:\n"
+            projects_text += "Highlights:\n"
             for h in highlights[:5]:
                 projects_text += f"  - {h}\n"
 

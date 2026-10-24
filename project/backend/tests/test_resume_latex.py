@@ -3,7 +3,7 @@
 All names, schools and links below are synthetic.
 """
 
-from app.services.resume_agent import _cache_key, _analysis_cache, clear_analysis_cache
+from app.services.resume_agent import _analysis_cache, _cache_key, clear_analysis_cache
 from app.services.resume_latex import (
     _build_achievements,
     _build_education,

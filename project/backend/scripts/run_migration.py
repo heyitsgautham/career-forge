@@ -10,8 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import text
-from app.core.database import async_engine, get_db
-from app.core.config import settings
+
+from app.core.database import async_engine
 
 
 async def run_migration():
@@ -21,10 +21,10 @@ async def run_migration():
     migration_sql = """
     -- Add experience column (JSON array)
     ALTER TABLE users ADD COLUMN IF NOT EXISTS experience JSONB;
-    
+
     -- Add education column (JSON array)
     ALTER TABLE users ADD COLUMN IF NOT EXISTS education JSONB;
-    
+
     -- Add comments for documentation
     COMMENT ON COLUMN users.experience IS 'Array of work experience entries: [{company, title, dates, location, highlights}]';
     COMMENT ON COLUMN users.education IS 'Array of education entries: [{school, degree, field, dates, location, gpa}]';

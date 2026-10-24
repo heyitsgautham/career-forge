@@ -9,12 +9,12 @@ Uses Bedrock Claude for AI generation, DynamoDB for persistence.
 """
 
 import json
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from app.services.bedrock_client import bedrock_client
 from app.services.dynamo_service import dynamo_service
-
 
 logger = structlog.get_logger()
 
@@ -116,7 +116,7 @@ Return JSON:
 
     except Exception as e:
         logger.error("Project suggestion failed", error=str(e))
-        raise ValueError("Failed to suggest projects. Please try again.")
+        raise ValueError("Failed to suggest projects. Please try again.") from e
 
 
 # ─── Step 2: Generate 7-Day Plan ────────────────────────────────────────────
@@ -206,7 +206,7 @@ Return JSON:
 
     except Exception as e:
         logger.error("Day plan generation failed", error=str(e))
-        raise ValueError("Failed to generate project plan. Please try again.")
+        raise ValueError("Failed to generate project plan. Please try again.") from e
 
     # Build and store roadmap
     roadmap_id = dynamo_service.generate_id()
@@ -369,4 +369,4 @@ async def delete_project_roadmap(
         logger.info("Project roadmap deleted", roadmapId=roadmap_id, userId=user_id)
     except Exception as e:
         logger.warning("Failed to delete project roadmap", error=str(e))
-        raise ValueError("Failed to delete roadmap")
+        raise ValueError("Failed to delete roadmap") from e

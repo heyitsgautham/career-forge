@@ -6,12 +6,13 @@ vector similarity (Titan embeddings) and keyword overlap.
 """
 
 import math
-from typing import List, Dict, Any, Optional, Set
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
 import structlog
 
-from app.services.embedding_service import embedding_service
 from app.services.dynamo_service import dynamo_service
+from app.services.embedding_service import embedding_service
 
 logger = structlog.get_logger()
 
@@ -203,7 +204,7 @@ class MatchScorer:
         if not vec_a or not vec_b or len(vec_a) != len(vec_b):
             return 0.0
 
-        dot = sum(a * b for a, b in zip(vec_a, vec_b))
+        dot = sum(a * b for a, b in zip(vec_a, vec_b, strict=False))
         norm_a = math.sqrt(sum(a * a for a in vec_a))
         norm_b = math.sqrt(sum(b * b for b in vec_b))
 

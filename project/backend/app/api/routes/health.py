@@ -5,12 +5,11 @@ System health and status endpoints.
 """
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.core.config import settings
-
+from app.core.database import get_db
 
 router = APIRouter()
 
@@ -63,7 +62,7 @@ async def services_health():
 
     # Check vector store
     try:
-        client = vector_store._get_client()
+        vector_store._get_client()
         status["vector_store"] = "connected"
     except Exception as e:
         status["vector_store"] = f"error: {str(e)}"
