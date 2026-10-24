@@ -822,6 +822,18 @@ async def download_pdf(
     )
     resume = result.scalar_one_or_none()
 
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    if not resume.pdf_path:
+        raise HTTPException(status_code=400, detail="PDF not available. Compile first.")
+
+    return FileResponse(
+        path=resume.pdf_path,
+        filename=f"{resume.name.replace(' ', '_')}.pdf",
+        media_type="application/pdf",
+    )
+
 
 @router.get("/{resume_id}/pdf-url")
 async def get_pdf_url(
@@ -849,18 +861,6 @@ async def get_pdf_url(
     resume_name = item.get("name", "resume").replace(" ", "_")
     url = await s3_service.get_presigned_url(pdf_key, filename=f"{resume_name}.pdf", inline=True)
     return {"url": url}
-    
-    if not resume:
-        raise HTTPException(status_code=404, detail="Resume not found")
-    
-    if not resume.pdf_path:
-        raise HTTPException(status_code=400, detail="PDF not available. Compile first.")
-    
-    return FileResponse(
-        path=resume.pdf_path,
-        filename=f"{resume.name.replace(' ', '_')}.pdf",
-        media_type="application/pdf",
-    )
 
 
 @router.get("/{resume_id}/tex")
