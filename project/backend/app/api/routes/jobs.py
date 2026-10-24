@@ -64,6 +64,7 @@ class AnalyzeResponse(BaseModel):
 
 # ── Job Scout Pydantic models ────────────────────────────────────────────────
 
+
 class ScrapeRequest(BaseModel):
     search_term: str = "Software Developer"
     location: Optional[str] = "India"
@@ -77,6 +78,7 @@ class ScrapeRequest(BaseModel):
 
 class ScoutJobResponse(BaseModel):
     """A single job card for the Job Scout board."""
+
     jobId: str
     title: str
     company: str
@@ -180,6 +182,7 @@ def _jd_response_from_dynamo(jd: dict) -> JobDescriptionResponse:
 # Job Scout endpoints (M4) — shared jobs, no userId filter
 # ---------------------------------------------------------------------------
 
+
 @router.get("/scheduler/status", response_model=SchedulerStatusResponse)
 async def get_scheduler_status(
     current_user=Depends(get_current_user),
@@ -250,10 +253,7 @@ async def get_job_stats(
 
     # New today
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    new_today = sum(
-        1 for j in jobs
-        if (j.get("createdAt") or "").startswith(today)
-    )
+    new_today = sum(1 for j in jobs if (j.get("createdAt") or "").startswith(today))
 
     # Average match
     scores = [j.get("matchScore") for j in jobs if j.get("matchScore") is not None]
@@ -415,6 +415,7 @@ async def trigger_full_scrape(
 
 # ── Application tracking ─────────────────────────────────────────────────────
 
+
 @router.post("/scout/{job_id}/track")
 async def track_job(
     job_id: str,
@@ -459,6 +460,7 @@ async def get_tracking_statuses(
 
 
 # ── Blacklist management (admin only) ────────────────────────────────────────
+
 
 @router.get("/blacklist")
 async def list_blacklist(
@@ -536,6 +538,7 @@ async def delete_scout_job(
 # ---------------------------------------------------------------------------
 # Legacy JD Routes (manual JD management)
 # ---------------------------------------------------------------------------
+
 
 @router.get("", response_model=List[JobDescriptionResponse])
 async def list_job_descriptions(
@@ -732,14 +735,26 @@ async def analyze_job_description(
             except Exception:
                 # Fallback: basic keyword extraction
                 common_skills = [
-                    "python", "java", "javascript", "react", "node", "sql",
-                    "aws", "docker", "kubernetes", "git", "api", "rest",
-                    "graphql", "typescript",
+                    "python",
+                    "java",
+                    "javascript",
+                    "react",
+                    "node",
+                    "sql",
+                    "aws",
+                    "docker",
+                    "kubernetes",
+                    "git",
+                    "api",
+                    "rest",
+                    "graphql",
+                    "typescript",
                 ]
                 text_lower = jd["rawText"].lower()
                 found = [s for s in common_skills if s in text_lower][:10]
                 await dynamo_service.update_item(
-                    "Jobs", {"jobId": jd_id},
+                    "Jobs",
+                    {"jobId": jd_id},
                     {"requiredSkills": found, "isAnalyzed": True},
                 )
                 jd["requiredSkills"] = found
@@ -829,9 +844,20 @@ async def analyze_job_description(
                 await db.refresh(jd)
             except Exception:
                 common_skills = [
-                    "python", "java", "javascript", "react", "node", "sql",
-                    "aws", "docker", "kubernetes", "git", "api", "rest",
-                    "graphql", "typescript",
+                    "python",
+                    "java",
+                    "javascript",
+                    "react",
+                    "node",
+                    "sql",
+                    "aws",
+                    "docker",
+                    "kubernetes",
+                    "git",
+                    "api",
+                    "rest",
+                    "graphql",
+                    "typescript",
                 ]
                 text_lower = jd.raw_text.lower()
                 jd.required_skills = [s for s in common_skills if s in text_lower][:10]

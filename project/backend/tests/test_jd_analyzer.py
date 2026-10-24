@@ -50,7 +50,9 @@ async def test_llm_failure_falls_back_to_keywords(analyzer, monkeypatch):
 
 
 def test_fallback_does_not_duplicate_aliases(analyzer):
-    result = analyzer._fallback_analysis("postgres and postgresql, node and node.js, k8s kubernetes")
+    result = analyzer._fallback_analysis(
+        "postgres and postgresql, node and node.js, k8s kubernetes"
+    )
     assert result["requiredSkills"].count("PostgreSQL") == 1
     assert result["requiredSkills"].count("Node.js") == 1
     assert result["requiredSkills"].count("Kubernetes") == 1

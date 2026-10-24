@@ -39,7 +39,7 @@ class UserCreate(BaseModel):
     password: str
     name: str = Field(default=None)
     full_name: str = Field(default=None)
-    
+
     def get_name(self) -> str:
         return self.name or self.full_name or "User"
 
@@ -67,6 +67,7 @@ class UserResponse(BaseModel):
 
 class UserProfileResponse(BaseModel):
     """Complete user profile with all fields"""
+
     id: str
     email: str
     name: Optional[str]
@@ -91,13 +92,14 @@ class UserProfileResponse(BaseModel):
     skills: Optional[list]
     certifications: Optional[list]
     achievements: Optional[list]
-    
+
     class Config:
         from_attributes = True
 
 
 class UserProfileUpdate(BaseModel):
     """Fields that can be updated in user profile"""
+
     name: Optional[str] = None
     headline: Optional[str] = None
     summary: Optional[str] = None
@@ -138,6 +140,7 @@ async def register(
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
         from boto3.dynamodb.conditions import Attr
+
         existing = await dynamo_service.scan(
             "Users", filter_expression=Attr("email").eq(user_data.email)
         )
@@ -148,16 +151,19 @@ async def register(
             )
         user_id = dynamo_service.generate_id()
         now = dynamo_service.now_iso()
-        await dynamo_service.put_item("Users", {
-            "userId": user_id,
-            "email": user_data.email,
-            "name": user_data.get_name(),
-            "hashedPassword": get_password_hash(user_data.password),
-            "isActive": True,
-            "isVerified": False,
-            "createdAt": now,
-            "updatedAt": now,
-        })
+        await dynamo_service.put_item(
+            "Users",
+            {
+                "userId": user_id,
+                "email": user_data.email,
+                "name": user_data.get_name(),
+                "hashedPassword": get_password_hash(user_data.password),
+                "isActive": True,
+                "isVerified": False,
+                "createdAt": now,
+                "updatedAt": now,
+            },
+        )
         access_token = create_access_token(
             data={"sub": user_id},
             expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -165,15 +171,13 @@ async def register(
         return TokenResponse(access_token=access_token)
 
     # SQLite path
-    result = await db.execute(
-        select(User).where(User.email == user_data.email)
-    )
+    result = await db.execute(select(User).where(User.email == user_data.email))
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered",
         )
-    
+
     user = User(
         email=user_data.email,
         name=user_data.get_name(),
@@ -182,12 +186,12 @@ async def register(
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    
+
     access_token = create_access_token(
         data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    
+
     return TokenResponse(access_token=access_token)
 
 
@@ -200,6 +204,7 @@ async def login(
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
         from boto3.dynamodb.conditions import Attr
+
         results = await dynamo_service.scan(
             "Users", filter_expression=Attr("email").eq(credentials.email)
         )
@@ -226,28 +231,26 @@ async def login(
         return TokenResponse(access_token=access_token)
 
     # SQLite path
-    result = await db.execute(
-        select(User).where(User.email == credentials.email)
-    )
+    result = await db.execute(select(User).where(User.email == credentials.email))
     user = result.scalar_one_or_none()
-    
+
     if not user or not user.hashed_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
-    
+
     if not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
-    
+
     access_token = create_access_token(
         data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    
+
     return TokenResponse(access_token=access_token)
 
 
@@ -274,18 +277,18 @@ async def github_authorize():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GitHub OAuth not configured",
         )
-    
+
     params = {
         "client_id": client_id,
         "redirect_uri": settings.GITHUB_CALLBACK_URL,
         "scope": "read:user user:email repo",
         "state": "random_state_string",
     }
-    
+
     url = "https://github.com/login/oauth/authorize?" + "&".join(
         f"{k}={v}" for k, v in params.items()
     )
-    
+
     return {"authorization_url": url}
 
 
@@ -303,7 +306,7 @@ async def github_callback(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GitHub OAuth not configured",
         )
-    
+
     # Exchange code for access token
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
@@ -316,15 +319,15 @@ async def github_callback(
             headers={"Accept": "application/json"},
         )
         token_data = token_response.json()
-    
+
     if "error" in token_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"GitHub OAuth error: {token_data.get('error_description', token_data['error'])}",
         )
-    
+
     github_token = token_data["access_token"]
-    
+
     # Get GitHub user info
     async with httpx.AsyncClient() as client:
         user_response = await client.get(
@@ -332,24 +335,21 @@ async def github_callback(
             headers={"Authorization": f"token {github_token}"},
         )
         github_user = user_response.json()
-        
+
         # Get primary email
         emails_response = await client.get(
             "https://api.github.com/user/emails",
             headers={"Authorization": f"token {github_token}"},
         )
         emails = emails_response.json()
-        primary_email = next(
-            (e["email"] for e in emails if e["primary"]),
-            github_user.get("email")
-        )
-    
+        primary_email = next((e["email"] for e in emails if e["primary"]), github_user.get("email"))
+
     if not primary_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Could not get email from GitHub",
         )
-    
+
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
         from boto3.dynamodb.conditions import Attr
@@ -363,6 +363,7 @@ async def github_callback(
         link_user_id = None
         if callback_data.link_token:
             from app.core.security import decode_access_token as _decode
+
             payload = _decode(callback_data.link_token)
             if payload and payload.get("sub"):
                 link_user_id = payload["sub"]
@@ -442,23 +443,19 @@ async def github_callback(
     # SQLite path
     # Check if GitHub connection exists
     result = await db.execute(
-        select(GithubConnection).where(
-            GithubConnection.github_user_id == github_user["id"]
-        )
+        select(GithubConnection).where(GithubConnection.github_user_id == github_user["id"])
     )
     github_conn = result.scalar_one_or_none()
-    
+
     if github_conn:
         # Update token
         github_conn.encrypted_token = token_encryptor.encrypt(github_token)
         user = await db.get(User, github_conn.user_id)
     else:
         # Check if user exists with this email
-        result = await db.execute(
-            select(User).where(User.email == primary_email)
-        )
+        result = await db.execute(select(User).where(User.email == primary_email))
         user = result.scalar_one_or_none()
-        
+
         if not user:
             # Create new user
             user = User(
@@ -469,7 +466,7 @@ async def github_callback(
             )
             db.add(user)
             await db.flush()
-        
+
         # Create GitHub connection
         github_conn = GithubConnection(
             user_id=user.id,
@@ -481,15 +478,15 @@ async def github_callback(
             scopes=["read:user", "user:email", "repo"],
         )
         db.add(github_conn)
-    
+
     await db.commit()
-    
+
     # Generate JWT
     access_token = create_access_token(
         data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    
+
     return TokenResponse(access_token=access_token)
 
 
@@ -608,9 +605,7 @@ async def cognito_callback(callback_data: CognitoCallbackRequest):
         )
     else:
         # Check by email
-        email_match = await dynamo_service.scan(
-            "Users", filter_expression=Attr("email").eq(email)
-        )
+        email_match = await dynamo_service.scan("Users", filter_expression=Attr("email").eq(email))
         if email_match:
             user_id = email_match[0]["userId"]
             await dynamo_service.update_item(
@@ -626,17 +621,20 @@ async def cognito_callback(callback_data: CognitoCallbackRequest):
             # New user
             user_id = dynamo_service.generate_id()
             now = dynamo_service.now_iso()
-            await dynamo_service.put_item("Users", {
-                "userId": user_id,
-                "email": email,
-                "name": name or email.split("@")[0],
-                "cognitoSub": cognito_sub,
-                "isActive": True,
-                "isVerified": True,
-                "ingestionStatus": "none",
-                "createdAt": now,
-                "updatedAt": now,
-            })
+            await dynamo_service.put_item(
+                "Users",
+                {
+                    "userId": user_id,
+                    "email": email,
+                    "name": name or email.split("@")[0],
+                    "cognitoSub": cognito_sub,
+                    "isActive": True,
+                    "isVerified": True,
+                    "ingestionStatus": "none",
+                    "createdAt": now,
+                    "updatedAt": now,
+                },
+            )
 
     access_token = create_access_token(
         data={"sub": user_id},
@@ -671,30 +669,28 @@ async def upload_resume_for_profile(
     # Validate file type
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
-    
+
     ext = file.filename.lower().split(".")[-1]
     if ext not in ["pdf", "docx", "doc", "txt"]:
         raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type. Please upload PDF, DOCX, or TXT files."
+            status_code=400, detail=f"Unsupported file type. Please upload PDF, DOCX, or TXT files."
         )
-    
+
     try:
         # Read file content
         content = await file.read()
-        
+
         # Extract text from document
         parser = DocumentParserService()
         text = await parser.extract_text(file.filename, content)
-        
+
         if not text or len(text.strip()) < 50:
             raise HTTPException(
-                status_code=400,
-                detail="Could not extract meaningful text from the document"
+                status_code=400, detail="Could not extract meaningful text from the document"
             )
-        
+
         logger.info(f"Extracted {len(text)} characters from resume")
-        
+
         # Use Gemini to parse resume and extract structured data
         prompt = f"""Extract profile information from this resume text:
 
@@ -732,11 +728,10 @@ Return a JSON object with these fields (use null for any field not found):
   * gpa: GPA if mentioned (optional)
 
 Extract only information clearly present. For experience and education, extract ALL entries found in the resume."""
-        
+
         try:
             logger.info(f"Attempting to parse resume with Gemini...")
-            
-            
+
             # Try the generate_json method first
             try:
                 extracted_data = await bedrock_client.generate_json(
@@ -745,22 +740,24 @@ Extract only information clearly present. For experience and education, extract 
                     temperature=0.1,
                 )
                 logger.info(f"Successfully parsed resume with {len(extracted_data)} fields")
-                
+
             except Exception as json_error:
                 logger.warning(f"generate_json failed: {json_error}, trying generate_content...")
-                
+
                 # Fallback to generate_content with manual JSON parsing
                 import json
                 import re
-                
-                full_prompt = prompt + "\n\nReturn ONLY a valid JSON object, no markdown, no extra text."
+
+                full_prompt = (
+                    prompt + "\n\nReturn ONLY a valid JSON object, no markdown, no extra text."
+                )
                 response_text = await bedrock_client.generate_content(
                     prompt=full_prompt,
                     system_instruction="You are a professional resume parser.",
                     temperature=0.1,
                     max_tokens=1500,
                 )
-                
+
                 # Clean and extract JSON
                 cleaned = response_text.strip()
                 if cleaned.startswith("```json"):
@@ -770,23 +767,23 @@ Extract only information clearly present. For experience and education, extract 
                 if cleaned.endswith("```"):
                     cleaned = cleaned[:-3]
                 cleaned = cleaned.strip()
-                
+
                 # Extract JSON by finding the JSON object boundaries
                 start_idx = cleaned.find(chr(123))  # chr(123) is '{'
                 end_idx = cleaned.rfind(chr(125))  # chr(125) is '}'
                 if start_idx != -1 and end_idx != -1:
-                    cleaned = cleaned[start_idx:end_idx + 1]
-                
+                    cleaned = cleaned[start_idx : end_idx + 1]
+
                 extracted_data = json.loads(cleaned)
                 logger.info("Successfully parsed with fallback method")
-            
+
         except Exception as e:
             logger.error(f"All parsing attempts failed: {type(e).__name__}: {e}", exc_info=True)
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to parse resume with AI. Error: {str(e)[:100]}. Please try again."
+                detail=f"Failed to parse resume with AI. Error: {str(e)[:100]}. Please try again.",
             )
-        
+
         # Update user profile with extracted data (only non-null values)
         _FIELD_MAP = {
             "linkedin_url": "linkedinUrl",
@@ -797,10 +794,27 @@ Extract only information clearly present. For experience and education, extract 
             "graduation_year": "graduationYear",
         }
         _KNOWN_FIELDS = {
-            "name", "email", "phone", "location", "city", "state", "country",
-            "headline", "summary", "institution", "degree", "field_of_study",
-            "graduation_year", "linkedin_url", "website", "skills", "experience",
-            "education", "address_line1", "address_line2", "zip_code",
+            "name",
+            "email",
+            "phone",
+            "location",
+            "city",
+            "state",
+            "country",
+            "headline",
+            "summary",
+            "institution",
+            "degree",
+            "field_of_study",
+            "graduation_year",
+            "linkedin_url",
+            "website",
+            "skills",
+            "experience",
+            "education",
+            "address_line1",
+            "address_line2",
+            "zip_code",
         }
         update_values = {}
         for field, value in extracted_data.items():
@@ -815,35 +829,33 @@ Extract only information clearly present. For experience and education, extract 
         if update_values:
             if settings.USE_DYNAMO:
                 from app.services.dynamo_service import dynamo_service
+
                 dynamo_updates = {_FIELD_MAP.get(k, k): v for k, v in update_values.items()}
                 dynamo_updates["updatedAt"] = dynamo_service.now_iso()
-                await dynamo_service.update_item("Users", {"userId": str(current_user.id)}, dynamo_updates)
+                await dynamo_service.update_item(
+                    "Users", {"userId": str(current_user.id)}, dynamo_updates
+                )
             else:
                 await db.execute(
-                    update(User)
-                    .where(User.id == current_user.id)
-                    .values(**update_values)
+                    update(User).where(User.id == current_user.id).values(**update_values)
                 )
                 await db.commit()
                 await db.refresh(current_user)
-        
+
         logger.info(f"Updated {len(update_values)} profile fields for user {current_user.id}")
-        
+
         return {
             "message": "Resume parsed successfully",
             "fields_updated": len(update_values),
             "extracted_data": extracted_data,
         }
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
         logger.error(f"Unexpected error processing resume: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing resume: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}")
 
 
 @router.get("/profile", response_model=UserProfileResponse)
@@ -854,10 +866,12 @@ async def get_profile(
     """Get the current user's complete profile."""
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
+
         # Re-fetch fresh data from DynamoDB
         user_data = await dynamo_service.get_item("Users", {"userId": str(current_user.id)})
         if user_data:
             from app.api.deps import DynamoUser
+
             current_user = DynamoUser(user_data)
     else:
         await db.refresh(current_user)
@@ -906,6 +920,7 @@ async def update_profile(
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
         from app.api.deps import DynamoUser
+
         # Map snake_case SQLAlchemy field names to DynamoDB camelCase attribute names
         _FIELD_MAP = {
             "linkedin_url": "linkedinUrl",
@@ -919,7 +934,9 @@ async def update_profile(
         dynamo_updates = {_FIELD_MAP.get(k, k): v for k, v in update_values.items()}
         if dynamo_updates:
             dynamo_updates["updatedAt"] = dynamo_service.now_iso()
-            await dynamo_service.update_item("Users", {"userId": str(current_user.id)}, dynamo_updates)
+            await dynamo_service.update_item(
+                "Users", {"userId": str(current_user.id)}, dynamo_updates
+            )
         # Re-fetch fresh data
         user_data = await dynamo_service.get_item("Users", {"userId": str(current_user.id)})
         if user_data:
@@ -927,15 +944,11 @@ async def update_profile(
         logger.info(f"Updated {len(dynamo_updates)} profile fields for user {current_user.id}")
     else:
         if update_values:
-            await db.execute(
-                update(User)
-                .where(User.id == current_user.id)
-                .values(**update_values)
-            )
+            await db.execute(update(User).where(User.id == current_user.id).values(**update_values))
             await db.commit()
             await db.refresh(current_user)
         logger.info(f"Updated {len(update_values)} profile fields for user {current_user.id}")
-    
+
     return UserProfileResponse(
         id=str(current_user.id),
         email=current_user.email,
@@ -972,6 +985,7 @@ async def get_github_status(
     """Get GitHub connection status for the current user."""
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
+
         user_data = await dynamo_service.get_item("Users", {"userId": str(current_user.id)})
         if user_data and user_data.get("githubUserId"):
             return {
@@ -990,7 +1004,7 @@ async def get_github_status(
         )
     )
     github_conn = result.scalar_one_or_none()
-    
+
     if github_conn:
         return {
             "connected": True,
@@ -1012,6 +1026,7 @@ async def get_linkedin_status(
     """Get LinkedIn connection status for the current user."""
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
+
         user_data = await dynamo_service.get_item("Users", {"userId": str(current_user.id)})
         if user_data and user_data.get("linkedinUserId"):
             return {
@@ -1028,7 +1043,7 @@ async def get_linkedin_status(
         )
     )
     linkedin_conn = result.scalar_one_or_none()
-    
+
     if linkedin_conn:
         return {
             "connected": True,
@@ -1049,18 +1064,18 @@ async def linkedin_authorize():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="LinkedIn OAuth not configured. Please set LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET in environment variables.",
         )
-    
+
     params = {
         "response_type": "code",
         "client_id": settings.LINKEDIN_CLIENT_ID,
         "redirect_uri": settings.LINKEDIN_CALLBACK_URL,
         "scope": "openid profile email",
     }
-    
+
     url = "https://www.linkedin.com/oauth/v2/authorization?" + "&".join(
         f"{k}={v}" for k, v in params.items()
     )
-    
+
     return {"authorization_url": url}
 
 
@@ -1076,7 +1091,7 @@ async def linkedin_callback(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="LinkedIn OAuth not configured",
         )
-    
+
     # Exchange code for access token
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
@@ -1091,15 +1106,15 @@ async def linkedin_callback(
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         token_data = token_response.json()
-    
+
     if "error" in token_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"LinkedIn OAuth error: {token_data.get('error_description', token_data['error'])}",
         )
-    
+
     access_token = token_data["access_token"]
-    
+
     # Get LinkedIn user profile
     async with httpx.AsyncClient() as client:
         profile_response = await client.get(
@@ -1107,28 +1122,31 @@ async def linkedin_callback(
             headers={"Authorization": f"Bearer {access_token}"},
         )
         profile_data = profile_response.json()
-    
+
     linkedin_user_id = profile_data["sub"]
     linkedin_email = profile_data.get("email")
 
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
-        await dynamo_service.update_item("Users", {"userId": str(current_user.id)}, {
-            "linkedinUserId": linkedin_user_id,
-            "linkedinEmail": linkedin_email,
-            "linkedinToken": token_encryptor.encrypt(access_token),
-            "updatedAt": dynamo_service.now_iso(),
-        })
+
+        await dynamo_service.update_item(
+            "Users",
+            {"userId": str(current_user.id)},
+            {
+                "linkedinUserId": linkedin_user_id,
+                "linkedinEmail": linkedin_email,
+                "linkedinToken": token_encryptor.encrypt(access_token),
+                "updatedAt": dynamo_service.now_iso(),
+            },
+        )
         return {"message": "LinkedIn connected successfully"}
 
     # SQLite path
     result = await db.execute(
-        select(LinkedInConnection).where(
-            LinkedInConnection.user_id == current_user.id
-        )
+        select(LinkedInConnection).where(LinkedInConnection.user_id == current_user.id)
     )
     linkedin_conn = result.scalar_one_or_none()
-    
+
     if linkedin_conn:
         # Update existing connection
         linkedin_conn.encrypted_token = token_encryptor.encrypt(access_token)
@@ -1145,96 +1163,94 @@ async def linkedin_callback(
             scopes=["openid", "profile", "email", "w_member_social"],
         )
         db.add(linkedin_conn)
-    
+
     await db.commit()
-    
+
     return {"message": "LinkedIn connected successfully"}
 
 
 @router.post("/linkedin/scrape-certifications")
 async def scrape_linkedin_certifications_endpoint(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Scrape certifications from user's LinkedIn profile URL using Playwright.
     Uses the linkedin_url from user's profile.
     """
     from app.services.linkedin_scraper import scrape_linkedin_certifications, parse_linkedin_url
-    
+
     if not current_user.linkedin_url:
         raise HTTPException(
             status_code=400,
-            detail="No LinkedIn URL found in profile. Please add your LinkedIn URL first."
+            detail="No LinkedIn URL found in profile. Please add your LinkedIn URL first.",
         )
-    
+
     # Validate and normalize URL
     linkedin_url = parse_linkedin_url(current_user.linkedin_url)
     if not linkedin_url:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid LinkedIn URL format"
-        )
-    
+        raise HTTPException(status_code=400, detail="Invalid LinkedIn URL format")
+
     try:
         # Scrape certifications using Playwright
         logger.info(f"Starting LinkedIn scrape for: {linkedin_url}")
         certifications = await scrape_linkedin_certifications(linkedin_url)
         logger.info(f"Scrape returned {len(certifications)} certifications: {certifications}")
-        
+
         if not certifications:
             return {
                 "success": True,
                 "message": "No certifications found on LinkedIn profile. Make sure you're on the correct profile and have certifications listed.",
-                "certifications": []
+                "certifications": [],
             }
-        
+
         # Merge with existing certifications (avoid duplicates)
         existing_certs = current_user.certifications or []
-        existing_names = {cert.get('name', '').lower() for cert in existing_certs}
-        
+        existing_names = {cert.get("name", "").lower() for cert in existing_certs}
+
         new_certs = [
-            cert for cert in certifications
-            if cert.get('name', '').lower() not in existing_names
+            cert for cert in certifications if cert.get("name", "").lower() not in existing_names
         ]
-        
-        logger.info(f"Adding {len(new_certs)} new certifications (filtered from {len(certifications)})")
-        
+
+        logger.info(
+            f"Adding {len(new_certs)} new certifications (filtered from {len(certifications)})"
+        )
+
         # Update user certifications using direct SQL/DynamoDB update for reliability
         updated_certs = existing_certs + new_certs
         if settings.USE_DYNAMO:
             from app.services.dynamo_service import dynamo_service
-            await dynamo_service.update_item("Users", {"userId": str(current_user.id)}, {
-                "certifications": updated_certs,
-                "updatedAt": dynamo_service.now_iso(),
-            })
+
+            await dynamo_service.update_item(
+                "Users",
+                {"userId": str(current_user.id)},
+                {
+                    "certifications": updated_certs,
+                    "updatedAt": dynamo_service.now_iso(),
+                },
+            )
         else:
             await db.execute(
-                update(User)
-                .where(User.id == current_user.id)
-                .values(certifications=updated_certs)
+                update(User).where(User.id == current_user.id).values(certifications=updated_certs)
             )
             await db.commit()
             # Refresh user to get updated data
             await db.refresh(current_user)
 
         logger.info(f"Successfully saved certifications. Total: {len(updated_certs)}")
-        
+
         return {
             "success": True,
             "message": f"Imported {len(new_certs)} new certifications from LinkedIn",
             "certifications": new_certs,
-            "total_certifications": len(updated_certs)
+            "total_certifications": len(updated_certs),
         }
-        
+
     except Exception as e:
         import traceback
+
         error_details = traceback.format_exc()
         logger.error(f"Error scraping LinkedIn certifications: {str(e)}\n{error_details}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to scrape certifications: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to scrape certifications: {str(e)}")
 
 
 class LinkedInImportRequest(BaseModel):
@@ -1274,6 +1290,7 @@ async def import_linkedin_profile(
         data = await scrape_linkedin_profile(linkedin_url)
     except Exception as e:
         import traceback
+
         logger.error(f"LinkedIn profile import failed: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Failed to import LinkedIn profile: {str(e)}")
 
@@ -1308,7 +1325,8 @@ async def import_linkedin_profile(
         existing_edu: list = current_user.education or []
         existing_schools = {e.get("school", "").lower() for e in existing_edu}
         new_edu = [
-            e for e in data["education"]
+            e
+            for e in data["education"]
             if e.get("school") and e["school"].lower() not in existing_schools
         ]
         update_fields["education"] = existing_edu + new_edu
@@ -1318,14 +1336,23 @@ async def import_linkedin_profile(
         existing_certs: list = current_user.certifications or []
         existing_names = {c.get("name", "").lower() for c in existing_certs}
         new_certs = [
-            c for c in data["certifications"]
+            c
+            for c in data["certifications"]
             if c.get("name") and c["name"].lower() not in existing_names
         ]
         update_fields["certifications"] = existing_certs + new_certs
 
     # Compute counts BEFORE writing to DB (current_user may be refreshed after)
-    new_edu_count   = len(update_fields.get("education",       [])) - len(current_user.education       or []) if "education"       in update_fields else 0
-    new_certs_count = len(update_fields.get("certifications",  [])) - len(current_user.certifications  or []) if "certifications"  in update_fields else 0
+    new_edu_count = (
+        len(update_fields.get("education", [])) - len(current_user.education or [])
+        if "education" in update_fields
+        else 0
+    )
+    new_certs_count = (
+        len(update_fields.get("certifications", [])) - len(current_user.certifications or [])
+        if "certifications" in update_fields
+        else 0
+    )
 
     # Write to DB (DynamoDB or SQL)
     _FIELD_MAP = {
@@ -1333,6 +1360,7 @@ async def import_linkedin_profile(
     }
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
+
         dynamo_updates = {_FIELD_MAP.get(k, k): v for k, v in update_fields.items()}
         await dynamo_service.update_item(
             "Users",
@@ -1341,9 +1369,7 @@ async def import_linkedin_profile(
         )
     else:
         if update_fields:
-            await db.execute(
-                update(User).where(User.id == current_user.id).values(**update_fields)
-            )
+            await db.execute(update(User).where(User.id == current_user.id).values(**update_fields))
             await db.commit()
             await db.refresh(current_user)
 
@@ -1361,7 +1387,9 @@ async def import_linkedin_profile(
             "phone": data.get("phone"),
             "email": data.get("email"),
             "education_added": new_edu_count,
-            "education": (update_fields.get("education") or [])[-new_edu_count:] if new_edu_count > 0 else [],
+            "education": (update_fields.get("education") or [])[-new_edu_count:]
+            if new_edu_count > 0
+            else [],
             "certifications_added": new_certs_count,
         },
         "data": data,

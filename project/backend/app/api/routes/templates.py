@@ -74,6 +74,7 @@ class TemplateListItem(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _load_file_template() -> Optional[dict]:
     """Load the base template from the filesystem."""
     if not os.path.exists(_BASE_TEMPLATE_PATH):
@@ -101,6 +102,7 @@ SYSTEM_TEMPLATES = []
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @router.get("", response_model=List[TemplateListItem])
 async def list_templates(
@@ -144,9 +146,7 @@ async def list_templates(
                 )
             )
         else:
-            query = query.where(
-                or_(Template.is_system == True, Template.is_public == True)
-            )
+            query = query.where(or_(Template.is_system == True, Template.is_public == True))
 
         if category:
             query = query.where(Template.category == category)
@@ -189,9 +189,7 @@ async def get_template(
         from sqlalchemy import select
         from app.models.template import Template
 
-        result = await db.execute(
-            select(Template).where(Template.id == uuid.UUID(template_id))
-        )
+        result = await db.execute(select(Template).where(Template.id == uuid.UUID(template_id)))
         template = result.scalar_one_or_none()
 
         if not template:

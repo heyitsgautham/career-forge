@@ -119,6 +119,7 @@ class DynamoService:
             False if item already existed with a non-empty description (no-op).
         """
         from boto3.dynamodb.conditions import Attr
+
         dynamo_table = self._get_table("Jobs")
         safe_item = _convert_floats(item)
         safe_item = {k: v for k, v in safe_item.items() if v is not None}
@@ -143,9 +144,7 @@ class DynamoService:
             dynamo_table.update_item(
                 Key={"jobId": safe_item["jobId"]},
                 UpdateExpression="SET #desc = :d, updatedAt = :ts",
-                ConditionExpression=(
-                    Attr("description").not_exists() | Attr("description").eq("")
-                ),
+                ConditionExpression=(Attr("description").not_exists() | Attr("description").eq("")),
                 ExpressionAttributeNames={"#desc": "description"},
                 ExpressionAttributeValues={
                     ":d": description,
@@ -158,7 +157,6 @@ class DynamoService:
             if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
                 return False  # already has a description — no-op
             raise
-
 
     async def get_item(self, table: str, key: dict) -> Optional[dict]:
         """
@@ -220,12 +218,10 @@ class DynamoService:
         }
 
         if sk_name and sk_value:
-            kwargs["KeyConditionExpression"] = (
-                Key(pk_name).eq(pk_value) & Key(sk_name).eq(sk_value)
-            )
+            kwargs["KeyConditionExpression"] = Key(pk_name).eq(pk_value) & Key(sk_name).eq(sk_value)
         elif sk_name and sk_begins_with:
-            kwargs["KeyConditionExpression"] = (
-                Key(pk_name).eq(pk_value) & Key(sk_name).begins_with(sk_begins_with)
+            kwargs["KeyConditionExpression"] = Key(pk_name).eq(pk_value) & Key(sk_name).begins_with(
+                sk_begins_with
             )
 
         if filter_expression:

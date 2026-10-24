@@ -14,7 +14,8 @@ from app.models.template import Template
 def auth(client):
     email = f"pdf-{uuid.uuid4().hex[:8]}@example.com"
     token = client.post(
-        "/api/auth/register", json={"email": email, "password": "pw-for-tests", "full_name": "Pdf Tester"}
+        "/api/auth/register",
+        json={"email": email, "password": "pw-for-tests", "full_name": "Pdf Tester"},
     ).json()["access_token"]
     me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()
     return {"headers": {"Authorization": f"Bearer {token}"}, "user_id": uuid.UUID(me["id"])}
@@ -26,7 +27,9 @@ def add_resume(user_id, pdf_path):
             template = Template(name="Test template", latex_content="\\documentclass{article}")
             db.add(template)
             await db.flush()
-            resume = Resume(user_id=user_id, template_id=template.id, name="My Resume", pdf_path=pdf_path)
+            resume = Resume(
+                user_id=user_id, template_id=template.id, name="My Resume", pdf_path=pdf_path
+            )
             db.add(resume)
             await db.commit()
             return resume.id

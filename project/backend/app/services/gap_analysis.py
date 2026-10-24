@@ -21,6 +21,7 @@ logger = structlog.get_logger()
 
 _BENCHMARKS_PATH = Path(__file__).parent.parent / "data" / "role_benchmarks.json"
 
+
 def _load_benchmarks() -> Dict[str, Any]:
     """Load role benchmarks from the static JSON file."""
     with open(_BENCHMARKS_PATH, "r") as f:
@@ -141,6 +142,7 @@ Return ONLY the JSON object."""
 
 # ─── Gap computation ─────────────────────────────────────────────────────────
 
+
 def compute_gaps(
     user_scores: Dict[str, int],
     benchmark_scores: Dict[str, int],
@@ -162,13 +164,15 @@ def compute_gaps(
         else:
             priority = "low"
 
-        gaps.append({
-            "domain": domain,
-            "userScore": user_score,
-            "requiredScore": required,
-            "gap": gap,
-            "priority": priority,
-        })
+        gaps.append(
+            {
+                "domain": domain,
+                "userScore": user_score,
+                "requiredScore": required,
+                "gap": gap,
+                "priority": priority,
+            }
+        )
 
     # Sort by gap descending
     gaps.sort(key=lambda g: g["gap"], reverse=True)
@@ -201,6 +205,7 @@ def compute_overall_fit(
 
 
 # ─── Full analysis pipeline ─────────────────────────────────────────────────
+
 
 async def run_gap_analysis(
     user_id: str,
@@ -276,7 +281,9 @@ async def run_gap_analysis(
     return report
 
 
-async def get_cached_report(user_id: str, role_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+async def get_cached_report(
+    user_id: str, role_id: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
     """Fetch the most recent cached gap report for a user (optionally filtered by role)."""
     try:
         reports = await dynamo_service.query(

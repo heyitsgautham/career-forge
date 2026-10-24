@@ -62,17 +62,13 @@ def test_register_defaults_name_to_user(client, account):
 
 def test_login_with_wrong_password_is_unauthorised(client, account):
     register(client, account)
-    response = client.post(
-        "/api/auth/login", json={"email": account["email"], "password": "wrong"}
-    )
+    response = client.post("/api/auth/login", json={"email": account["email"], "password": "wrong"})
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid email or password"
 
 
 def test_login_for_unknown_email_is_unauthorised(client):
-    response = client.post(
-        "/api/auth/login", json={"email": "nobody@example.com", "password": "x"}
-    )
+    response = client.post("/api/auth/login", json={"email": "nobody@example.com", "password": "x"})
     assert response.status_code == 401
 
 

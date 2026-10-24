@@ -20,13 +20,16 @@ logger = structlog.get_logger()
 
 # ─── Request/Response Models ──────────────────────────────────────────────────
 
+
 class TailorRequest(BaseModel):
     """Request to generate a tailored resume for a job."""
+
     jobId: str
 
 
 class TailorResponse(BaseModel):
     """Response from tailored resume generation."""
+
     resumeId: str
     pdfUrl: Optional[str] = None
     texUrl: Optional[str] = None
@@ -38,6 +41,7 @@ class TailorResponse(BaseModel):
 
 class ApplicationCreate(BaseModel):
     """Request to create an application record."""
+
     jobId: str
     resumeId: Optional[str] = None
     companyName: Optional[str] = None
@@ -49,6 +53,7 @@ class ApplicationCreate(BaseModel):
 
 class ApplicationUpdate(BaseModel):
     """Request to update an application."""
+
     status: Optional[str] = None
     notes: Optional[str] = None
     resumeId: Optional[str] = None
@@ -56,6 +61,7 @@ class ApplicationUpdate(BaseModel):
 
 class ApplicationResponse(BaseModel):
     """Single application record."""
+
     applicationId: str
     userId: str
     jobId: str
@@ -71,6 +77,7 @@ class ApplicationResponse(BaseModel):
 
 class ApplicationStats(BaseModel):
     """Application stats summary."""
+
     total: int = 0
     saved: int = 0
     applied: int = 0
@@ -81,6 +88,7 @@ class ApplicationStats(BaseModel):
 
 
 # ─── Tailor Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("/resumes/tailor", response_model=TailorResponse)
 async def tailor_resume(
@@ -118,7 +126,9 @@ async def tailor_resume(
         "location": _safe("location"),
         "linkedin_url": _safe("linkedin_url"),
         "website": _safe("website"),
-        "github": getattr(current_user, "_data", {}).get("githubUsername", "") if hasattr(current_user, "_data") else "",
+        "github": getattr(current_user, "_data", {}).get("githubUsername", "")
+        if hasattr(current_user, "_data")
+        else "",
     }
 
     education = _parse_json(_safe("education", None))
@@ -150,6 +160,7 @@ async def tailor_resume(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         import traceback
+
         logger.error(
             "Resume tailoring failed",
             error=str(e),
@@ -172,6 +183,7 @@ async def get_tailored_resume(
 
     # Query Resumes table for tailored resume with this jobId
     from boto3.dynamodb.conditions import Attr
+
     resumes = await dynamo_service.query(
         table="Resumes",
         pk_name="userId",
@@ -269,6 +281,7 @@ async def list_applications(
     filter_expr = None
     if status_filter and status_filter in VALID_STATUSES:
         from boto3.dynamodb.conditions import Attr
+
         filter_expr = Attr("status").eq(status_filter)
 
     applications = await dynamo_service.query(

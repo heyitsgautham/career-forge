@@ -23,6 +23,7 @@ logger = structlog.get_logger()
 
 # ── Date freshness helper ─────────────────────────────────────────────────────
 
+
 def _is_recent_job(date_posted: str, max_age_hours: int) -> bool:
     """
     Return True if the job was posted within max_age_hours.
@@ -77,13 +78,34 @@ SEARCH_QUERIES = [
 # ── Management / non-engineering role keywords to always exclude ─────────────
 
 MANAGEMENT_ROLE_KEYWORDS = [
-    "project manager", "product manager", "program manager", "hr intern",
-    "human resources", "recruiter", "business development", "sales intern",
-    "marketing intern", "operations manager", "scrum master", "agile coach",
-    "account manager", "customer success", "talent acquisition", "social media",
-    "content writer", "content marketing", "digital marketing", "seo intern",
-    "finance intern", "accounting intern", "legal intern", "procurement",
-    "supply chain", "logistics", "operations intern", "management trainee",
+    "project manager",
+    "product manager",
+    "program manager",
+    "hr intern",
+    "human resources",
+    "recruiter",
+    "business development",
+    "sales intern",
+    "marketing intern",
+    "operations manager",
+    "scrum master",
+    "agile coach",
+    "account manager",
+    "customer success",
+    "talent acquisition",
+    "social media",
+    "content writer",
+    "content marketing",
+    "digital marketing",
+    "seo intern",
+    "finance intern",
+    "accounting intern",
+    "legal intern",
+    "procurement",
+    "supply chain",
+    "logistics",
+    "operations intern",
+    "management trainee",
     "business analyst intern",
 ]
 
@@ -250,9 +272,7 @@ class JobScraper:
 
             # Regex fallback for salary
             if not salary:
-                salary = _extract_salary_from_description(
-                    str(row.get("description") or "")
-                )
+                salary = _extract_salary_from_description(str(row.get("description") or ""))
 
             # ── Job type: normalise casing ───────────────────────────────────
             raw_type = str(row.get("job_type") or "").lower().strip()
@@ -273,7 +293,10 @@ class JobScraper:
             raw_date = row.get("date_posted")
             try:
                 import pandas as pd
-                date_posted_str = raw_date.strftime("%Y-%m-%d") if raw_date and raw_date is not pd.NaT else ""
+
+                date_posted_str = (
+                    raw_date.strftime("%Y-%m-%d") if raw_date and raw_date is not pd.NaT else ""
+                )
             except Exception:
                 s = str(raw_date) if raw_date else ""
                 date_posted_str = "" if s.lower() in ("nan", "nat", "none", "null") else s

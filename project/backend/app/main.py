@@ -20,7 +20,18 @@ logging.basicConfig(
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.cache_middleware import CacheControlMiddleware
-from app.api.routes import projects, resumes, templates, jobs, auth, health, github, skill_gap, applications, project_roadmap
+from app.api.routes import (
+    projects,
+    resumes,
+    templates,
+    jobs,
+    auth,
+    health,
+    github,
+    skill_gap,
+    applications,
+    project_roadmap,
+)
 
 
 # Configure structured logging
@@ -30,7 +41,7 @@ structlog.configure(
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     context_class=dict,
@@ -45,24 +56,27 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger.info("Starting CareerForge", version="1.0.0")
-    
+
     if settings.USE_DYNAMO:
         logger.info("Using DynamoDB for data storage")
         # Ensure Job Scout tables exist
         from app.services.dynamo_service import dynamo_service
+
         await dynamo_service.ensure_job_scout_tables()
         # Start hourly scrape scheduler
         from app.services.scheduler import start_scheduler
+
         start_scheduler()
     else:
         await init_db()
         logger.info("SQLite database initialized")
-    
+
     yield
-    
+
     # Shutdown
     if settings.USE_DYNAMO:
         from app.services.scheduler import stop_scheduler
+
         stop_scheduler()
     logger.info("Shutting down CareerForge")
 
@@ -114,9 +128,4 @@ app.include_router(project_roadmap.router, prefix="/api/project-roadmap", tags=[
 @app.get("/")
 async def root():
     """Root endpoint."""
-    return {
-        "name": settings.APP_NAME,
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs"
-    }
+    return {"name": settings.APP_NAME, "version": "1.0.0", "status": "running", "docs": "/docs"}

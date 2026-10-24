@@ -49,7 +49,9 @@ def test_get_rules_match_by_prefix():
                 response.headers["Cache-Control"] = preset
             return response
 
-        return asyncio.run(middleware.dispatch(Request(scope), call_next)).headers.get("cache-control")
+        return asyncio.run(middleware.dispatch(Request(scope), call_next)).headers.get(
+            "cache-control"
+        )
 
     assert run("/api/templates/abc") == "private, max-age=1800, stale-while-revalidate=3600"
     assert run("/api/job-scout/feed") == "no-cache"

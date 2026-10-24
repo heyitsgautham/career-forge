@@ -43,7 +43,11 @@ async def run_ingestion(
     await dynamo_service.update_item(
         table=f"{settings.DYNAMO_TABLE_PREFIX}Users",
         key={"userId": user_id},
-        updates={"ingestionStatus": "in_progress", "ingestionMode": mode, "ingestionStartedAt": datetime.utcnow().isoformat()},
+        updates={
+            "ingestionStatus": "in_progress",
+            "ingestionMode": mode,
+            "ingestionStartedAt": datetime.utcnow().isoformat(),
+        },
     )
 
     try:
@@ -78,9 +82,7 @@ async def run_ingestion(
         # Filter based on mode
         if mode == "sync":
             # Only repos already in DynamoDB
-            repos_to_process = [
-                r for r in repos if str(r.get("github_id")) in existing_github_ids
-            ]
+            repos_to_process = [r for r in repos if str(r.get("github_id")) in existing_github_ids]
         elif mode == "import_new":
             # Only repos NOT yet in DynamoDB
             repos_to_process = [
@@ -112,7 +114,9 @@ async def run_ingestion(
                 # For sync: reuse existing projectId so put_item overwrites in place
                 # For import_new: generate a fresh UUID
                 existing_pid = github_id_to_project_id.get(str(repo_meta.get("github_id")))
-                project_id = existing_pid if (mode == "sync" and existing_pid) else str(uuid.uuid4())
+                project_id = (
+                    existing_pid if (mode == "sync" and existing_pid) else str(uuid.uuid4())
+                )
 
                 await github_service.ingest_and_embed_repo(
                     repo_data=repo_detail,
@@ -136,15 +140,17 @@ async def run_ingestion(
                 key={"userId": user_id},
             )
             existing_skills: list = existing_user.get("skills") or [] if existing_user else []
-            merged_skills = list(dict.fromkeys(
-                [s for s in existing_skills if s] + sorted(all_tech)
-            ))
+            merged_skills = list(
+                dict.fromkeys([s for s in existing_skills if s] + sorted(all_tech))
+            )
             await dynamo_service.update_item(
                 table=f"{settings.DYNAMO_TABLE_PREFIX}Users",
                 key={"userId": user_id},
                 updates={"skills": merged_skills},
             )
-            logger.info("run_ingestion: updated user skills", user_id=user_id, new_count=len(merged_skills))
+            logger.info(
+                "run_ingestion: updated user skills", user_id=user_id, new_count=len(merged_skills)
+            )
 
         # Update ingestion status
         summary = {

@@ -32,6 +32,7 @@ logger = structlog.get_logger()
 
 # ─── Request Models ──────────────────────────────────────────────────────────
 
+
 class SuggestRequest(BaseModel):
     domain: str = Field(..., min_length=2, max_length=100)
 
@@ -44,6 +45,7 @@ class PlanRequest(BaseModel):
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
+
 
 @router.post("/suggest")
 async def suggest(

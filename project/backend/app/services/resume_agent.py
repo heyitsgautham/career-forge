@@ -31,9 +31,11 @@ logger = structlog.get_logger()
 # Data classes
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class GenerationResult:
     """Result of legacy template-fill resume generation."""
+
     latex_content: str
     warnings: List[str]
     changes_made: List[str]
@@ -43,6 +45,7 @@ class GenerationResult:
 @dataclass
 class M2GenerationResult:
     """Result of resume generation (S3 summary-based)."""
+
     latex_content: str
     analysis: str
     resume_id: str
@@ -60,11 +63,14 @@ _analysis_cache: Dict[str, Dict[str, Any]] = {}
 
 def _cache_key(summaries: List[str], jd: Optional[str], experience: Optional[list]) -> str:
     """Build a deterministic cache key from inputs."""
-    content = _json.dumps({
-        "summaries": sorted(summaries),
-        "jd": jd or "",
-        "has_experience": bool(experience),
-    }, sort_keys=True)
+    content = _json.dumps(
+        {
+            "summaries": sorted(summaries),
+            "jd": jd or "",
+            "has_experience": bool(experience),
+        },
+        sort_keys=True,
+    )
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 
@@ -236,6 +242,7 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
 # S3 helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 async def list_project_summaries(user_id: str) -> List[str]:
     """List and download all project summary .md files from S3 for a user."""
     from app.services.s3_service import s3_service
@@ -263,6 +270,7 @@ async def list_project_summaries(user_id: str) -> List[str]:
 # ──────────────────────────────────────────────────────────────────────────────
 # Main generation pipeline
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 async def generate_resume_from_summaries(
     user_id: str,
@@ -357,6 +365,7 @@ async def generate_resume_from_summaries(
 
     if compilation_result.success and compilation_result.pdf_path:
         from pathlib import Path
+
         pdf_bytes = Path(compilation_result.pdf_path).read_bytes()
         await s3_service.upload_file(
             key=pdf_s3_key,
@@ -425,9 +434,9 @@ async def _call_claude_for_resume(
                 f"  Education {i}: {edu.get('degree', '')} in {edu.get('field', '')} "
                 f"from {edu.get('school', '')} ({edu.get('dates', '')})"
             )
-            if edu.get('gpa'):
+            if edu.get("gpa"):
                 edu_lines.append(f"    GPA: {edu['gpa']}")
-            if edu.get('location'):
+            if edu.get("location"):
                 edu_lines.append(f"    Location: {edu['location']}")
         if edu_lines:
             extra_context_parts.append("## Education\n" + "\n".join(edu_lines))
@@ -448,7 +457,11 @@ async def _call_claude_for_resume(
         extra_context_parts.append(f"## Technical Skills\n  {', '.join(skills)}")
 
     if certifications:
-        cert_lines = [f"  - {c.get('name', '')} ({c.get('issuer', '')})" for c in certifications if isinstance(c, dict)]
+        cert_lines = [
+            f"  - {c.get('name', '')} ({c.get('issuer', '')})"
+            for c in certifications
+            if isinstance(c, dict)
+        ]
         if cert_lines:
             extra_context_parts.append("## Certifications\n" + "\n".join(cert_lines))
 
@@ -489,7 +502,7 @@ Perform Step 0 analysis first (gap check → JD keyword extraction → project r
         temperature=0.3,
     )
 
-    response = response.replace('\r\n', '\n').replace('\r', '\n')
+    response = response.replace("\r\n", "\n").replace("\r", "\n")
 
     # Parse response
     analysis = ""
@@ -513,7 +526,9 @@ Perform Step 0 analysis first (gap check → JD keyword extraction → project r
         logger.error("Failed to parse resume JSON", error=str(e), json_preview=json_str[:500])
         raise ValueError(f"Claude returned invalid JSON: {e}")
 
-    logger.info("Claude generation complete", analysis_len=len(analysis), keys=list(resume_data.keys()))
+    logger.info(
+        "Claude generation complete", analysis_len=len(analysis), keys=list(resume_data.keys())
+    )
     return analysis, resume_data
 
 
@@ -657,10 +672,10 @@ class ResumeGenerationAgent:
                 parts.append(f"\n  Education {i}:")
                 parts.append(f"    School: {edu.get('school', 'N/A')}")
                 parts.append(f"    Degree: {edu.get('degree', 'N/A')}")
-                if edu.get('field'):
+                if edu.get("field"):
                     parts.append(f"    Field: {edu.get('field')}")
                 parts.append(f"    Dates: {edu.get('dates', 'N/A')}")
-                if edu.get('gpa'):
+                if edu.get("gpa"):
                     parts.append(f"    GPA: {edu.get('gpa')}")
         if "certifications" in user_data and user_data["certifications"]:
             parts.append("\nCERTIFICATIONS:")

@@ -95,9 +95,9 @@ async def backfill(dry_run: bool = False):
 
     # Filter: LinkedIn source AND datePosted is missing / empty / 'nan'
     targets = [
-        j for j in all_jobs
-        if j.get("source", "").lower() == "linkedin"
-        and _is_missing_date(j.get("datePosted", ""))
+        j
+        for j in all_jobs
+        if j.get("source", "").lower() == "linkedin" and _is_missing_date(j.get("datePosted", ""))
     ]
 
     print(f"Found {len(targets)} LinkedIn jobs with empty datePosted.")

@@ -111,7 +111,9 @@ class BedrockClient:
             ],
             "inferenceConfig": {
                 "maxTokens": max_tokens or settings.BEDROCK_MAX_TOKENS,
-                "temperature": temperature if temperature is not None else settings.BEDROCK_TEMPERATURE,
+                "temperature": temperature
+                if temperature is not None
+                else settings.BEDROCK_TEMPERATURE,
             },
         }
 
@@ -121,11 +123,7 @@ class BedrockClient:
         try:
             response = await asyncio.to_thread(client.converse, **kwargs)
 
-            content = (
-                response.get("output", {})
-                .get("message", {})
-                .get("content", [])
-            )
+            content = response.get("output", {}).get("message", {}).get("content", [])
             if content:
                 return content[0].get("text", "")
             return ""
@@ -249,7 +247,9 @@ class BedrockClient:
             ],
             "inferenceConfig": {
                 "maxTokens": max_tokens or settings.BEDROCK_MAX_TOKENS,
-                "temperature": temperature if temperature is not None else settings.BEDROCK_TEMPERATURE,
+                "temperature": temperature
+                if temperature is not None
+                else settings.BEDROCK_TEMPERATURE,
             },
         }
 

@@ -4,6 +4,7 @@ CLI Resume Generation Test
 ==========================
 Generates a resume using the full pipeline and saves output locally for inspection.
 """
+
 import asyncio
 import json
 import sys
@@ -96,6 +97,7 @@ async def main():
     except Exception as e:
         print(f"GENERATION FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
@@ -112,7 +114,7 @@ async def main():
         f.write(result.latex_content)
     print(f"  LaTeX saved: {tex_path}")
 
-    # 4. Save analysis 
+    # 4. Save analysis
     analysis_path = f"/tmp/test_resume_analysis.txt"
     with open(analysis_path, "w") as f:
         f.write(result.analysis)
@@ -123,14 +125,15 @@ async def main():
     pdf_files = []
     if os.path.exists(uploads_dir):
         pdf_files = sorted(
-            [f for f in os.listdir(uploads_dir) if f.endswith('.pdf')],
+            [f for f in os.listdir(uploads_dir) if f.endswith(".pdf")],
             key=lambda f: os.path.getmtime(os.path.join(uploads_dir, f)),
-            reverse=True
+            reverse=True,
         )
 
     if pdf_files:
         latest_pdf = os.path.join(uploads_dir, pdf_files[0])
         import shutil
+
         local_pdf = "/tmp/test_resume.pdf"
         shutil.copy2(latest_pdf, local_pdf)
         print(f"  PDF saved: {local_pdf}")
@@ -156,7 +159,13 @@ async def main():
 
     # Count resumeSubheading entries
     import re
-    edu_count = len(re.findall(r"\\resumeSubheading", latex.split("Experience")[0] if "Experience" in latex else latex.split("Projects")[0]))
+
+    edu_count = len(
+        re.findall(
+            r"\\resumeSubheading",
+            latex.split("Experience")[0] if "Experience" in latex else latex.split("Projects")[0],
+        )
+    )
     print(f"  Education entries: {edu_count}")
 
     # Count project entries

@@ -112,10 +112,12 @@ Return ONLY valid JSON, no markdown, no code blocks, no explanation."""
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.error(f"Batch analysis failed for job {i}", error=str(result))
-                processed.append({
-                    **self._empty_analysis(),
-                    "jobId": jobs[i].get("jobId"),
-                })
+                processed.append(
+                    {
+                        **self._empty_analysis(),
+                        "jobId": jobs[i].get("jobId"),
+                    }
+                )
             else:
                 processed.append(result)
 
@@ -187,18 +189,40 @@ Return ONLY valid JSON, no markdown, no code blocks, no explanation."""
         text_lower = jd_text.lower()
 
         SKILL_KEYWORDS = {
-            "python": "Python", "java": "Java", "javascript": "JavaScript",
-            "typescript": "TypeScript", "react": "React", "next.js": "Next.js",
-            "node.js": "Node.js", "node": "Node.js", "fastapi": "FastAPI",
-            "django": "Django", "flask": "Flask", "spring": "Spring Boot",
-            "postgresql": "PostgreSQL", "postgres": "PostgreSQL",
-            "mysql": "MySQL", "mongodb": "MongoDB", "redis": "Redis",
-            "docker": "Docker", "kubernetes": "Kubernetes", "k8s": "Kubernetes",
-            "aws": "AWS", "gcp": "GCP", "azure": "Azure",
-            "terraform": "Terraform", "ci/cd": "CI/CD", "git": "Git",
-            "graphql": "GraphQL", "rest api": "REST API", "microservices": "Microservices",
-            "sql": "SQL", "linux": "Linux", "kafka": "Kafka",
-            "machine learning": "Machine Learning", "tensorflow": "TensorFlow",
+            "python": "Python",
+            "java": "Java",
+            "javascript": "JavaScript",
+            "typescript": "TypeScript",
+            "react": "React",
+            "next.js": "Next.js",
+            "node.js": "Node.js",
+            "node": "Node.js",
+            "fastapi": "FastAPI",
+            "django": "Django",
+            "flask": "Flask",
+            "spring": "Spring Boot",
+            "postgresql": "PostgreSQL",
+            "postgres": "PostgreSQL",
+            "mysql": "MySQL",
+            "mongodb": "MongoDB",
+            "redis": "Redis",
+            "docker": "Docker",
+            "kubernetes": "Kubernetes",
+            "k8s": "Kubernetes",
+            "aws": "AWS",
+            "gcp": "GCP",
+            "azure": "Azure",
+            "terraform": "Terraform",
+            "ci/cd": "CI/CD",
+            "git": "Git",
+            "graphql": "GraphQL",
+            "rest api": "REST API",
+            "microservices": "Microservices",
+            "sql": "SQL",
+            "linux": "Linux",
+            "kafka": "Kafka",
+            "machine learning": "Machine Learning",
+            "tensorflow": "TensorFlow",
             "pytorch": "PyTorch",
         }
 

@@ -37,11 +37,11 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     DEBUG: bool = True
     SECRET_KEY: str = "change-me-in-production"
-    
+
     # API Server
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
-    
+
     # AWS Configuration
     AWS_REGION: str = "us-east-1"
 
@@ -55,31 +55,31 @@ class Settings(BaseSettings):
     SM_COGNITO_CLIENT_SECRET_NAME: str = "careerforge/cognito-app-client-secret"
     # Set to false for local dev and tests so startup never calls AWS
     USE_SECRETS_MANAGER: bool = True
-    
+
     # AWS Bedrock
     BEDROCK_MODEL_ID: str = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     BEDROCK_EMBED_MODEL_ID: str = "amazon.titan-embed-text-v2:0"
     BEDROCK_TEMPERATURE: float = 0.2
     BEDROCK_MAX_TOKENS: int = 8192
-    
+
     # AWS DynamoDB
     USE_DYNAMO: bool = True
     DYNAMO_TABLE_PREFIX: str = ""
-    
+
     # AWS S3
     S3_BUCKET: str = "careerforge-pdfs-602664593597"
-    
+
     # Database (SQLite for local dev fallback)
     DATABASE_URL: str = "sqlite+aiosqlite:///./latex_agent.db"
-    
+
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
-    
+
     # ChromaDB
     CHROMA_HOST: str = "localhost"
     CHROMA_PORT: int = 8001
     CHROMA_PERSIST_DIRECTORY: str = "./chroma_data"
-    
+
     # Gemini API Keys (legacy — kept for fallback)
     GEMINI_API_KEY_1: Optional[str] = None
     GEMINI_API_KEY_2: Optional[str] = None
@@ -87,13 +87,13 @@ class Settings(BaseSettings):
     GEMINI_API_KEY_4: Optional[str] = None
     GEMINI_API_KEY_5: Optional[str] = None
     GEMINI_API_KEY_6: Optional[str] = None
-    
+
     # Gemini Model Configuration (legacy)
     GEMINI_MODEL: str = "gemini-2.0-flash-lite"
     GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
     GEMINI_TEMPERATURE: float = 0.2
     GEMINI_MAX_TOKENS: int = 8192
-    
+
     # GitHub App (replaces OAuth App — see M1.6)
     GITHUB_APP_ID: Optional[str] = None
     GITHUB_APP_SLUG: str = "careerforge"
@@ -104,7 +104,7 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: Optional[str] = None
     GITHUB_CLIENT_SECRET: Optional[str] = None
     GITHUB_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/github"
-    
+
     # AWS Cognito
     COGNITO_USER_POOL_ID: str = "us-east-1_Mtxh0HEPD"
     COGNITO_APP_CLIENT_ID: str = "2lac8ac29r2rnjbkk7q43p1hr2"
@@ -112,25 +112,25 @@ class Settings(BaseSettings):
     COGNITO_APP_CLIENT_SECRET: Optional[str] = None
     COGNITO_DOMAIN: str = "careerforge.auth.us-east-1.amazoncognito.com"
     COGNITO_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/cognito"
-    
+
     # LinkedIn OAuth
     LINKEDIN_CLIENT_ID: Optional[str] = None
     LINKEDIN_CLIENT_SECRET: Optional[str] = None
     LINKEDIN_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/linkedin"
-    
+
     # JWT Configuration
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
-    
+
     # File Storage
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
-    
+
     # LaTeX Compilation
     LATEX_COMPILER_TIMEOUT: int = 30
     LATEX_COMPILER_MEMORY_LIMIT: str = "256m"
-    
+
     @property
     def gemini_api_keys(self) -> List[str]:
         """Get all configured Gemini API keys."""
@@ -164,6 +164,7 @@ class Settings(BaseSettings):
 
         try:
             import boto3
+
             sm = boto3.client("secretsmanager", region_name=self.AWS_REGION)
 
             # JWT signing key
