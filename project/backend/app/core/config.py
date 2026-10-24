@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     SM_APP_SECRET_NAME: str = "careerforge/app-secret-key"
     SM_GITHUB_CLIENT_SECRET_NAME: str = "careerforge/github-app-client-secret"
     SM_COGNITO_CLIENT_SECRET_NAME: str = "careerforge/cognito-app-client-secret"
+    # Set to false for local dev and tests so startup never calls AWS
+    USE_SECRETS_MANAGER: bool = True
     
     # AWS Bedrock
     BEDROCK_MODEL_ID: str = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
@@ -106,7 +108,8 @@ class Settings(BaseSettings):
     # AWS Cognito
     COGNITO_USER_POOL_ID: str = "us-east-1_Mtxh0HEPD"
     COGNITO_APP_CLIENT_ID: str = "2lac8ac29r2rnjbkk7q43p1hr2"
-    COGNITO_APP_CLIENT_SECRET: str = "REDACTED_COGNITO_SECRET"
+    # Never hardcode this. Set it in .env or store it in Secrets Manager.
+    COGNITO_APP_CLIENT_SECRET: Optional[str] = None
     COGNITO_DOMAIN: str = "careerforge.auth.us-east-1.amazoncognito.com"
     COGNITO_CALLBACK_URL: str = "http://localhost:3000/api/auth/callback/cognito"
     
@@ -156,6 +159,9 @@ class Settings(BaseSettings):
         """
         _SENTINEL = "change-me-in-production"
 
+        if not self.USE_SECRETS_MANAGER:
+            return self
+
         try:
             import boto3
             sm = boto3.client("secretsmanager", region_name=self.AWS_REGION)
@@ -179,8 +185,7 @@ class Settings(BaseSettings):
                     object.__setattr__(self, "GITHUB_APP_CLIENT_SECRET", val)
 
             # Cognito App client secret
-            _COGNITO_DEFAULT = "REDACTED_COGNITO_SECRET"
-            if self.COGNITO_APP_CLIENT_SECRET == _COGNITO_DEFAULT:
+            if not self.COGNITO_APP_CLIENT_SECRET:
                 val = _fetch_secret(sm, self.SM_COGNITO_CLIENT_SECRET_NAME)
                 if val:
                     object.__setattr__(self, "COGNITO_APP_CLIENT_SECRET", val)
