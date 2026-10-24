@@ -19,7 +19,7 @@ os.environ.update(
         "USE_DYNAMO": "false",
         "DATABASE_URL": f"sqlite+aiosqlite:///{_TMP}/test.db",
         "UPLOAD_DIR": f"{_TMP}/uploads",
-        "JWT_SECRET_KEY": "test-jwt-secret-key-that-is-long-enough",
+        "JWT_SECRET_KEY": "test-jwt-secret-key-that-is-long-enough-for-hs256",
         "SECRET_KEY": "test-app-secret-key",
         "AWS_ACCESS_KEY_ID": "testing",
         "AWS_SECRET_ACCESS_KEY": "testing",
