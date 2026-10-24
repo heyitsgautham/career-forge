@@ -24,7 +24,7 @@ M0 established the full AWS foundation for Career-Forge. All five task groups we
 | Region | `us-east-1` |
 | IAM User | `careerforge-dev` |
 | Policy | `AdministratorAccess` |
-| Access Key ID | `AKIAYYUM35C6RVPPNJOG` |
+| Access Key ID | redacted, kept in the `careerforge-dev` AWS CLI profile |
 | CLI Verification | `aws sts get-caller-identity` → `arn:aws:iam::602664593597:user/careerforge-dev` |
 | Billing Alerts | `billing-alert-10` ($10), `billing-alert-30` ($30), `billing-alert-45` ($45) via CloudWatch on `AWS/Billing EstimatedCharges` metric |
 | MCP Config | `.vscode/mcp.json` updated — `AWS_PROFILE` set to `careerforge-dev` on both `aws-serverless` and `aws-iac` servers |
