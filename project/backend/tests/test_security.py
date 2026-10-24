@@ -38,7 +38,7 @@ def test_expired_token_decodes_to_none():
 
 def test_token_signed_with_another_key_is_rejected(monkeypatch):
     token = create_access_token({"sub": "user-123"})
-    monkeypatch.setattr(security.settings, "JWT_SECRET_KEY", "a-different-secret-key-value")
+    monkeypatch.setattr(security.settings, "JWT_SECRET_KEY", "a-different-secret-key-value-of-32-bytes")
     assert decode_access_token(token) is None
 
 
