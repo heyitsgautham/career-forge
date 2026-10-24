@@ -474,6 +474,12 @@ class LaTeXCompilationService:
             (r"\\openin", "File input operation detected"),
             (r"\\openout", "File output operation detected"),
             (r"\\catcode", "Category code manipulation detected"),
+            # pdflatex lets \input read any file by default, so block paths that
+            # leave the temporary build directory (server files, ~/.aws, .env)
+            (
+                r"\\(input|include|InputIfFileExists)\s*\{\s*(/|~|\.\.)",
+                "Input from an absolute or parent path detected",
+            ),
         ]
 
         for pattern, message in dangerous_patterns:
