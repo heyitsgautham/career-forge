@@ -21,84 +21,16 @@ from app.core.config import settings
 from app.core.security import token_encryptor
 from app.services.bedrock_client import bedrock_client
 from app.services.dynamo_service import dynamo_service
+from app.services.github_tech import (
+    parse_package_json,
+    parse_pyproject_toml,
+    parse_repo_url,
+    parse_requirements_txt,
+    render_summary_md,
+)
 from app.services.s3_service import s3_service
 
 logger = structlog.get_logger()
-
-
-# Mapping of package names to canonical technology names
-TECH_MAPPING = {
-    # JavaScript/TypeScript
-    "react": "React",
-    "react-dom": "React",
-    "next": "Next.js",
-    "vue": "Vue.js",
-    "nuxt": "Nuxt.js",
-    "angular": "Angular",
-    "@angular/core": "Angular",
-    "svelte": "Svelte",
-    "express": "Express.js",
-    "fastify": "Fastify",
-    "nestjs": "NestJS",
-    "@nestjs/core": "NestJS",
-    "typescript": "TypeScript",
-    "tailwindcss": "Tailwind CSS",
-    "prisma": "Prisma",
-    "@prisma/client": "Prisma",
-    "mongoose": "MongoDB",
-    "sequelize": "Sequelize",
-    "graphql": "GraphQL",
-    "apollo-server": "Apollo GraphQL",
-    "socket.io": "Socket.IO",
-    "redis": "Redis",
-    "webpack": "Webpack",
-    "vite": "Vite",
-    "jest": "Jest",
-    "mocha": "Mocha",
-    "cypress": "Cypress",
-    "playwright": "Playwright",
-    # Python
-    "django": "Django",
-    "flask": "Flask",
-    "fastapi": "FastAPI",
-    "sqlalchemy": "SQLAlchemy",
-    "pandas": "Pandas",
-    "numpy": "NumPy",
-    "tensorflow": "TensorFlow",
-    "pytorch": "PyTorch",
-    "torch": "PyTorch",
-    "scikit-learn": "Scikit-learn",
-    "sklearn": "Scikit-learn",
-    "keras": "Keras",
-    "celery": "Celery",
-    "pytest": "Pytest",
-    "pydantic": "Pydantic",
-    "alembic": "Alembic",
-    "beautifulsoup4": "Beautiful Soup",
-    "scrapy": "Scrapy",
-    "requests": "Requests",
-    "httpx": "HTTPX",
-    "aiohttp": "aiohttp",
-    # Java
-    "spring-boot": "Spring Boot",
-    "spring-framework": "Spring Framework",
-    "hibernate": "Hibernate",
-    # Databases
-    "pg": "PostgreSQL",
-    "psycopg2": "PostgreSQL",
-    "mysql": "MySQL",
-    "mongodb": "MongoDB",
-    "pymongo": "MongoDB",
-    "sqlite3": "SQLite",
-    # Cloud/DevOps
-    "aws-sdk": "AWS",
-    "boto3": "AWS",
-    "@aws-sdk": "AWS",
-    "google-cloud": "Google Cloud",
-    "azure": "Azure",
-    "docker": "Docker",
-    "kubernetes": "Kubernetes",
-}
 
 
 class GitHubIngestionService:
@@ -347,7 +279,7 @@ class GitHubIngestionService:
             Repository metadata dict
         """
         # Parse repo URL
-        full_name = self._parse_repo_url(repo_url)
+        full_name = parse_repo_url(repo_url)
 
         if encrypted_token:
             gh = self._get_github_client(encrypted_token)
@@ -511,7 +443,7 @@ class GitHubIngestionService:
         try:
             package_json = repo.get_contents("package.json")
             content = base64.b64decode(package_json.content).decode("utf-8")
-            technologies.update(self._parse_package_json(content))
+            technologies.update(parse_package_json(content))
         except GithubException:
             pass
 
@@ -519,7 +451,7 @@ class GitHubIngestionService:
         try:
             requirements = repo.get_contents("requirements.txt")
             content = base64.b64decode(requirements.content).decode("utf-8")
-            technologies.update(self._parse_requirements_txt(content))
+            technologies.update(parse_requirements_txt(content))
         except GithubException:
             pass
 
@@ -527,7 +459,7 @@ class GitHubIngestionService:
         try:
             pyproject = repo.get_contents("pyproject.toml")
             content = base64.b64decode(pyproject.content).decode("utf-8")
-            technologies.update(self._parse_pyproject_toml(content))
+            technologies.update(parse_pyproject_toml(content))
         except GithubException:
             pass
 
@@ -552,70 +484,6 @@ class GitHubIngestionService:
             technologies.add(lang)
 
         return list(technologies)
-
-    def _parse_package_json(self, content: str) -> List[str]:
-        """Parse package.json and extract technologies."""
-        import json
-
-        technologies = []
-        try:
-            data = json.loads(content)
-            deps = {
-                **data.get("dependencies", {}),
-                **data.get("devDependencies", {}),
-            }
-
-            for pkg_name in deps.keys():
-                canonical = TECH_MAPPING.get(pkg_name.lower())
-                if canonical:
-                    technologies.append(canonical)
-
-            # Add Node.js/JavaScript by default
-            technologies.append("Node.js")
-            technologies.append("JavaScript")
-
-        except json.JSONDecodeError:
-            pass
-
-        return list(set(technologies))
-
-    def _parse_requirements_txt(self, content: str) -> List[str]:
-        """Parse requirements.txt and extract technologies."""
-        technologies = ["Python"]
-
-        for line in content.split("\n"):
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-
-            # Extract package name (before ==, >=, etc.)
-            pkg_name = line.split("==")[0].split(">=")[0].split("<=")[0].split("[")[0].strip()
-            canonical = TECH_MAPPING.get(pkg_name.lower())
-            if canonical:
-                technologies.append(canonical)
-
-        return list(set(technologies))
-
-    def _parse_pyproject_toml(self, content: str) -> List[str]:
-        """Parse pyproject.toml and extract technologies."""
-        technologies = ["Python"]
-
-        # Simple parsing - look for known package names
-        content_lower = content.lower()
-        for pkg_name, canonical in TECH_MAPPING.items():
-            if pkg_name in content_lower:
-                technologies.append(canonical)
-
-        return list(set(technologies))
-
-    def _parse_repo_url(self, url: str) -> str:
-        """Parse GitHub URL to get full_name (owner/repo)."""
-        url = url.rstrip("/")
-        if "github.com" in url:
-            parts = url.split("github.com/")[-1].split("/")
-            if len(parts) >= 2:
-                return f"{parts[0]}/{parts[1].replace('.git', '')}"
-        raise ValueError(f"Invalid GitHub URL: {url}")
 
     async def create_project_from_repo(
         self,
@@ -661,7 +529,7 @@ class GitHubIngestionService:
                 "create_project_from_repo: Bedrock summary FAILED", repo=name, error=str(e)
             )
             raise
-        md_content = self._render_summary_md(name, summary)
+        md_content = render_summary_md(name, summary)
         return {
             "summary": summary,
             "summaryMd": md_content,
@@ -754,34 +622,6 @@ RULES:
             "capabilities": [],
             "highlights": [f"Developed {name} using {', '.join(list(languages.keys())[:3])}"],
         }
-
-    def _render_summary_md(self, name: str, summary: Dict[str, Any]) -> str:
-        """Render the structured dict into the academia-sync.md format."""
-        lines = [
-            f"# {name}",
-            "",
-            "## 1. High-Level Pitch",
-            f"- **One-Liner:** {summary.get('oneLiner', '')}",
-            f"- **Problem Type:** {summary.get('problemType', '')}",
-            f"- **Domain/Context:** {summary.get('domain', '')}",
-            "",
-            '## 2. Technical Implementation (The "How")',
-            f"- **Languages:** {', '.join(summary.get('languages', []))}",
-            f"- **Frameworks:** {', '.join(summary.get('frameworks', []))}",
-            f"- **Infrastructure/Tools:** {', '.join(summary.get('infrastructure', []))}",
-            f"- **Key Algorithms/Techniques:** {', '.join(summary.get('keyTechniques', []))}",
-            "",
-            "## 3. Specialized Capabilities (For JD Matching)",
-        ]
-        for cap in summary.get("capabilities", []):
-            lines.append(f"- {cap}")
-        lines += [
-            "",
-            "## 4. Impact & Metrics (CRITICAL)",
-        ]
-        for h in summary.get("highlights", []):
-            lines.append(f"- {h}")
-        return "\n".join(lines)
 
     async def ingest_and_embed_repo(
         self,
