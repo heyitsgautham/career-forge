@@ -15,6 +15,8 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/lib/**', 'src/hooks/**', 'src/components/**'],
       reporter: ['text-summary', 'lcov'],
+      // Floors sit just under current coverage, so they only stop regressions. Raise them as tests land.
+      thresholds: { lines: 10, statements: 10, functions: 7, branches: 6 },
     },
   },
 });
