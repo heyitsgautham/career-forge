@@ -529,7 +529,11 @@ async def cognito_callback(callback_data: CognitoCallbackRequest):
     """
     import base64 as _b64
 
-    if not settings.COGNITO_APP_CLIENT_ID or not settings.COGNITO_DOMAIN:
+    if (
+        not settings.COGNITO_APP_CLIENT_ID
+        or not settings.COGNITO_APP_CLIENT_SECRET
+        or not settings.COGNITO_DOMAIN
+    ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Cognito not configured",
