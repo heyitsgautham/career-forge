@@ -5,14 +5,13 @@ Generates a personalised project-based learning roadmap
 from skill gap analysis results using Bedrock Claude.
 """
 
-import json
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from app.services.bedrock_client import bedrock_client
 from app.services.dynamo_service import dynamo_service
 from app.services.gap_analysis import get_cached_report
-
 
 logger = structlog.get_logger()
 
@@ -139,7 +138,7 @@ Return ONLY the JSON object with exactly 4 weeks."""
 
     except Exception as e:
         logger.error("Roadmap generation via Claude failed", error=str(e))
-        raise ValueError("Failed to generate learning roadmap. Please try again.")
+        raise ValueError("Failed to generate learning roadmap. Please try again.") from e
 
     # 3. Build roadmap document
     roadmap_id = dynamo_service.generate_id()

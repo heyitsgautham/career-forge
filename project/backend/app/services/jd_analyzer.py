@@ -7,7 +7,8 @@ Replaces the old Vertex AI / Gemini-based analyzer.
 """
 
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
 import structlog
 
 from app.services.bedrock_client import bedrock_client
@@ -147,7 +148,7 @@ Return ONLY valid JSON, no markdown, no code blocks, no explanation."""
         analyses = await self.analyze_batch(unanalyzed)
 
         success_count = 0
-        for job, analysis in zip(unanalyzed, analyses):
+        for job, analysis in zip(unanalyzed, analyses, strict=False):
             job_id = job["jobId"]
             try:
                 updates = {

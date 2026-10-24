@@ -6,9 +6,9 @@ Parsed and analyzed job descriptions.
 
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
-from sqlalchemy import String, DateTime, Text, ForeignKey
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -71,5 +71,5 @@ class JobDescription(Base):
 
 
 # Import for type hints
-from app.models.user import User
 from app.models.resume import Resume
+from app.models.user import User

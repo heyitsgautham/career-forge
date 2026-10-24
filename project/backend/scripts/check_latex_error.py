@@ -1,7 +1,6 @@
 """Check the last resume's LaTeX for syntax errors."""
 
 import sqlite3
-import sys
 
 
 def check_latex():
@@ -11,8 +10,8 @@ def check_latex():
     # Get the latest resume
     cursor.execute("""
         SELECT id, name, latex_content, status, error_message, compilation_log
-        FROM resumes 
-        ORDER BY updated_at DESC 
+        FROM resumes
+        ORDER BY updated_at DESC
         LIMIT 1
     """)
 

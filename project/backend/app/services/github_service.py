@@ -6,23 +6,22 @@ Uses GitHub App installation tokens for repo access
 and Bedrock for structured project summaries.
 """
 
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 import base64
 import time
-import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import httpx
+import jwt as pyjwt
 import structlog
 from github import Github, GithubException
 from github.Repository import Repository
-import httpx
-import jwt as pyjwt
 
 from app.core.config import settings
 from app.core.security import token_encryptor
 from app.services.bedrock_client import bedrock_client
 from app.services.dynamo_service import dynamo_service
 from app.services.s3_service import s3_service
-
 
 logger = structlog.get_logger()
 
@@ -72,7 +71,6 @@ TECH_MAPPING = {
     "sklearn": "Scikit-learn",
     "keras": "Keras",
     "celery": "Celery",
-    "redis": "Redis",
     "pytest": "Pytest",
     "pydantic": "Pydantic",
     "alembic": "Alembic",
@@ -543,7 +541,7 @@ class GitHubIngestionService:
 
         # Check go.mod (Go)
         try:
-            go_mod = repo.get_contents("go.mod")
+            repo.get_contents("go.mod")
             technologies.add("Go")
         except GithubException:
             pass

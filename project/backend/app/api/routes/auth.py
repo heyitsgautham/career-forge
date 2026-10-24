@@ -4,28 +4,28 @@ Authentication Routes
 User authentication and GitHub OAuth.
 """
 
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Body
-from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from pydantic import BaseModel, EmailStr, Field
+
 import httpx
 import structlog
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile, status
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.config import settings
-from app.core.security import (
-    verify_password,
-    get_password_hash,
-    create_access_token,
-    token_encryptor,
-)
-from app.models.user import User, GithubConnection, LinkedInConnection
 from app.api.deps import get_current_user
-from app.services.document_parser import DocumentParserService
+from app.core.config import settings
+from app.core.database import get_db
+from app.core.security import (
+    create_access_token,
+    get_password_hash,
+    token_encryptor,
+    verify_password,
+)
+from app.models.user import GithubConnection, LinkedInConnection, User
 from app.services.bedrock_client import bedrock_client
+from app.services.document_parser import DocumentParserService
 
 logger = structlog.get_logger()
 
@@ -138,8 +138,9 @@ async def register(
 ):
     """Register a new user with email and password."""
     if settings.USE_DYNAMO:
-        from app.services.dynamo_service import dynamo_service
         from boto3.dynamodb.conditions import Attr
+
+        from app.services.dynamo_service import dynamo_service
 
         existing = await dynamo_service.scan(
             "Users", filter_expression=Attr("email").eq(user_data.email)
@@ -202,8 +203,9 @@ async def login(
 ):
     """Login with email and password."""
     if settings.USE_DYNAMO:
-        from app.services.dynamo_service import dynamo_service
         from boto3.dynamodb.conditions import Attr
+
+        from app.services.dynamo_service import dynamo_service
 
         results = await dynamo_service.scan(
             "Users", filter_expression=Attr("email").eq(credentials.email)
@@ -351,10 +353,10 @@ async def github_callback(
         )
 
     if settings.USE_DYNAMO:
-        from app.services.dynamo_service import dynamo_service
         from boto3.dynamodb.conditions import Attr
 
-        is_new_user = False
+        from app.services.dynamo_service import dynamo_service
+
         encrypted_token = token_encryptor.encrypt(github_token)
         installation_id = callback_data.installation_id
 
@@ -407,7 +409,6 @@ async def github_callback(
                     user_id = email_users[0]["userId"]
                 else:
                     # Create new user
-                    is_new_user = True
                     user_id = dynamo_service.generate_id()
                     now = dynamo_service.now_iso()
                     new_user_item = {
@@ -589,8 +590,9 @@ async def cognito_callback(callback_data: CognitoCallbackRequest):
         raise HTTPException(status_code=400, detail="No email in Cognito token")
 
     # ── Find or create user in DynamoDB ──
-    from app.services.dynamo_service import dynamo_service
     from boto3.dynamodb.conditions import Attr
+
+    from app.services.dynamo_service import dynamo_service
 
     # First check by cognitoSub
     existing = await dynamo_service.scan(
@@ -673,7 +675,7 @@ async def upload_resume_for_profile(
     ext = file.filename.lower().split(".")[-1]
     if ext not in ["pdf", "docx", "doc", "txt"]:
         raise HTTPException(
-            status_code=400, detail=f"Unsupported file type. Please upload PDF, DOCX, or TXT files."
+            status_code=400, detail="Unsupported file type. Please upload PDF, DOCX, or TXT files."
         )
 
     try:
@@ -698,7 +700,7 @@ async def upload_resume_for_profile(
 
 Return a JSON object with these fields (use null for any field not found):
 - name: Full name
-- email: Email address  
+- email: Email address
 - phone: Phone number
 - location: City and state
 - city: City
@@ -730,7 +732,7 @@ Return a JSON object with these fields (use null for any field not found):
 Extract only information clearly present. For experience and education, extract ALL entries found in the resume."""
 
         try:
-            logger.info(f"Attempting to parse resume with Gemini...")
+            logger.info("Attempting to parse resume with Gemini...")
 
             # Try the generate_json method first
             try:
@@ -746,7 +748,6 @@ Extract only information clearly present. For experience and education, extract 
 
                 # Fallback to generate_content with manual JSON parsing
                 import json
-                import re
 
                 full_prompt = (
                     prompt + "\n\nReturn ONLY a valid JSON object, no markdown, no extra text."
@@ -782,7 +783,7 @@ Extract only information clearly present. For experience and education, extract 
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to parse resume with AI. Error: {str(e)[:100]}. Please try again.",
-            )
+            ) from e
 
         # Update user profile with extracted data (only non-null values)
         _FIELD_MAP = {
@@ -855,7 +856,7 @@ Extract only information clearly present. For experience and education, extract 
         raise
     except Exception as e:
         logger.error(f"Unexpected error processing resume: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}") from e
 
 
 @router.get("/profile", response_model=UserProfileResponse)
@@ -918,8 +919,8 @@ async def update_profile(
             update_values[field] = value
 
     if settings.USE_DYNAMO:
-        from app.services.dynamo_service import dynamo_service
         from app.api.deps import DynamoUser
+        from app.services.dynamo_service import dynamo_service
 
         # Map snake_case SQLAlchemy field names to DynamoDB camelCase attribute names
         _FIELD_MAP = {
@@ -1000,7 +1001,7 @@ async def get_github_status(
     result = await db.execute(
         select(GithubConnection).where(
             GithubConnection.user_id == current_user.id,
-            GithubConnection.is_primary == True,
+            GithubConnection.is_primary.is_(True),
         )
     )
     github_conn = result.scalar_one_or_none()
@@ -1177,7 +1178,7 @@ async def scrape_linkedin_certifications_endpoint(
     Scrape certifications from user's LinkedIn profile URL using Playwright.
     Uses the linkedin_url from user's profile.
     """
-    from app.services.linkedin_scraper import scrape_linkedin_certifications, parse_linkedin_url
+    from app.services.linkedin_scraper import parse_linkedin_url, scrape_linkedin_certifications
 
     if not current_user.linkedin_url:
         raise HTTPException(
@@ -1250,7 +1251,9 @@ async def scrape_linkedin_certifications_endpoint(
 
         error_details = traceback.format_exc()
         logger.error(f"Error scraping LinkedIn certifications: {str(e)}\n{error_details}")
-        raise HTTPException(status_code=500, detail=f"Failed to scrape certifications: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to scrape certifications: {str(e)}"
+        ) from e
 
 
 class LinkedInImportRequest(BaseModel):
@@ -1270,7 +1273,7 @@ async def import_linkedin_profile(
     Accepts an optional linkedin_url in the body; falls back to the
     linkedin_url already stored on the user record.
     """
-    from app.services.linkedin_scraper import scrape_linkedin_profile, parse_linkedin_url
+    from app.services.linkedin_scraper import parse_linkedin_url, scrape_linkedin_profile
 
     # Resolve which URL to use — body is optional; fallback to stored profile URL
     req_url = request.linkedin_url if request else None
@@ -1292,7 +1295,9 @@ async def import_linkedin_profile(
         import traceback
 
         logger.error(f"LinkedIn profile import failed: {e}\n{traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Failed to import LinkedIn profile: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to import LinkedIn profile: {str(e)}"
+        ) from e
 
     # ── Merge extracted data into user profile ───────────────────────────
     update_fields: dict = {}

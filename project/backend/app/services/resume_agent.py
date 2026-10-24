@@ -13,16 +13,16 @@ Features:
   - Anti-hallucination grounding
 """
 
-import re
-import json as _json
 import hashlib
-from typing import List, Dict, Any, Optional
+import json as _json
+import re
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from app.services.bedrock_client import bedrock_client
 from app.services.resume_latex import _fill_jakes_template
-
 
 logger = structlog.get_logger()
 
@@ -201,7 +201,7 @@ Output a JSON object following this EXACT schema. Do NOT add extra fields. Every
    - Keep experience bullets to 3-4 per role (Strictly Exactly 95-110 chars each)
    - Professional summary: 2-3 concise sentences
 3. **PLAIN TEXT ONLY**: All string values must be plain text. NO LaTeX commands (no \textbf, no \href, no \\, no \%). The template engine adds all formatting. The ONLY exception: use -- (double hyphen) for date ranges.
-4. **PROFESSIONAL SUMMARY**: 
+4. **PROFESSIONAL SUMMARY**:
    - 2-3 sentences highlighting key strengths and career focus
    - Tailored to JD if provided (embed key JD terms naturally)
    - Must be grounded in actual skills/projects from the data
@@ -297,9 +297,9 @@ async def generate_resume_from_summaries(
     Returns:
         M2GenerationResult with latex, analysis, and URLs
     """
-    from app.services.s3_service import s3_service
-    from app.services.latex_service import latex_service
     from app.services.dynamo_service import dynamo_service
+    from app.services.latex_service import latex_service
+    from app.services.s3_service import s3_service
 
     # 1. Retrieve all project summaries from S3
     summaries = await list_project_summaries(user_id)
@@ -524,7 +524,7 @@ Perform Step 0 analysis first (gap check → JD keyword extraction → project r
         resume_data = _json.loads(json_str)
     except _json.JSONDecodeError as e:
         logger.error("Failed to parse resume JSON", error=str(e), json_preview=json_str[:500])
-        raise ValueError(f"Claude returned invalid JSON: {e}")
+        raise ValueError(f"Claude returned invalid JSON: {e}") from e
 
     logger.info(
         "Claude generation complete", analysis_len=len(analysis), keys=list(resume_data.keys())

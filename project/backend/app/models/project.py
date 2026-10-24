@@ -5,11 +5,12 @@ Projects extracted from GitHub repos, documents, or manual entry.
 """
 
 import uuid
-from datetime import datetime, date
-from typing import Optional, List
+from datetime import date, datetime
 from enum import Enum
+from typing import Optional
 
-from sqlalchemy import String, Boolean, DateTime, Date, Text, ForeignKey, Integer, Enum as SQLEnum
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -151,4 +152,4 @@ class GithubRepo(Base):
 
 
 # Import for type hints
-from app.models.user import User, GithubConnection
+from app.models.user import GithubConnection, User

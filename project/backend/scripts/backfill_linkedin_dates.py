@@ -16,17 +16,17 @@ Usage:
 
 import argparse
 import asyncio
-import re
-import time
-import sys
 import os
+import re
+import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import requests
 from bs4 import BeautifulSoup
-from app.services.dynamo_service import dynamo_service
 
+from app.services.dynamo_service import dynamo_service
 
 HEADERS = {
     "User-Agent": (
@@ -121,7 +121,7 @@ async def backfill(dry_run: bool = False):
         date_str = _fetch_li_date(url)
 
         if not date_str:
-            print(f"    -> Could not determine date, skipping.")
+            print("    -> Could not determine date, skipping.")
             skipped += 1
             time.sleep(REQUEST_DELAY)
             continue

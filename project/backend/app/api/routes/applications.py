@@ -5,14 +5,13 @@ Tailored resume generation + application tracking endpoints.
 """
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-import structlog
 
-from app.core.config import settings
+import structlog
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
 from app.api.deps import get_current_user
 from app.services.dynamo_service import dynamo_service
-
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -99,8 +98,9 @@ async def tailor_resume(
     Generate a tailored resume for a specific job.
     Uses user's project summaries + job analysis to create an optimized resume.
     """
-    from app.services.resume_tailor import tailor_resume_for_job
     import json as _json
+
+    from app.services.resume_tailor import tailor_resume_for_job
 
     user_id = str(current_user.id)
 
@@ -157,7 +157,7 @@ async def tailor_resume(
             compilationError=result.compilation_error,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         import traceback
 
@@ -168,7 +168,7 @@ async def tailor_resume(
             user_id=user_id,
             job_id=body.jobId,
         )
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/resumes/job/{job_id}", response_model=TailorResponse)

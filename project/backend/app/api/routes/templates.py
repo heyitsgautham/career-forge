@@ -10,13 +10,13 @@ No Templates DynamoDB table is used — the base template is file-based.
 
 import os
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.core.database import get_db
-from app.core.config import settings
 from app.api.deps import get_current_user, get_optional_user
-
+from app.core.config import settings
+from app.core.database import get_db
 
 router = APIRouter()
 
@@ -132,7 +132,8 @@ async def list_templates(
                 )
         return templates
     else:
-        from sqlalchemy import select, or_
+        from sqlalchemy import or_, select
+
         from app.models.template import Template
 
         query = select(Template)
@@ -140,13 +141,13 @@ async def list_templates(
         if current_user:
             query = query.where(
                 or_(
-                    Template.is_system == True,
+                    Template.is_system.is_(True),
                     Template.user_id == current_user.id,
-                    Template.is_public == True,
+                    Template.is_public.is_(True),
                 )
             )
         else:
-            query = query.where(or_(Template.is_system == True, Template.is_public == True))
+            query = query.where(or_(Template.is_system.is_(True), Template.is_public.is_(True)))
 
         if category:
             query = query.where(Template.category == category)
@@ -186,7 +187,9 @@ async def get_template(
         raise HTTPException(status_code=404, detail="Template not found")
     else:
         import uuid
+
         from sqlalchemy import select
+
         from app.models.template import Template
 
         result = await db.execute(select(Template).where(Template.id == uuid.UUID(template_id)))
@@ -271,7 +274,9 @@ async def update_template(
         )
     else:
         import uuid
+
         from sqlalchemy import select
+
         from app.models.template import Template
 
         result = await db.execute(
@@ -322,7 +327,9 @@ async def delete_template(
         )
     else:
         import uuid
+
         from sqlalchemy import select
+
         from app.models.template import Template
 
         result = await db.execute(
@@ -354,13 +361,14 @@ async def init_system_templates(
         return {"message": "Templates are file-based in DynamoDB mode"}
     else:
         from sqlalchemy import select
+
         from app.models.template import Template
 
         for tmpl_data in SYSTEM_TEMPLATES:
             result = await db.execute(
                 select(Template).where(
                     Template.name == tmpl_data["name"],
-                    Template.is_system == True,
+                    Template.is_system.is_(True),
                 )
             )
             existing = result.scalar_one_or_none()

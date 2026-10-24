@@ -6,16 +6,16 @@ Replaces SQLAlchemy/SQLite for AWS migration.
 """
 
 import uuid
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from decimal import Decimal
-import structlog
+from typing import List, Optional
+
 import boto3
-from boto3.dynamodb.conditions import Key, Attr
+import structlog
+from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 from app.core.config import settings
-
 
 logger = structlog.get_logger()
 
@@ -118,7 +118,6 @@ class DynamoService:
             True if a new item was inserted or description was backfilled.
             False if item already existed with a non-empty description (no-op).
         """
-        from boto3.dynamodb.conditions import Attr
 
         dynamo_table = self._get_table("Jobs")
         safe_item = _convert_floats(item)

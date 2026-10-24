@@ -17,7 +17,7 @@ Returns jobs as dicts compatible with the shared JobScraper job schema.
 
 import asyncio
 import hashlib
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 import structlog
@@ -95,7 +95,7 @@ def _parse_unstop_opportunity(item: dict, opp_type: str) -> Optional[Dict[str, A
     # Location — may be a list of strings or a single string
     raw_loc = item.get("location") or item.get("city") or ""
     if isinstance(raw_loc, list):
-        location = ", ".join(str(l).strip() for l in raw_loc[:2] if l)
+        location = ", ".join(str(part).strip() for part in raw_loc[:2] if part)
     else:
         location = str(raw_loc).strip() or "India / Remote"
 

@@ -12,15 +12,14 @@ and saves with tailor-specific DynamoDB fields (jobId, type="tailored").
 """
 
 import json as _json
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from app.services.dynamo_service import dynamo_service
-from app.services.s3_service import s3_service
 from app.services.resume_agent import generate_resume_from_summaries
-
+from app.services.s3_service import s3_service
 
 logger = structlog.get_logger()
 

@@ -5,27 +5,27 @@ Resume generation and compilation endpoints.
 Supports both legacy template-fill flow and M2 S3-summary flow.
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel
 import uuid
 from datetime import datetime
+from typing import List, Optional
+
 import structlog
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.config import settings
-from app.models.user import User
-from app.models.project import Project
-from app.models.template import Template
-from app.models.job_description import JobDescription
-from app.models.resume import Resume, ResumeStatus
 from app.api.deps import get_current_user
-from app.services.resume_agent import resume_agent
+from app.core.config import settings
+from app.core.database import get_db
+from app.models.job_description import JobDescription
+from app.models.project import Project
+from app.models.resume import Resume, ResumeStatus
+from app.models.template import Template
+from app.models.user import User
 from app.services.latex_service import latex_service
-
+from app.services.resume_agent import resume_agent
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -127,16 +127,15 @@ async def generate_resume_m2(
             compilation_error=result.compilation_error,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("M2 resume generation failed", error=str(e), user_id=user_id)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Helper function to rank projects by JD relevance
 async def _rank_projects_by_relevance(projects, job_description):
     """Rank projects by relevance to job description using simple keyword matching."""
-    from app.services.bedrock_client import bedrock_client
 
     # Extract JD keywords
     jd_text = f"{job_description.title} {job_description.raw_text} {' '.join(job_description.required_skills or [])}"
@@ -429,8 +428,9 @@ async def generate_resume(
         generate_data = ResumeGenerateRequest()
 
     if settings.USE_DYNAMO:
-        from app.services.dynamo_service import dynamo_service
         import os
+
+        from app.services.dynamo_service import dynamo_service
 
         item = await dynamo_service.get_item(
             "Resumes", {"userId": str(current_user.id), "resumeId": resume_id}
@@ -535,7 +535,7 @@ async def generate_resume(
                 {"userId": str(current_user.id), "resumeId": resume_id},
                 {"status": "error", "errorMessage": str(e), "updatedAt": dynamo_service.now_iso()},
             )
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e)) from e
         return ResumeResponse(**_resume_from_dynamo(item))
 
     # Get resume
@@ -562,7 +562,7 @@ async def generate_resume(
         # Use default template if none found
         if not template:
             # Try to get a system template
-            result = await db.execute(select(Template).where(Template.is_system == True).limit(1))
+            result = await db.execute(select(Template).where(Template.is_system.is_(True)).limit(1))
             template = result.scalar_one_or_none()
 
         if not template:
@@ -713,7 +713,7 @@ async def generate_resume(
         resume.status = ResumeStatus.ERROR
         resume.error_message = str(e)
         await db.commit()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     return ResumeResponse(
         id=str(resume.id),
@@ -833,7 +833,7 @@ async def compile_resume(
                 {"userId": str(current_user.id), "resumeId": resume_id},
                 {"status": "error", "errorMessage": str(e), "updatedAt": dynamo_service.now_iso()},
             )
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
     # Get resume
     result = await db.execute(
@@ -918,7 +918,7 @@ async def compile_resume(
         resume.status = ResumeStatus.ERROR
         resume.error_message = str(e)
         await db.commit()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{resume_id}/pdf")
@@ -929,9 +929,10 @@ async def download_pdf(
 ):
     """Download compiled PDF. Returns presigned S3 URL or local file."""
     if settings.USE_DYNAMO:
+        from fastapi.responses import RedirectResponse
+
         from app.services.dynamo_service import dynamo_service
         from app.services.s3_service import s3_service
-        from fastapi.responses import RedirectResponse
 
         item = await dynamo_service.get_item(
             "Resumes", {"userId": str(current_user.id), "resumeId": resume_id}
@@ -1198,7 +1199,9 @@ async def ai_edit_resume(
     'latex' event with the full updated .tex extracted from a <latex>...</latex> block.
     """
     import asyncio
+
     from fastapi.responses import StreamingResponse
+
     from app.services.bedrock_client import bedrock_client
 
     # Verify ownership

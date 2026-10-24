@@ -28,7 +28,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 
-from playwright.async_api import async_playwright, Response as PwResponse
+from playwright.async_api import Response as PwResponse
+from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 # ── Config ────────────────────────────────────────────────────────────────────

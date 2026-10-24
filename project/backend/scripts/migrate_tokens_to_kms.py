@@ -15,14 +15,15 @@ Usage:
     /opt/anaconda3/bin/python scripts/migrate_tokens_to_kms.py [--dry-run]
 """
 
-import sys
 import argparse
 import logging
+import sys
 
 # Add project root to path
 sys.path.insert(0, ".")
 
 import boto3
+
 from app.core.config import settings
 from app.core.security import KmsTokenEncryptor, TokenEncryptor
 
@@ -57,7 +58,7 @@ def migrate(dry_run: bool = False, original_secret_key: str = None) -> None:
         pages = paginator.paginate(TableName=table_name)
 
         for page in pages:
-            for raw_item in page["Items"]:
+            for _raw_item in page["Items"]:
                 # boto3 resource scan returns unmarshalled items; use the table directly
                 pass
 

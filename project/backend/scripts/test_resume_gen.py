@@ -7,8 +7,8 @@ Generates a resume using the full pipeline and saves output locally for inspecti
 
 import asyncio
 import json
-import sys
 import os
+import sys
 
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -75,7 +75,7 @@ async def main():
     user_id, personal_info, education, experience, skills, certifications = await get_user_data()
 
     # 2. Generate resume
-    from app.services.resume_agent import generate_resume_from_summaries, clear_analysis_cache
+    from app.services.resume_agent import clear_analysis_cache, generate_resume_from_summaries
 
     # Clear cache to force fresh generation
     clear_analysis_cache()
@@ -109,13 +109,13 @@ async def main():
     print()
 
     # 3. Save LaTeX locally
-    tex_path = f"/tmp/test_resume.tex"
+    tex_path = "/tmp/test_resume.tex"
     with open(tex_path, "w") as f:
         f.write(result.latex_content)
     print(f"  LaTeX saved: {tex_path}")
 
     # 4. Save analysis
-    analysis_path = f"/tmp/test_resume_analysis.txt"
+    analysis_path = "/tmp/test_resume_analysis.txt"
     with open(analysis_path, "w") as f:
         f.write(result.analysis)
     print(f"  Analysis saved: {analysis_path}")

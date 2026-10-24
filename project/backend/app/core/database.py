@@ -4,12 +4,11 @@ Database Configuration
 SQLAlchemy async database setup.
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import MetaData
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
-
 
 # Naming convention for constraints
 convention = {
@@ -61,7 +60,6 @@ async def init_db():
     """Initialize database tables."""
     async with engine.begin() as conn:
         # Import all models to ensure they're registered
-        from app.models import user, project, document, template, resume, job_description
 
         await conn.run_sync(Base.metadata.create_all)
 

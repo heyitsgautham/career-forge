@@ -8,7 +8,9 @@ Run:
 """
 
 # ── start Xvfb and force X11 (not Wayland) BEFORE playwright loads ───────────
-import os, subprocess, time as _t
+import os
+import subprocess
+import time as _t
 
 subprocess.run(["pkill", "-f", "Xvfb :99"], capture_output=True)
 _t.sleep(0.3)
@@ -28,13 +30,18 @@ import atexit
 
 atexit.register(_xvfb.terminate)
 
-import asyncio, http.server, socketserver, threading, time
+import asyncio
+import http.server
+import socketserver
+import threading
+import time
 from collections import Counter
 from pathlib import Path
-from urllib.parse import urlencode
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlencode
 
-from playwright.async_api import async_playwright, Response as PwResponse
+from playwright.async_api import Response as PwResponse
+from playwright.async_api import async_playwright
 from playwright_stealth import Stealth
 
 # ── config ──────────────────────────────────────────────────────────────────
@@ -252,7 +259,7 @@ if __name__ == "__main__":
     print(f"  Keyword  : {KEYWORD}")
     print(f"  Locations: {', '.join(LOCATIONS)}")
     print(f"  Window   : past {JOB_AGE} days  (internships + full-time)")
-    print(f"  Browser  : invisible (Xvfb — no popup)")
+    print("  Browser  : invisible (Xvfb — no popup)")
     print("=" * 60)
 
     jobs = asyncio.run(run())

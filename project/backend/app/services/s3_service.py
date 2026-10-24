@@ -5,13 +5,11 @@ AWS S3 file storage service.
 Replaces local filesystem storage for PDFs and LaTeX files.
 """
 
-from typing import Optional
-import structlog
 import boto3
+import structlog
 from botocore.exceptions import ClientError
 
 from app.core.config import settings
-
 
 logger = structlog.get_logger()
 

@@ -5,20 +5,20 @@ JD management, analysis, scraping, and Job Scout endpoints.
 Supports both DynamoDB (AWS) and SQLite (local fallback) backends.
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel
-import uuid
 import hashlib
+import uuid
 from datetime import datetime, timezone
+from typing import List, Optional
 
-from app.core.database import get_db
-from app.core.config import settings
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+
 from app.api.deps import get_current_user, require_admin
-from app.services.matching_engine import matching_engine, MatchScore
+from app.core.config import settings
+from app.core.database import get_db
 from app.services.embedding_service import embedding_service
-from app.services.vector_store import vector_store, VectorStoreService
-
+from app.services.matching_engine import matching_engine
+from app.services.vector_store import VectorStoreService, vector_store
 
 router = APIRouter()
 
@@ -312,9 +312,9 @@ async def trigger_scrape(
 
     Returns: total_found, new_jobs, duplicates_skipped counters.
     """
-    from app.services.job_scraper import job_scraper
-    from app.services.jd_analyzer import jd_analyzer
     from app.services.dynamo_service import dynamo_service
+    from app.services.jd_analyzer import jd_analyzer
+    from app.services.job_scraper import job_scraper
 
     # 1. jobspy scrape for the requested term
     jobspy_jobs = await job_scraper.scrape_and_store(
@@ -392,9 +392,9 @@ async def trigger_full_scrape(
     Same action as the scheduled hourly cron.
     Returns: total_found, new_jobs, duplicates_skipped.
     """
-    from app.services.job_scraper import job_scraper
-    from app.services.jd_analyzer import jd_analyzer
     from app.services.dynamo_service import dynamo_service
+    from app.services.jd_analyzer import jd_analyzer
+    from app.services.job_scraper import job_scraper
 
     result = await job_scraper.scrape_all_queries(include_india_sources=True)
 
@@ -547,8 +547,9 @@ async def list_job_descriptions(
 ):
     """List all job descriptions for the current user."""
     if settings.USE_DYNAMO:
-        from app.services.dynamo_service import dynamo_service
         from boto3.dynamodb.conditions import Attr
+
+        from app.services.dynamo_service import dynamo_service
 
         jds = await dynamo_service.scan(
             "Jobs",
@@ -557,6 +558,7 @@ async def list_job_descriptions(
         return [_jd_response_from_dynamo(jd) for jd in jds]
     else:
         from sqlalchemy import select
+
         from app.models.job_description import JobDescription
 
         result = await db.execute(
@@ -657,6 +659,7 @@ async def get_job_description(
         return _jd_response_from_dynamo(jd)
     else:
         from sqlalchemy import select
+
         from app.models.job_description import JobDescription
 
         result = await db.execute(
@@ -801,6 +804,7 @@ async def analyze_job_description(
     else:
         # ---- SQLAlchemy path ----
         from sqlalchemy import select
+
         from app.models.job_description import JobDescription
 
         result = await db.execute(
@@ -939,6 +943,7 @@ async def delete_job_description(
         return {"message": "Job description deleted"}
     else:
         from sqlalchemy import select
+
         from app.models.job_description import JobDescription
 
         result = await db.execute(

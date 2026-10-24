@@ -4,13 +4,13 @@ Document Parser Service
 Extracts text from various document formats.
 """
 
-from typing import Optional, Dict, Any, List
-from pathlib import Path
 import hashlib
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import structlog
 
 from app.services.bedrock_client import bedrock_client
-
 
 logger = structlog.get_logger()
 
@@ -71,8 +71,9 @@ class DocumentParserService:
 
     async def _extract_from_docx(self, file_path: str, content: Optional[bytes] = None) -> str:
         """Extract text from DOCX using python-docx."""
-        from docx import Document
         import io
+
+        from docx import Document
 
         if content:
             doc = Document(io.BytesIO(content))

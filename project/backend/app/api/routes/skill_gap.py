@@ -5,15 +5,16 @@ Endpoints for skill gap analysis and LearnWeave roadmap generation.
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+
 import structlog
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from app.api.deps import get_current_user
 from app.services.gap_analysis import (
     get_all_roles,
-    run_gap_analysis,
     get_cached_report,
+    run_gap_analysis,
 )
 from app.services.roadmap_generator import (
     generate_roadmap,
@@ -21,7 +22,6 @@ from app.services.roadmap_generator import (
     get_user_roadmaps,
     mark_milestone_complete,
 )
-
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -68,13 +68,13 @@ async def analyse_skill_gap(
         report = await run_gap_analysis(user_id, body.roleId)
         return report
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Gap analysis failed", error=str(e), userId=user_id)
         raise HTTPException(
             status_code=500,
             detail="Failed to compute skill gap analysis",
-        )
+        ) from e
 
 
 @router.get("/report")
@@ -112,13 +112,13 @@ async def generate_learning_roadmap(
         )
         return roadmap
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Roadmap generation failed", error=str(e), userId=user_id)
         raise HTTPException(
             status_code=500,
             detail="Failed to generate learning roadmap",
-        )
+        ) from e
 
 
 @router.get("/roadmap/{roadmap_id}")
@@ -160,7 +160,7 @@ async def complete_milestone(
         )
         return result
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(
             "Milestone completion failed",
@@ -171,4 +171,4 @@ async def complete_milestone(
         raise HTTPException(
             status_code=500,
             detail="Failed to mark milestone complete",
-        )
+        ) from e
