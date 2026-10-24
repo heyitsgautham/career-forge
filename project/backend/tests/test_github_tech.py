@@ -45,6 +45,10 @@ def test_pyproject_detects_known_packages():
         ("https://github.com/asha-example/job-scout", "asha-example/job-scout"),
         ("https://github.com/asha-example/job-scout.git", "asha-example/job-scout"),
         ("https://github.com/asha-example/job-scout/tree/main/src/", "asha-example/job-scout"),
+        (
+            "https://github.com/asha-example/asha-example.github.io",
+            "asha-example/asha-example.github.io",
+        ),
     ],
 )
 def test_repo_url_parses_owner_and_name(url, expected):

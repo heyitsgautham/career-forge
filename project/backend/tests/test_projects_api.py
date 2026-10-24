@@ -258,3 +258,29 @@ def test_user_repos_requires_github(dynamo_client, dynamo_auth):
         ).status_code
         == 400
     )
+
+
+@pytest.mark.parametrize(
+    "url,full_name",
+    [
+        ("https://github.com/asha-example/chat-bot", "asha-example/chat-bot"),
+        ("https://github.com/asha-example/digit", "asha-example/digit"),
+        ("https://github.com/asha-example/widget.git", "asha-example/widget"),
+        ("https://github.com/asha-example/job-scout.git", "asha-example/job-scout"),
+    ],
+)
+def test_url_import_keeps_the_full_repo_name(
+    dynamo_client, github_user, fake_github, url, full_name
+):
+    r = dynamo_client.post(
+        "/api/projects/ingest/github", json={"repo_urls": [url]}, headers=github_user["headers"]
+    ).json()
+    assert [x["full_name"] for x in r["results"]] == [full_name]
+
+
+def test_url_import_keeps_github_pages_repo_names(dynamo_client, github_user, fake_github):
+    url = "https://github.com/asha-example/asha-example.github.io"
+    r = dynamo_client.post(
+        "/api/projects/ingest/github", json={"repo_urls": [url]}, headers=github_user["headers"]
+    ).json()
+    assert [x["full_name"] for x in r["results"]] == ["asha-example/asha-example.github.io"]

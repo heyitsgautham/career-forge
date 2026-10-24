@@ -151,7 +151,7 @@ def parse_repo_url(url: str) -> str:
     if "github.com" in url:
         parts = url.split("github.com/")[-1].split("/")
         if len(parts) >= 2:
-            return f"{parts[0]}/{parts[1].replace('.git', '')}"
+            return f"{parts[0]}/{parts[1].removesuffix('.git')}"
     raise ValueError(f"Invalid GitHub URL: {url}")
 
 
