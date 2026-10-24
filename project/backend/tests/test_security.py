@@ -66,7 +66,7 @@ class FakeKms:
 
     def decrypt(self, CiphertextBlob):
         assert CiphertextBlob.startswith(b"wrapped:")
-        return {"Plaintext": CiphertextBlob[len(b"wrapped:"):]}
+        return {"Plaintext": CiphertextBlob[len(b"wrapped:") :]}
 
 
 @pytest.fixture

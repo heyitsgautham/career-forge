@@ -49,21 +49,27 @@ SEARCH_QUERIES = [
 ]
 
 METRO_CITIES = ["chennai", "bengaluru", "mumbai", "hyderabad", "pune", "noida"]
-JOB_AGE_DAYS  = 7
-PORT          = 7788
-OUTPUT_PATH   = Path("/tmp/naukri_demo.html")
+JOB_AGE_DAYS = 7
+PORT = 7788
+OUTPUT_PATH = Path("/tmp/naukri_demo.html")
 
 # ── Role expansion ────────────────────────────────────────────────────────────
+
 
 def expand_roles(queries: List[str]) -> List[str]:
     roles, seen = [], set()
     for q in queries:
         role_names = re.findall(r'"([^"]+)"', q)
-        suffix_m = re.search(r'\)\s+(\w+)\s*$', q)
+        suffix_m = re.search(r"\)\s+(\w+)\s*$", q)
         suffix = suffix_m.group(1).lower() if suffix_m else ""
         for r in role_names:
-            kw = r.strip() if (suffix and r.lower().endswith(suffix)) else \
-                 f"{r} {suffix}".strip() if suffix else r.strip()
+            kw = (
+                r.strip()
+                if (suffix and r.lower().endswith(suffix))
+                else f"{r} {suffix}".strip()
+                if suffix
+                else r.strip()
+            )
             if kw.lower() not in seen:
                 seen.add(kw.lower())
                 roles.append(kw)
@@ -74,6 +80,7 @@ ROLES = expand_roles(SEARCH_QUERIES)
 
 
 # ── URL builder ───────────────────────────────────────────────────────────────
+
 
 def build_url(roles: List[str], locations: List[str]) -> str:
     params = {
@@ -88,17 +95,17 @@ def build_url(roles: List[str], locations: List[str]) -> str:
 
 # ── Job parser ────────────────────────────────────────────────────────────────
 
+
 def parse_job(raw: dict) -> Optional[Dict[str, Any]]:
     title = (raw.get("title") or "").strip()
-    href  = (raw.get("jdURL") or raw.get("jobUrl") or raw.get("url") or "").strip()
+    href = (raw.get("jdURL") or raw.get("jobUrl") or raw.get("url") or "").strip()
     if not title or not href:
         return None
     if not href.startswith("http"):
         href = "https://www.naukri.com" + href
 
     company = (
-        raw.get("companyName") or
-        (raw.get("company") or {}).get("name", "") or "Unknown"
+        raw.get("companyName") or (raw.get("company") or {}).get("name", "") or "Unknown"
     ).strip()
 
     loc_parts: List[str] = []
@@ -124,13 +131,18 @@ def parse_job(raw: dict) -> Optional[Dict[str, Any]]:
         date_posted = str(raw.get("createdDate") or "")
 
     return {
-        "title": title, "company": company, "location": location,
-        "skills": skills, "salary": salary,
-        "url": href, "date_posted": date_posted,
+        "title": title,
+        "company": company,
+        "location": location,
+        "skills": skills,
+        "salary": salary,
+        "url": href,
+        "date_posted": date_posted,
     }
 
 
 # ── Playwright scraper ────────────────────────────────────────────────────────
+
 
 async def scrape_naukri(locations: List[str]) -> List[Dict[str, Any]]:
     """Navigate to Naukri search page in stealth Chromium and intercept the API JSON."""
@@ -142,7 +154,7 @@ async def scrape_naukri(locations: List[str]) -> List[Dict[str, Any]]:
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(
-            headless=False,   # full Chromium — headless-shell gets 403 from Naukri CDN
+            headless=False,  # full Chromium — headless-shell gets 403 from Naukri CDN
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox",
@@ -184,7 +196,9 @@ async def scrape_naukri(locations: List[str]) -> List[Dict[str, Any]]:
         try:
             # Step 1: warm-up homepage to get session cookies
             print("  Step 1/2: loading homepage for session cookies...")
-            await page.goto("https://www.naukri.com/", wait_until="domcontentloaded", timeout=30_000)
+            await page.goto(
+                "https://www.naukri.com/", wait_until="domcontentloaded", timeout=30_000
+            )
             await asyncio.sleep(2)
             print(f"  Homepage title: {await page.title()!r}")
 
@@ -212,6 +226,7 @@ async def scrape_naukri(locations: List[str]) -> List[Dict[str, Any]]:
 
 
 # ── HTML renderer ─────────────────────────────────────────────────────────────
+
 
 def render_html(jobs: List[Dict[str, Any]], elapsed: float) -> str:
     rows = ""
@@ -264,6 +279,7 @@ def render_html(jobs: List[Dict[str, Any]], elapsed: float) -> str:
 
 # ── HTTP mini-server ──────────────────────────────────────────────────────────
 
+
 class _Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         content = OUTPUT_PATH.read_bytes()
@@ -273,7 +289,8 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
-    def log_message(self, *_): pass
+    def log_message(self, *_):
+        pass
 
 
 def _serve():
@@ -282,6 +299,7 @@ def _serve():
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
 
 async def main():
     print("=" * 60)

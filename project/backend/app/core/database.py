@@ -17,7 +17,7 @@ convention = {
     "uq": "uq_%(table_name)s_%(column_0_name)s",
     "ck": "ck_%(table_name)s_%(constraint_name)s",
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s"
+    "pk": "pk_%(table_name)s",
 }
 
 metadata = MetaData(naming_convention=convention)
@@ -25,6 +25,7 @@ metadata = MetaData(naming_convention=convention)
 
 class Base(DeclarativeBase):
     """Base class for all database models."""
+
     metadata = metadata
 
 
@@ -61,6 +62,7 @@ async def init_db():
     async with engine.begin() as conn:
         # Import all models to ensure they're registered
         from app.models import user, project, document, template, resume, job_description
+
         await conn.run_sync(Base.metadata.create_all)
 
 

@@ -86,20 +86,20 @@ class GitHubRepoResponse(BaseModel):
 def _dynamo_to_response(p: dict) -> dict:
     """Normalise a DynamoDB project item to frontend-expected shape."""
     return {
-        "id":           p.get("projectId") or p.get("id", ""),
-        "title":        p.get("name") or p.get("title", ""),
-        "description":  p.get("description", ""),
+        "id": p.get("projectId") or p.get("id", ""),
+        "title": p.get("name") or p.get("title", ""),
+        "description": p.get("description", ""),
         "technologies": p.get("technologies") or [],
-        "highlights":   p.get("highlights") or [],
-        "url":          p.get("repoUrl") or p.get("url") or p.get("demo_url"),
-        "demo_url":     p.get("demo_url"),
-        "source_type":  p.get("sourceType", "github"),
-        "is_private":   p.get("isPrivate", False),
-        "is_verified":  True,
-        "is_featured":  p.get("isFeatured", False),
-        "start_date":   p.get("start_date"),
-        "end_date":     p.get("end_date"),
-        "created_at":   p.get("createdAt", ""),
+        "highlights": p.get("highlights") or [],
+        "url": p.get("repoUrl") or p.get("url") or p.get("demo_url"),
+        "demo_url": p.get("demo_url"),
+        "source_type": p.get("sourceType", "github"),
+        "is_private": p.get("isPrivate", False),
+        "is_verified": True,
+        "is_featured": p.get("isFeatured", False),
+        "start_date": p.get("start_date"),
+        "end_date": p.get("end_date"),
+        "created_at": p.get("createdAt", ""),
     }
 
 
@@ -160,7 +160,9 @@ Return ONLY the 3 bullet points, one per line, no numbering or bullets."""
                 max_tokens=300,
             )
 
-            generated_highlights = [line.strip() for line in response.strip().split('\n') if line.strip()]
+            generated_highlights = [
+                line.strip() for line in response.strip().split("\n") if line.strip()
+            ]
             if len(generated_highlights) >= 3:
                 highlights = generated_highlights[:3]
             else:
@@ -173,20 +175,20 @@ Return ONLY the 3 bullet points, one per line, no numbering or bullets."""
     user_id = current_user["userId"]
 
     project_item = {
-        "userId":       user_id,
-        "projectId":    project_id,
-        "name":         project_data.title,
-        "description":  project_data.description,
+        "userId": user_id,
+        "projectId": project_id,
+        "name": project_data.title,
+        "description": project_data.description,
         "technologies": project_data.technologies or [],
-        "highlights":   highlights or [],
-        "repoUrl":      project_data.url or "",
-        "demo_url":     project_data.demo_url or "",
-        "sourceType":   "manual",
-        "isFeatured":   False,
-        "start_date":   project_data.start_date,
-        "end_date":     project_data.end_date,
-        "createdAt":    now,
-        "updatedAt":    now,
+        "highlights": highlights or [],
+        "repoUrl": project_data.url or "",
+        "demo_url": project_data.demo_url or "",
+        "sourceType": "manual",
+        "isFeatured": False,
+        "start_date": project_data.start_date,
+        "end_date": project_data.end_date,
+        "createdAt": now,
+        "updatedAt": now,
     }
 
     await dynamo_service.put_item(
@@ -229,15 +231,17 @@ async def update_project(
 
     # Map frontend fields to DynamoDB attribute names
     field_map = {
-        "title":        "name",
-        "description":  "description",
+        "title": "name",
+        "description": "description",
         "technologies": "technologies",
-        "highlights":   "highlights",
-        "url":          "repoUrl",
-        "demo_url":     "demo_url",
-        "is_featured":  "isFeatured",
+        "highlights": "highlights",
+        "url": "repoUrl",
+        "demo_url": "demo_url",
+        "is_featured": "isFeatured",
     }
-    updates = {field_map.get(k, k): v for k, v in update_data.model_dump(exclude_unset=True).items()}
+    updates = {
+        field_map.get(k, k): v for k, v in update_data.model_dump(exclude_unset=True).items()
+    }
     updates["updatedAt"] = datetime.utcnow().isoformat()
 
     updated = await dynamo_service.update_item(
@@ -308,7 +312,9 @@ async def ingest_github_repos(
     installation_id = current_user.get("githubInstallationId")
     user_id = current_user["userId"]
 
-    logger.info(f"[INGEST] user={user_id} has_token={bool(github_token)} installation_id={installation_id}")
+    logger.info(
+        f"[INGEST] user={user_id} has_token={bool(github_token)} installation_id={installation_id}"
+    )
     logger.info(f"[INGEST] request: sync_all={request.sync_all} repo_urls={request.repo_urls}")
 
     if not github_token:
@@ -347,7 +353,10 @@ async def ingest_github_repos(
                 logger.warning(f"[INGEST] invalid URL skipped: {url}")
                 ingested.append({"url": url, "error": "Invalid GitHub URL"})
     else:
-        raise HTTPException(status_code=400, detail="Either sync_all=true, full_names, or repo_urls must be provided")
+        raise HTTPException(
+            status_code=400,
+            detail="Either sync_all=true, full_names, or repo_urls must be provided",
+        )
 
     # ── De-duplicate: build name→projectId map from existing projects ──
     existing_items = await dynamo_service.query(
@@ -356,9 +365,7 @@ async def ingest_github_repos(
         pk_value=user_id,
     )
     existing_name_to_id = {
-        item.get("name", ""): item["projectId"]
-        for item in existing_items
-        if item.get("projectId")
+        item.get("name", ""): item["projectId"] for item in existing_items if item.get("projectId")
     }
 
     for repo_meta in repos_meta:
@@ -377,7 +384,9 @@ async def ingest_github_repos(
                 f"root_dirs={detailed.get('root_dirs', [])}"
             )
 
-            logger.info(f"[INGEST] [{full_name}] step 2: create_project_from_repo (Bedrock summary)")
+            logger.info(
+                f"[INGEST] [{full_name}] step 2: create_project_from_repo (Bedrock summary)"
+            )
             project_data = await github_service.create_project_from_repo(detailed)
             logger.info(
                 f"[INGEST] [{full_name}] create_project_from_repo OK "
@@ -386,7 +395,9 @@ async def ingest_github_repos(
             )
 
             project_id = existing_name_to_id.get(repo_meta["name"]) or str(uuid.uuid4())
-            logger.info(f"[INGEST] [{full_name}] step 3: ingest_and_embed_repo project_id={project_id} (reuse={'yes' if repo_meta['name'] in existing_name_to_id else 'no'})")
+            logger.info(
+                f"[INGEST] [{full_name}] step 3: ingest_and_embed_repo project_id={project_id} (reuse={'yes' if repo_meta['name'] in existing_name_to_id else 'no'})"
+            )
             await github_service.ingest_and_embed_repo(
                 repo_data=detailed,
                 project_data=project_data,
@@ -397,14 +408,16 @@ async def ingest_github_repos(
             ingested.append({"full_name": full_name, "status": "success", "project_id": project_id})
         except Exception as e:
             tb = traceback.format_exc()
-            logger.error(
-                f"[INGEST] [{full_name}] ❌ FAILED: {type(e).__name__}: {e}\n{tb}"
+            logger.error(f"[INGEST] [{full_name}] ❌ FAILED: {type(e).__name__}: {e}\n{tb}")
+            ingested.append(
+                {"full_name": full_name, "status": "error", "error": f"{type(e).__name__}: {e}"}
             )
-            ingested.append({"full_name": full_name, "status": "error", "error": f"{type(e).__name__}: {e}"})
 
     successes = sum(1 for r in ingested if r.get("status") == "success")
     failures = sum(1 for r in ingested if r.get("status") == "error")
-    logger.info(f"[INGEST] DONE: {successes} succeeded, {failures} failed out of {len(repos_meta)} repos")
+    logger.info(
+        f"[INGEST] DONE: {successes} succeeded, {failures} failed out of {len(repos_meta)} repos"
+    )
 
     return {"message": f"Processed {len(repos_meta)} repositories", "results": ingested}
 
@@ -422,13 +435,13 @@ async def list_github_repos(
     # Return only github-sourced items in the legacy GitHubRepoResponse shape
     return [
         {
-            "id":         p.get("projectId", ""),
-            "full_name":  p.get("name", ""),
-            "name":       p.get("name", ""),
+            "id": p.get("projectId", ""),
+            "full_name": p.get("name", ""),
+            "name": p.get("name", ""),
             "description": p.get("description"),
-            "stars":      p.get("stars", 0),
-            "languages":  p.get("languages", {}),
-            "topics":     p.get("topics", []),
+            "stars": p.get("stars", 0),
+            "languages": p.get("languages", {}),
+            "topics": p.get("topics", []),
             "project_id": p.get("projectId"),
         }
         for p in items
@@ -438,6 +451,7 @@ async def list_github_repos(
 
 class GitHubUserRepo(BaseModel):
     """GitHub repository from user's account."""
+
     full_name: str
     name: str
     description: Optional[str]

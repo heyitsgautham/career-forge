@@ -30,8 +30,8 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 _KMS_PREFIX = "KMS:"
-_TABLES = ["Users"]                             # DynamoDB tables to migrate
-_TOKEN_FIELDS = ["githubToken", "linkedinToken"] # Attribute names that hold encrypted tokens
+_TABLES = ["Users"]  # DynamoDB tables to migrate
+_TOKEN_FIELDS = ["githubToken", "linkedinToken"]  # Attribute names that hold encrypted tokens
 
 
 def migrate(dry_run: bool = False, original_secret_key: str = None) -> None:
@@ -93,8 +93,9 @@ def migrate(dry_run: bool = False, original_secret_key: str = None) -> None:
                     if dry_run:
                         logger.info("DRY-RUN  user=%s field=%s — would re-encrypt", user_id, field)
                     else:
-                        key_attrs = {s["AttributeName"]: item[s["AttributeName"]]
-                                     for s in table.key_schema}
+                        key_attrs = {
+                            s["AttributeName"]: item[s["AttributeName"]] for s in table.key_schema
+                        }
                         table.update_item(
                             Key=key_attrs,
                             UpdateExpression=f"SET {field} = :v",
@@ -121,7 +122,9 @@ def migrate(dry_run: bool = False, original_secret_key: str = None) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Migrate Fernet tokens to KMS in DynamoDB")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would change without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would change without writing"
+    )
     parser.add_argument(
         "--original-key",
         default="change-me-in-production",

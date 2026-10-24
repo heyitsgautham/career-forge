@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('latex_agent.db')
+conn = sqlite3.connect("latex_agent.db")
 cursor = conn.cursor()
 
 # Find user
@@ -11,10 +11,13 @@ print(f"User: {user}")
 if user:
     user_id = user[0]
     # Get templates for this user
-    cursor.execute('SELECT id, name, description, latex_content, is_system FROM templates WHERE user_id = ?', (user_id,))
+    cursor.execute(
+        "SELECT id, name, description, latex_content, is_system FROM templates WHERE user_id = ?",
+        (user_id,),
+    )
     templates = cursor.fetchall()
     print(f"\nFound {len(templates)} template(s)")
-    
+
     for template in templates:
         print(f"\nTemplate ID: {template[0]}")
         print(f"Name: {template[1]}")

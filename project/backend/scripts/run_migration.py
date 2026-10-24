@@ -17,7 +17,7 @@ from app.core.config import settings
 async def run_migration():
     """Run the migration to add experience and education columns."""
     print("Starting migration: add experience and education arrays...")
-    
+
     migration_sql = """
     -- Add experience column (JSON array)
     ALTER TABLE users ADD COLUMN IF NOT EXISTS experience JSONB;
@@ -29,7 +29,7 @@ async def run_migration():
     COMMENT ON COLUMN users.experience IS 'Array of work experience entries: [{company, title, dates, location, highlights}]';
     COMMENT ON COLUMN users.education IS 'Array of education entries: [{school, degree, field, dates, location, gpa}]';
     """
-    
+
     try:
         async with async_engine.begin() as conn:
             # Execute migration
@@ -37,7 +37,7 @@ async def run_migration():
             print("✅ Migration completed successfully!")
             print("   - Added 'experience' column (JSONB)")
             print("   - Added 'education' column (JSONB)")
-            
+
     except Exception as e:
         print(f"❌ Migration failed: {e}")
         raise

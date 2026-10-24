@@ -26,8 +26,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import requests
 from bs4 import BeautifulSoup
+
 try:
     from curl_cffi import requests as cf_requests
+
     _HAS_CURL_CFFI = True
 except ImportError:
     _HAS_CURL_CFFI = False
@@ -36,6 +38,7 @@ from app.services.dynamo_service import dynamo_service
 # ── Sentinel check ─────────────────────────────────────────────────────────────
 
 _EMPTY = {"", "nan", "none", "null", "n/a", "na"}
+
 
 def _is_empty(val) -> bool:
     return not val or str(val).strip().lower() in _EMPTY
@@ -155,6 +158,7 @@ def _fetch_unstop_description(url: str) -> str | None:
 
 # ── Naukri (headless=False + Xvfb + playwright_stealth) ──────────────────────
 
+
 def _start_xvfb() -> "subprocess.Popen | None":
     """Start Xvfb :99 virtual display on Linux. Returns the Popen handle."""
     if not sys.platform.startswith("linux"):
@@ -163,7 +167,8 @@ def _start_xvfb() -> "subprocess.Popen | None":
     time.sleep(0.3)
     proc = subprocess.Popen(
         ["Xvfb", ":99", "-screen", "0", "1280x900x24", "-ac"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
     os.environ["DISPLAY"] = ":99"
     os.environ.pop("WAYLAND_DISPLAY", None)
@@ -223,7 +228,9 @@ async def _fetch_naukri_descriptions_batch(jobs: list, dry_run: bool) -> dict:
 
             # Warm up on homepage — sets Akamai session cookies
             print("  Warming up on Naukri homepage...")
-            await page.goto("https://www.naukri.com/", wait_until="domcontentloaded", timeout=30_000)
+            await page.goto(
+                "https://www.naukri.com/", wait_until="domcontentloaded", timeout=30_000
+            )
             await asyncio.sleep(2)
 
             for i, job in enumerate(jobs, 1):
@@ -261,7 +268,12 @@ async def _fetch_naukri_descriptions_batch(jobs: list, dry_run: bool) -> dict:
 
                     # DOM fallback using Naukri's rendered class names
                     if not captured:
-                        for sel in [".dang-inner-html", ".job-desc", "#job-desc", "[class*='description']"]:
+                        for sel in [
+                            ".dang-inner-html",
+                            ".job-desc",
+                            "#job-desc",
+                            "[class*='description']",
+                        ]:
                             el = await page.query_selector(sel)
                             if el:
                                 text = await el.inner_text()
@@ -292,13 +304,15 @@ async def _fetch_naukri_descriptions_batch(jobs: list, dry_run: bool) -> dict:
 
 # ── Main backfill ──────────────────────────────────────────────────────────────
 
+
 async def backfill(dry_run: bool = False, only_source: str = None, limit: int = None):
     print("Scanning DynamoDB Jobs table…")
     jobs = await dynamo_service.scan("Jobs")
 
     # Filter jobs with empty/nan descriptions
     targets = [
-        j for j in jobs
+        j
+        for j in jobs
         if _is_empty(j.get("description"))
         and j.get("url")
         and (only_source is None or j.get("source", "").lower() == only_source.lower())
@@ -392,7 +406,9 @@ async def backfill(dry_run: bool = False, only_source: str = None, limit: int = 
             if i < len(jobs_list):
                 time.sleep(RATE_LIMITS.get(src, 1.0))
 
-    print(f"\n{'DRY-RUN — ' if dry_run else ''}Done: {done} updated, {failed} failed / {total} total")
+    print(
+        f"\n{'DRY-RUN — ' if dry_run else ''}Done: {done} updated, {failed} failed / {total} total"
+    )
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
@@ -400,10 +416,17 @@ async def backfill(dry_run: bool = False, only_source: str = None, limit: int = 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Backfill missing job descriptions")
     parser.add_argument("--dry-run", action="store_true", help="Preview without writing to DB")
-    parser.add_argument("--source", choices=["linkedin", "unstop", "naukri"],
-                        help="Only process one source (default: all)")
-    parser.add_argument("--limit", type=int, default=None,
-                        help="Max jobs to process per source (useful for testing)")
+    parser.add_argument(
+        "--source",
+        choices=["linkedin", "unstop", "naukri"],
+        help="Only process one source (default: all)",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Max jobs to process per source (useful for testing)",
+    )
     args = parser.parse_args()
 
     asyncio.run(backfill(dry_run=args.dry_run, only_source=args.source, limit=args.limit))

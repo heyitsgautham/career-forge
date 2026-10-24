@@ -58,6 +58,7 @@ def _safe_list(value, default=None) -> list:
 @dataclass
 class TailorResult:
     """Result of resume tailoring."""
+
     resume_id: str
     job_id: str
     latex_content: str

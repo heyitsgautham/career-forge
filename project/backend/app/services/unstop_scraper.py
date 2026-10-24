@@ -61,6 +61,7 @@ UNSTOP_OPP_TYPES = ["jobs", "internship"]
 
 # ── Helper ───────────────────────────────────────────────────────────────────
 
+
 def _job_id(url: str) -> str:
     return hashlib.md5(url.encode()).hexdigest()
 
@@ -71,12 +72,7 @@ def _parse_unstop_opportunity(item: dict, opp_type: str) -> Optional[Dict[str, A
     `item` is the dict inside data.data[].
     """
     # Title may live at item.title or item.opportunity_name
-    title = (
-        item.get("title")
-        or item.get("opportunity_name")
-        or item.get("name")
-        or ""
-    ).strip()
+    title = (item.get("title") or item.get("opportunity_name") or item.get("name") or "").strip()
 
     if not title:
         return None
@@ -94,11 +90,7 @@ def _parse_unstop_opportunity(item: dict, opp_type: str) -> Optional[Dict[str, A
 
     # Organisation / company name
     org = item.get("organisation") or {}
-    company = (
-        org.get("name")
-        if isinstance(org, dict)
-        else str(org)
-    ).strip() if org else ""
+    company = (org.get("name") if isinstance(org, dict) else str(org)).strip() if org else ""
 
     # Location — may be a list of strings or a single string
     raw_loc = item.get("location") or item.get("city") or ""
@@ -152,6 +144,7 @@ def _parse_unstop_opportunity(item: dict, opp_type: str) -> Optional[Dict[str, A
 
 # ── Scraper class ────────────────────────────────────────────────────────────
 
+
 class UnstopScraper:
     """Async scraper for Unstop.com's public search API."""
 
@@ -164,7 +157,7 @@ class UnstopScraper:
     async def scrape(
         self,
         keyword: str,
-        opp_type: str = "jobs",          # "jobs" or "internship"
+        opp_type: str = "jobs",  # "jobs" or "internship"
         results_wanted: int = 20,
         page: int = 1,
     ) -> List[Dict[str, Any]]:
@@ -202,9 +195,7 @@ class UnstopScraper:
                 return results
 
             except httpx.HTTPStatusError as e:
-                logger.warning(
-                    f"Unstop HTTP error (attempt {attempt}): {e.response.status_code}"
-                )
+                logger.warning(f"Unstop HTTP error (attempt {attempt}): {e.response.status_code}")
             except Exception as e:
                 logger.warning(f"Unstop error (attempt {attempt}): {e}")
 
@@ -226,9 +217,7 @@ class UnstopScraper:
 
         for opp_type in UNSTOP_OPP_TYPES:
             for kw in UNSTOP_SEARCH_KEYWORDS:
-                jobs = await self.scrape(
-                    kw, opp_type=opp_type, results_wanted=results_per_keyword
-                )
+                jobs = await self.scrape(kw, opp_type=opp_type, results_wanted=results_per_keyword)
                 for job in jobs:
                     url = job.get("url", "")
                     if url and url not in seen_urls:

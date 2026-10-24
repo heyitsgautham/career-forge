@@ -146,6 +146,7 @@ def _coerce_list(val) -> list:
 # Section builders — each produces a LaTeX section string or "" if no data
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def _build_header(header: dict) -> str:
     """Build the centered header block."""
     if not isinstance(header, dict):
@@ -164,7 +165,9 @@ def _build_header(header: dict) -> str:
     linkedin_url = header.get("linkedin_url", "")
     linkedin_display = header.get("linkedin_display", "")
     if linkedin_url and linkedin_display:
-        parts.append(f"\\href{{{linkedin_url}}}{{\\faLinkedin\\ {_escape_latex(linkedin_display)}}}")
+        parts.append(
+            f"\\href{{{linkedin_url}}}{{\\faLinkedin\\ {_escape_latex(linkedin_display)}}}"
+        )
 
     github_url = header.get("github_url", "")
     github_display = header.get("github_display", "")
@@ -190,10 +193,7 @@ def _build_summary(summary: str) -> str:
     """Build the Professional Summary section."""
     if not summary or not summary.strip():
         return ""
-    return (
-        "\\section{Professional Summary}\n"
-        f"\\small {_escape_latex(summary.strip())}"
-    )
+    return "\\section{Professional Summary}\n" f"\\small {_escape_latex(summary.strip())}"
 
 
 def _build_education(education: list) -> str:
@@ -242,11 +242,7 @@ def _build_experience(experience: list) -> str:
             bullet_lines = "\n".join(
                 f"      \\resumeItem{{{_escape_latex(h)}}}" for h in highlights
             )
-            items = (
-                f"\n    \\resumeItemListStart\n"
-                f"{bullet_lines}\n"
-                f"    \\resumeItemListEnd"
-            )
+            items = f"\n    \\resumeItemListStart\n" f"{bullet_lines}\n" f"    \\resumeItemListEnd"
         entries.append(
             f"  \\resumeSubheading\n"
             f"    {{{title}}}{{{dates}}}\n"
@@ -287,16 +283,8 @@ def _build_projects(projects: list) -> str:
             bullet_lines = "\n".join(
                 f"      \\resumeItem{{{_escape_latex(h)}}}" for h in highlights
             )
-            items = (
-                f"\n    \\resumeItemListStart\n"
-                f"{bullet_lines}\n"
-                f"    \\resumeItemListEnd"
-            )
-        entries.append(
-            f"  \\resumeProjectHeading\n"
-            f"    {{{heading}}}{{}}"
-            f"{items}"
-        )
+            items = f"\n    \\resumeItemListStart\n" f"{bullet_lines}\n" f"    \\resumeItemListEnd"
+        entries.append(f"  \\resumeProjectHeading\n" f"    {{{heading}}}{{}}" f"{items}")
     if not entries:
         return ""
     body = "\n\n".join(entries)
@@ -340,9 +328,7 @@ def _build_achievements(achievements: list) -> str:
     achievements = [a for a in achievements if isinstance(a, str) and a.strip()]
     if not achievements:
         return ""
-    bullet_lines = "\n".join(
-        f"  \\resumeItem{{{_escape_latex(a)}}}" for a in achievements
-    )
+    bullet_lines = "\n".join(f"  \\resumeItem{{{_escape_latex(a)}}}" for a in achievements)
     return (
         "\\section{Achievements}\n"
         "\\resumeItemListStart\n"

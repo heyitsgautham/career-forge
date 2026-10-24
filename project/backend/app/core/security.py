@@ -30,18 +30,12 @@ logger = logging.getLogger(__name__)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against a hash."""
-    return bcrypt.checkpw(
-        plain_password.encode('utf-8'), 
-        hashed_password.encode('utf-8')
-    )
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password."""
-    return bcrypt.hashpw(
-        password.encode('utf-8'), 
-        bcrypt.gensalt()
-    ).decode('utf-8')
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -51,24 +45,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
-        to_encode, 
-        settings.JWT_SECRET_KEY, 
-        algorithm=settings.JWT_ALGORITHM
-    )
+    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
 
 def decode_access_token(token: str) -> Optional[dict]:
     """Decode and verify a JWT access token."""
     try:
-        payload = jwt.decode(
-            token, 
-            settings.JWT_SECRET_KEY, 
-            algorithms=[settings.JWT_ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return payload
     except jwt.PyJWTError:
         return None
@@ -137,7 +123,7 @@ class KmsTokenEncryptor:
         - Otherwise → legacy Fernet path (transparent backward compatibility).
         """
         if ciphertext.startswith(self._KMS_PREFIX):
-            blob = base64.b64decode(ciphertext[len(self._KMS_PREFIX):])
+            blob = base64.b64decode(ciphertext[len(self._KMS_PREFIX) :])
             response = self._kms.decrypt(CiphertextBlob=blob)
             return response["Plaintext"].decode()
 
@@ -147,8 +133,12 @@ class KmsTokenEncryptor:
         try:
             return self._fernet_fallback.decrypt(ciphertext)
         except (InvalidToken, Exception) as exc:
-            logger.error("KmsTokenEncryptor: failed to decrypt legacy Fernet ciphertext", exc_info=exc)
-            raise ValueError("Unable to decrypt token: not a valid KMS or Fernet ciphertext") from exc
+            logger.error(
+                "KmsTokenEncryptor: failed to decrypt legacy Fernet ciphertext", exc_info=exc
+            )
+            raise ValueError(
+                "Unable to decrypt token: not a valid KMS or Fernet ciphertext"
+            ) from exc
 
 
 # Global encryptor instance — KMS-backed, Fernet fallback for legacy rows

@@ -60,9 +60,7 @@ async def generate_roadmap(
     report = await get_cached_report(user_id, role_id=role_id)
 
     if not report:
-        raise ValueError(
-            "No gap analysis found. Please run a skill gap analysis first."
-        )
+        raise ValueError("No gap analysis found. Please run a skill gap analysis first.")
 
     # 2. Build the prompt
     gaps = report.get("gaps", [])
@@ -124,18 +122,20 @@ Return ONLY the JSON object with exactly 4 weeks."""
         # Validate and normalize
         validated_weeks = []
         for w in weeks[:4]:
-            validated_weeks.append({
-                "week": w.get("week", len(validated_weeks) + 1),
-                "projectTitle": w.get("projectTitle", "Untitled Project"),
-                "description": w.get("description", ""),
-                "techStack": w.get("techStack", []),
-                "estimatedHours": w.get("estimatedHours", 10),
-                "resources": [
-                    {"title": r.get("title", "Resource"), "url": r.get("url", "#")}
-                    for r in w.get("resources", [])[:3]
-                ],
-                "completedAt": None,
-            })
+            validated_weeks.append(
+                {
+                    "week": w.get("week", len(validated_weeks) + 1),
+                    "projectTitle": w.get("projectTitle", "Untitled Project"),
+                    "description": w.get("description", ""),
+                    "techStack": w.get("techStack", []),
+                    "estimatedHours": w.get("estimatedHours", 10),
+                    "resources": [
+                        {"title": r.get("title", "Resource"), "url": r.get("url", "#")}
+                        for r in w.get("resources", [])[:3]
+                    ],
+                    "completedAt": None,
+                }
+            )
 
     except Exception as e:
         logger.error("Roadmap generation via Claude failed", error=str(e))
@@ -177,6 +177,7 @@ async def get_roadmap(roadmap_id: str) -> Optional[Dict[str, Any]]:
     try:
         # Scan for the roadmap by ID (since we store by userId PK)
         from boto3.dynamodb.conditions import Attr
+
         results = await dynamo_service.scan(
             table="Roadmaps",
             filter_expression=Attr("roadmapId").eq(roadmap_id),

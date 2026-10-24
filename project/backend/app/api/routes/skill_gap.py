@@ -29,6 +29,7 @@ logger = structlog.get_logger()
 
 # ─── Request / Response Models ───────────────────────────────────────────────
 
+
 class GapAnalysisRequest(BaseModel):
     roleId: str
 
@@ -43,6 +44,7 @@ class MilestoneCompleteRequest(BaseModel):
 
 
 # ─── Skill Gap Endpoints ─────────────────────────────────────────────────────
+
 
 @router.get("/roles")
 async def list_roles():
@@ -89,6 +91,7 @@ async def get_gap_report(
 
 
 # ─── Roadmap Endpoints ───────────────────────────────────────────────────────
+
 
 @router.post("/roadmap/generate")
 async def generate_learning_roadmap(

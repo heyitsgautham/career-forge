@@ -63,9 +63,7 @@ def test_unreachable_secret_keeps_env_value(fake_sm):
 
 
 def test_gemini_keys_skip_empty_slots():
-    settings = Settings(
-        USE_SECRETS_MANAGER=False, GEMINI_API_KEY_1="a", GEMINI_API_KEY_3="c"
-    )
+    settings = Settings(USE_SECRETS_MANAGER=False, GEMINI_API_KEY_1="a", GEMINI_API_KEY_3="c")
     assert settings.gemini_api_keys == ["a", "c"]
 
 

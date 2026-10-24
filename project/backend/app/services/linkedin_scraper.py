@@ -1,4 +1,5 @@
 """LinkedIn profile scraper for extracting certifications."""
+
 from typing import List, Dict, Optional
 from bs4 import BeautifulSoup
 import re
@@ -39,11 +40,11 @@ def _run_playwright_script(profile_url: str) -> str:
        persistent session (~/.linkedin_playwright_data). After the first login in
        that browser, all future calls also run headlessly with no visible window.
     """
-    base_url = profile_url.rstrip('/')
+    base_url = profile_url.rstrip("/")
     certs_url = f"{base_url}/details/certifications/"
     chrome_user_data = _get_chrome_user_data_dir() or ""
 
-    script = f'''
+    script = f"""
 import sys
 import io
 import os
@@ -193,10 +194,12 @@ except Exception as e:
     import traceback
     traceback.print_exc(file=sys.stderr)
     sys.exit(1)
-'''
+"""
 
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        ) as f:
             f.write(script)
             script_path = f.name
 
@@ -206,8 +209,8 @@ except Exception as e:
             capture_output=True,
             text=True,
             timeout=420,
-            encoding='utf-8',
-            errors='replace'
+            encoding="utf-8",
+            errors="replace",
         )
 
         if result.returncode != 0:
@@ -229,10 +232,10 @@ except Exception as e:
 async def scrape_linkedin_certifications(profile_url: str) -> List[Dict[str, str]]:
     """
     Scrape certifications from a LinkedIn profile URL.
-    
+
     Args:
         profile_url: LinkedIn profile URL (e.g., https://www.linkedin.com/in/username/)
-    
+
     Returns:
         List of certification dictionaries with keys: name, issuer, date, credential_id, url
     """
@@ -240,131 +243,154 @@ async def scrape_linkedin_certifications(profile_url: str) -> List[Dict[str, str
         # Run Playwright in separate process to avoid Windows asyncio issues
         loop = asyncio.get_event_loop()
         html = await loop.run_in_executor(None, _run_playwright_script, profile_url)
-        
+
         # Save HTML for debugging
-        debug_path = os.path.join(os.path.dirname(__file__), '..', '..', 'linkedin_debug.html')
+        debug_path = os.path.join(os.path.dirname(__file__), "..", "..", "linkedin_debug.html")
         try:
-            with open(debug_path, 'w', encoding='utf-8') as f:
+            with open(debug_path, "w", encoding="utf-8") as f:
                 f.write(html)
             logger.info(f"Saved debug HTML to: {debug_path}")
         except Exception as e:
             logger.warning(f"Could not save debug HTML: {e}")
-        
-        soup = BeautifulSoup(html, 'html.parser')
+
+        soup = BeautifulSoup(html, "html.parser")
         certifications = []
-        
+
         logger.info(f"HTML length: {len(html)}")
-        
+
         # Check page title to see where we are
-        title = soup.find('title')
+        title = soup.find("title")
         logger.info(f"Page title: {title.get_text() if title else 'No title'}")
-        
+
         # LinkedIn certifications page structure - look for list items
         # The certifications page uses pvs-list__paged-list-wrapper
-        cert_list = soup.find_all('li', class_=lambda x: x and 'pvs-list__paged-list-item' in str(x))
+        cert_list = soup.find_all(
+            "li", class_=lambda x: x and "pvs-list__paged-list-item" in str(x)
+        )
         logger.info(f"Found {len(cert_list)} pvs-list items")
-        
+
         if not cert_list:
             # Try alternative selector
-            cert_list = soup.find_all('li', class_=lambda x: x and 'artdeco-list__item' in str(x))
+            cert_list = soup.find_all("li", class_=lambda x: x and "artdeco-list__item" in str(x))
             logger.info(f"Found {len(cert_list)} artdeco-list items")
-        
+
         if not cert_list:
             # Try finding any li with certification-like content
-            cert_list = soup.find_all('li', class_=lambda x: x and 'pvs-list' in str(x))
+            cert_list = soup.find_all("li", class_=lambda x: x and "pvs-list" in str(x))
             logger.info(f"Found {len(cert_list)} pvs-list items (broader)")
-        
+
         for item in cert_list:
             cert = {}
-            
+
             # Extract certification name - in div with "mr1 t-bold" class
-            name_elem = item.find('div', class_=lambda x: x and 'mr1' in str(x) and 't-bold' in str(x))
+            name_elem = item.find(
+                "div", class_=lambda x: x and "mr1" in str(x) and "t-bold" in str(x)
+            )
             if name_elem:
                 # Get the aria-hidden span for clean text
-                name_span = name_elem.find('span', {'aria-hidden': 'true'})
+                name_span = name_elem.find("span", {"aria-hidden": "true"})
                 if name_span:
-                    cert['name'] = name_span.get_text(strip=True)
+                    cert["name"] = name_span.get_text(strip=True)
                 else:
-                    cert['name'] = name_elem.get_text(strip=True)
-            
+                    cert["name"] = name_elem.get_text(strip=True)
+
             # Extract issuer - in span with "t-14 t-normal" but NOT "t-black--light"
-            issuer_spans = item.find_all('span', class_=lambda x: x and 't-14' in str(x) and 't-normal' in str(x) and 't-black--light' not in str(x))
+            issuer_spans = item.find_all(
+                "span",
+                class_=lambda x: x
+                and "t-14" in str(x)
+                and "t-normal" in str(x)
+                and "t-black--light" not in str(x),
+            )
             for span in issuer_spans:
-                inner_span = span.find('span', {'aria-hidden': 'true'})
+                inner_span = span.find("span", {"aria-hidden": "true"})
                 if inner_span:
                     text = inner_span.get_text(strip=True)
                     # Skip if it's a date or empty
-                    if text and 'Issued' not in text and 'Skills' not in text and len(text) > 2:
-                        cert['issuer'] = text
+                    if text and "Issued" not in text and "Skills" not in text and len(text) > 2:
+                        cert["issuer"] = text
                         break
-            
+
             # Extract date - in span with "pvs-entity__caption-wrapper" class
-            date_elem = item.find('span', class_=lambda x: x and 'pvs-entity__caption-wrapper' in str(x))
+            date_elem = item.find(
+                "span", class_=lambda x: x and "pvs-entity__caption-wrapper" in str(x)
+            )
             if date_elem:
                 date_text = date_elem.get_text(strip=True)
                 # Remove "Issued " prefix
-                if 'Issued' in date_text:
-                    date_text = date_text.replace('Issued', '').strip()
+                if "Issued" in date_text:
+                    date_text = date_text.replace("Issued", "").strip()
                 if date_text:
-                    cert['date'] = date_text
-            
+                    cert["date"] = date_text
+
             # Extract credential ID (if present)
-            for elem in item.find_all(['span', 'div']):
+            for elem in item.find_all(["span", "div"]):
                 text = elem.get_text(strip=True)
-                if 'Credential ID' in text:
-                    cred_text = text.replace('Credential ID', '').strip()
+                if "Credential ID" in text:
+                    cred_text = text.replace("Credential ID", "").strip()
                     if cred_text:
-                        cert['credential_id'] = cred_text
+                        cert["credential_id"] = cred_text
                     break
-            
+
             # Extract URL - look for "See credential" link
-            url_elem = item.find('a', href=True, string=lambda x: x and 'credential' in str(x).lower())
+            url_elem = item.find(
+                "a", href=True, string=lambda x: x and "credential" in str(x).lower()
+            )
             if not url_elem:
                 # Try finding any external link
-                for link in item.find_all('a', href=True):
-                    href = link.get('href', '')
-                    if href and 'linkedin.com' not in href and href.startswith('http'):
+                for link in item.find_all("a", href=True):
+                    href = link.get("href", "")
+                    if href and "linkedin.com" not in href and href.startswith("http"):
                         url_elem = link
                         break
-            
-            if url_elem and 'href' in url_elem.attrs:
-                cert['url'] = url_elem['href']
-            
+
+            if url_elem and "href" in url_elem.attrs:
+                cert["url"] = url_elem["href"]
+
             # Only add if we got a valid name
-            if cert.get('name') and len(cert.get('name', '')) > 2:
+            if cert.get("name") and len(cert.get("name", "")) > 2:
                 # Clean up the name - remove any extra whitespace
-                cert['name'] = ' '.join(cert['name'].split())
+                cert["name"] = " ".join(cert["name"].split())
                 certifications.append(cert)
                 logger.info(f"Extracted certification: {cert}")
-        
+
         # If we still found nothing, try a more aggressive search
         if not certifications:
             logger.info("No certifications found with primary method, trying fallback...")
             # Look for any certification-like patterns in the HTML
             all_text = soup.get_text()
             # Find patterns like "Certification Name\nIssuing Organization\nIssued Date"
-            
+
             # Alternative: find all divs that might contain certification info
-            potential_certs = soup.find_all('div', class_=lambda x: x and ('entity-result' in str(x) or 'pv-profile' in str(x) or 'certification' in str(x).lower()))
+            potential_certs = soup.find_all(
+                "div",
+                class_=lambda x: x
+                and (
+                    "entity-result" in str(x)
+                    or "pv-profile" in str(x)
+                    or "certification" in str(x).lower()
+                ),
+            )
             logger.info(f"Found {len(potential_certs)} potential certification divs")
-            
+
             for div in potential_certs:
                 texts = [t.strip() for t in div.stripped_strings]
                 if len(texts) >= 2:
                     cert = {
-                        'name': texts[0],
-                        'issuer': texts[1] if len(texts) > 1 else None,
-                        'date': texts[2] if len(texts) > 2 and 'Issued' in texts[2] else None
+                        "name": texts[0],
+                        "issuer": texts[1] if len(texts) > 1 else None,
+                        "date": texts[2] if len(texts) > 2 and "Issued" in texts[2] else None,
                     }
-                    if cert['name'] and len(cert['name']) > 2:
+                    if cert["name"] and len(cert["name"]) > 2:
                         certifications.append(cert)
                         logger.info(f"Fallback extracted: {cert}")
-        
+
         logger.info(f"Total certifications found: {len(certifications)}")
         return certifications
-            
+
     except Exception as e:
         import traceback
+
         error_details = traceback.format_exc()
         logger.error(f"Error scraping LinkedIn profile: {str(e)}\n{error_details}")
         raise Exception(f"LinkedIn scraping failed: {str(e)}")
@@ -373,27 +399,27 @@ async def scrape_linkedin_certifications(profile_url: str) -> List[Dict[str, str
 def parse_linkedin_url(url: str) -> Optional[str]:
     """
     Validate and normalize LinkedIn profile URL.
-    
+
     Args:
         url: LinkedIn profile URL
-    
+
     Returns:
         Normalized URL or None if invalid
     """
     if not url:
         return None
-    
+
     # Remove trailing slashes
-    url = url.rstrip('/')
-    
+    url = url.rstrip("/")
+
     # Check if it's a valid LinkedIn profile URL
-    if 'linkedin.com/in/' in url:
+    if "linkedin.com/in/" in url:
         return url
-    
+
     # If it's just a username, construct full URL
-    if not url.startswith('http'):
+    if not url.startswith("http"):
         return f"https://www.linkedin.com/in/{url}"
-    
+
     return None
 
 
@@ -405,8 +431,8 @@ def _run_playwright_profile_script(profile_url: str) -> str:
     and /details/certifications/.  Returns a JSON string containing:
       summary, website, email, phone, linkedin_url, education[], certifications[]
     """
-    base_url = profile_url.rstrip('/')
-    edu_url   = f"{base_url}/details/education/"
+    base_url = profile_url.rstrip("/")
+    edu_url = f"{base_url}/details/education/"
     certs_url = f"{base_url}/details/certifications/"
     contact_url = f"{base_url}/overlay/contact-info/"
     chrome_user_data = _get_chrome_user_data_dir() or ""
@@ -839,7 +865,9 @@ except Exception as e:
 '''
 
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        ) as f:
             f.write(script)
             script_path = f.name
 
@@ -849,8 +877,8 @@ except Exception as e:
             capture_output=True,
             text=True,
             timeout=480,
-            encoding='utf-8',
-            errors='replace'
+            encoding="utf-8",
+            errors="replace",
         )
 
         if result.returncode != 0:
@@ -889,5 +917,6 @@ async def scrape_linkedin_profile(profile_url: str) -> Dict:
         return data
     except Exception as e:
         import traceback
+
         logger.error(f"Error scraping LinkedIn profile: {e}\n{traceback.format_exc()}")
         raise Exception(f"LinkedIn profile scraping failed: {str(e)}")

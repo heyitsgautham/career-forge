@@ -54,6 +54,7 @@ RULES:
 
 # ─── Step 1: Suggest 3 Projects ─────────────────────────────────────────────
 
+
 async def suggest_projects(
     domain: str,
 ) -> Dict[str, Any]:
@@ -99,15 +100,17 @@ Return JSON:
         projects = result.get("projects", [])[:3]
         validated = []
         for i, p in enumerate(projects):
-            validated.append({
-                "id": i + 1,
-                "title": p.get("title", f"Project {i+1}"),
-                "difficulty": p.get("difficulty", "medium"),
-                "description": p.get("description", ""),
-                "techStack": p.get("techStack", []),
-                "keySkills": p.get("keySkills", []),
-                "estimatedHours": p.get("estimatedHours", 14),
-            })
+            validated.append(
+                {
+                    "id": i + 1,
+                    "title": p.get("title", f"Project {i+1}"),
+                    "difficulty": p.get("difficulty", "medium"),
+                    "description": p.get("description", ""),
+                    "techStack": p.get("techStack", []),
+                    "keySkills": p.get("keySkills", []),
+                    "estimatedHours": p.get("estimatedHours", 14),
+                }
+            )
 
         return {"domain": domain, "projects": validated}
 
@@ -117,6 +120,7 @@ Return JSON:
 
 
 # ─── Step 2: Generate 7-Day Plan ────────────────────────────────────────────
+
 
 async def generate_day_plan(
     user_id: str,
@@ -183,20 +187,22 @@ Return JSON:
         days = result.get("days", [])[:7]
         validated_days = []
         for i, d in enumerate(days):
-            validated_days.append({
-                "day": i + 1,
-                "title": d.get("title", f"Day {i+1}"),
-                "description": d.get("description", ""),
-                "tasks": d.get("tasks", [])[:6],
-                "techDetails": d.get("techDetails", ""),
-                "architecture": d.get("architecture", ""),
-                "resources": [
-                    {"title": r.get("title", "Resource"), "url": r.get("url", "#")}
-                    for r in d.get("resources", [])[:3]
-                ],
-                "estimatedHours": d.get("estimatedHours", 1),
-                "completedAt": None,
-            })
+            validated_days.append(
+                {
+                    "day": i + 1,
+                    "title": d.get("title", f"Day {i+1}"),
+                    "description": d.get("description", ""),
+                    "tasks": d.get("tasks", [])[:6],
+                    "techDetails": d.get("techDetails", ""),
+                    "architecture": d.get("architecture", ""),
+                    "resources": [
+                        {"title": r.get("title", "Resource"), "url": r.get("url", "#")}
+                        for r in d.get("resources", [])[:3]
+                    ],
+                    "estimatedHours": d.get("estimatedHours", 1),
+                    "completedAt": None,
+                }
+            )
 
     except Exception as e:
         logger.error("Day plan generation failed", error=str(e))
@@ -237,10 +243,12 @@ Return JSON:
 
 # ─── Fetch / List / Complete ─────────────────────────────────────────────────
 
+
 async def get_project_roadmap(roadmap_id: str) -> Optional[Dict[str, Any]]:
     """Fetch a specific project roadmap by ID."""
     try:
         from boto3.dynamodb.conditions import Attr
+
         results = await dynamo_service.scan(
             table="ProjectRoadmaps",
             filter_expression=Attr("projectRoadmapId").eq(roadmap_id),

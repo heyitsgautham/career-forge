@@ -29,16 +29,17 @@ from pyvirtualdisplay import Display
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 SEARCH_KEYWORD = "software development"
-LOCATIONS      = ["chennai", "bengaluru", "mumbai", "hyderabad", "delhi ncr"]
-TIME_WINDOWS   = [
-    (1,  "Last 1 Day"),
-    (7,  "Last 7 Days"),
+LOCATIONS = ["chennai", "bengaluru", "mumbai", "hyderabad", "delhi ncr"]
+TIME_WINDOWS = [
+    (1, "Last 1 Day"),
+    (7, "Last 7 Days"),
     (30, "Last 1 Month"),
 ]
 OUTPUT_HTML = Path("/tmp/naukri_full_demo.html")
-PORT        = 7790
+PORT = 7790
 
 # ── URL builder ────────────────────────────────────────────────────────────────
+
 
 def build_url(keyword: str, locations: List[str], job_age: int, path: str) -> str:
     params = {
@@ -53,9 +54,10 @@ def build_url(keyword: str, locations: List[str], job_age: int, path: str) -> st
 
 # ── Job parser ──────────────────────────────────────────────────────────────────
 
+
 def parse_job(raw: dict, job_age: int, path: str) -> Optional[Dict[str, Any]]:
     title = (raw.get("title") or "").strip()
-    url   = (raw.get("jdURL") or raw.get("jobUrl") or raw.get("url") or "").strip()
+    url = (raw.get("jdURL") or raw.get("jobUrl") or raw.get("url") or "").strip()
     if not title or not url:
         return None
     if not url.startswith("http"):
@@ -79,17 +81,18 @@ def parse_job(raw: dict, job_age: int, path: str) -> Optional[Dict[str, Any]]:
     job_type = "Internship" if path == "internship-jobs" else "Full-time"
 
     return {
-        "title":    title,
-        "company":  company,
+        "title": title,
+        "company": company,
         "location": location,
-        "skills":   skills[:80],
-        "type":     job_type,
-        "url":      url,
-        "window":   job_age,
+        "skills": skills[:80],
+        "type": job_type,
+        "url": url,
+        "window": job_age,
     }
 
 
 # ── Browser scrape ──────────────────────────────────────────────────────────────
+
 
 async def scrape_one(keyword: str, locations: List[str], job_age: int, path: str) -> List[dict]:
     """Run one browser session and return raw job dicts."""
@@ -102,8 +105,12 @@ async def scrape_one(keyword: str, locations: List[str], job_age: int, path: str
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(
             headless=False,
-            args=["--disable-blink-features=AutomationControlled", "--no-sandbox",
-                  "--disable-dev-shm-usage", "--window-size=1280,900"],
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--window-size=1280,900",
+            ],
         )
         context = await browser.new_context(
             user_agent=(
@@ -129,7 +136,9 @@ async def scrape_one(keyword: str, locations: List[str], job_age: int, path: str
 
         page.on("response", on_resp)
         try:
-            await page.goto("https://www.naukri.com/", wait_until="domcontentloaded", timeout=30_000)
+            await page.goto(
+                "https://www.naukri.com/", wait_until="domcontentloaded", timeout=30_000
+            )
             await asyncio.sleep(2)
             await page.goto(url, wait_until="domcontentloaded", timeout=40_000)
             await asyncio.sleep(6)
@@ -145,6 +154,7 @@ async def scrape_one(keyword: str, locations: List[str], job_age: int, path: str
 
 
 # ── Main scrape loop ────────────────────────────────────────────────────────────
+
 
 async def run_all():
     """Run all time-window × path combos, one at a time."""
@@ -179,6 +189,7 @@ async def run_all():
 
 # ── HTML render ─────────────────────────────────────────────────────────────────
 
+
 def render_html(results: Dict[int, List[dict]]) -> str:
     total = sum(len(v) for v in results.values())
 
@@ -188,14 +199,15 @@ def render_html(results: Dict[int, List[dict]]) -> str:
 
         # Location breakdown
         from collections import Counter
+
         loc_counts = Counter(j["location"] for j in jobs)
 
         rows = ""
         for j in jobs:
             type_badge = (
                 '<span style="background:#0ea5e9;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px">Internship</span>'
-                if j["type"] == "Internship" else
-                '<span style="background:#8b5cf6;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px">Full-time</span>'
+                if j["type"] == "Internship"
+                else '<span style="background:#8b5cf6;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px">Full-time</span>'
             )
             rows += f"""
             <tr>
@@ -272,15 +284,20 @@ def render_html(results: Dict[int, List[dict]]) -> str:
 
 # ── HTTP server ─────────────────────────────────────────────────────────────────
 
+
 def serve(path: Path, port: int):
     content = path.read_bytes()
+
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
             self.wfile.write(content)
-        def log_message(self, *a): pass
+
+        def log_message(self, *a):
+            pass
+
     try:
         with socketserver.TCPServer(("", port), H) as httpd:
             httpd.serve_forever()

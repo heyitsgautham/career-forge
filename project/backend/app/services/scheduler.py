@@ -30,6 +30,7 @@ last_scrape_result: dict = {
 
 # ── Scheduled job ────────────────────────────────────────────────────────────
 
+
 async def _scheduled_scrape():
     """Hourly scrape job: iterate all queries → scrape → analyze."""
     global last_scrape_result
@@ -76,6 +77,7 @@ async def _scheduled_scrape():
 
 
 # ── Lifecycle ────────────────────────────────────────────────────────────────
+
 
 def start_scheduler():
     """Start the hourly scheduler. Runs at the top of every hour (xx:00)."""

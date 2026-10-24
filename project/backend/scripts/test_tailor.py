@@ -1,6 +1,8 @@
 """Quick CLI test for resume_tailor with improved prompt."""
+
 import asyncio
 import sys
+
 sys.path.insert(0, "/Users/gauthamkrishna/Projects/career-forge/project/backend")
 
 from app.services.resume_tailor import tailor_resume_for_job
@@ -61,11 +63,35 @@ EXPERIENCE = [
 ]
 
 SKILLS = [
-    "Python", "Java", "JavaScript", "TypeScript", "SQL", "C", "Bash",
-    "PyTorch", "Transformers", "LangChain", "RAG", "Gemini", "ChromaDB", "FAISS",
-    "FastAPI", "React", "Next.js", "Spark MLlib",
-    "AWS", "GCP", "Vertex AI", "GKE", "Docker", "Kubernetes",
-    "Git", "GitHub Actions", "Terraform", "Kafka", "PostgreSQL",
+    "Python",
+    "Java",
+    "JavaScript",
+    "TypeScript",
+    "SQL",
+    "C",
+    "Bash",
+    "PyTorch",
+    "Transformers",
+    "LangChain",
+    "RAG",
+    "Gemini",
+    "ChromaDB",
+    "FAISS",
+    "FastAPI",
+    "React",
+    "Next.js",
+    "Spark MLlib",
+    "AWS",
+    "GCP",
+    "Vertex AI",
+    "GKE",
+    "Docker",
+    "Kubernetes",
+    "Git",
+    "GitHub Actions",
+    "Terraform",
+    "Kafka",
+    "PostgreSQL",
 ]
 
 

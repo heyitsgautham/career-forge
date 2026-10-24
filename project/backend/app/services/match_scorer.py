@@ -19,6 +19,7 @@ logger = structlog.get_logger()
 @dataclass
 class JobMatchScore:
     """Detailed match score for a user-job pair."""
+
     job_id: str
     total_score: float  # 0-100 percentage
     vector_score: float  # 0-1 cosine similarity
@@ -68,9 +69,7 @@ class MatchScorer:
         all_job_skills = required_skills + preferred_skills
 
         # 1. Keyword overlap score
-        keyword_score, matched, missing = self._keyword_overlap(
-            user_skills, required_skills
-        )
+        keyword_score, matched, missing = self._keyword_overlap(user_skills, required_skills)
 
         # 2. Vector similarity score
         vector_score = 0.5  # default
@@ -84,15 +83,10 @@ class MatchScorer:
                 logger.warning(f"Embedding comparison failed for job {job_id}: {e}")
 
         # Weighted blend → percentage
-        raw_score = (
-            self.WEIGHT_VECTOR * vector_score
-            + self.WEIGHT_KEYWORD * keyword_score
-        )
+        raw_score = self.WEIGHT_VECTOR * vector_score + self.WEIGHT_KEYWORD * keyword_score
         total_pct = round(min(raw_score * 100, 100), 1)
 
-        explanation = self._build_explanation(
-            vector_score, keyword_score, matched, missing
-        )
+        explanation = self._build_explanation(vector_score, keyword_score, matched, missing)
 
         return JobMatchScore(
             job_id=job_id,
@@ -161,9 +155,7 @@ class MatchScorer:
                     "missingSkills": score.missing_skills,
                     "updatedAt": dynamo_service.now_iso(),
                 }
-                await dynamo_service.update_item(
-                    "Jobs", {"jobId": score.job_id}, updates
-                )
+                await dynamo_service.update_item("Jobs", {"jobId": score.job_id}, updates)
             except Exception as e:
                 logger.error(f"Failed to store match score for {score.job_id}: {e}")
 
@@ -197,10 +189,7 @@ class MatchScorer:
         still_missing = []
         for skill in missing:
             skill_lower = skill.lower()
-            if any(
-                skill_lower in us or us in skill_lower
-                for us in user_set
-            ):
+            if any(skill_lower in us or us in skill_lower for us in user_set):
                 matched.append(skill)
             else:
                 still_missing.append(skill)

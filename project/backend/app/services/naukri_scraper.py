@@ -38,6 +38,7 @@ NAUKRI_METRO_CITIES = ["chennai", "bengaluru", "mumbai", "hyderabad", "pune", "n
 
 # ── Role expansion: same SEARCH_QUERIES → flat keyword list ──────────────────
 
+
 def _expand_roles(queries: List[str]) -> List[str]:
     """
     Split boolean-OR queries into individual role strings.
@@ -48,7 +49,7 @@ def _expand_roles(queries: List[str]) -> List[str]:
     seen: set = set()
     for q in queries:
         role_names = re.findall(r'"([^"]+)"', q)
-        suffix_match = re.search(r'\)\s+(\w+)\s*$', q)
+        suffix_match = re.search(r"\)\s+(\w+)\s*$", q)
         suffix = suffix_match.group(1).lower() if suffix_match else ""
         for role in role_names:
             if suffix and role.lower().endswith(suffix):
@@ -71,12 +72,14 @@ def _get_role_list() -> List[str]:
     global _ROLE_LIST
     if _ROLE_LIST is None:
         from app.services.job_scraper import SEARCH_QUERIES
+
         _ROLE_LIST = _expand_roles(SEARCH_QUERIES)
         logger.info(f"Naukri: {len(_ROLE_LIST)} expanded roles ready")
     return _ROLE_LIST
 
 
 # ── URL builder ───────────────────────────────────────────────────────────────
+
 
 def build_naukri_url(
     roles: List[str],
@@ -100,6 +103,7 @@ def build_naukri_url(
 
 # ── Job parser ────────────────────────────────────────────────────────────────
 
+
 def _parse_naukri_job(raw: dict) -> Optional[Dict[str, Any]]:
     """Parse a single Naukri job dict from the /jobapi/v3/search JSON response."""
     title = (raw.get("title") or "").strip()
@@ -110,9 +114,7 @@ def _parse_naukri_job(raw: dict) -> Optional[Dict[str, Any]]:
         url = "https://www.naukri.com" + url
 
     company = (
-        raw.get("companyName")
-        or (raw.get("company") or {}).get("name", "")
-        or ""
+        raw.get("companyName") or (raw.get("company") or {}).get("name", "") or ""
     ).strip() or "Unknown"
 
     # Location from placeholders array or direct field
@@ -129,14 +131,10 @@ def _parse_naukri_job(raw: dict) -> Optional[Dict[str, Any]]:
     salary = (raw.get("salary") or "").strip() or None
 
     # Full JD text/HTML from the search result (Naukri includes this in search API)
-    jd_html = (
-        raw.get("jobDescription")
-        or raw.get("jobDesc")
-        or raw.get("jdText")
-        or ""
-    ).strip()
+    jd_html = (raw.get("jobDescription") or raw.get("jobDesc") or raw.get("jdText") or "").strip()
     # Strip HTML tags for plain text storage
     import re as _re
+
     jd_text = _re.sub(r"<[^>]+>", " ", jd_html).strip() if jd_html else ""
     # Fall back to skill tags if no JD text
     tags = raw.get("tagsAndSkills") or raw.get("skills") or []
@@ -166,6 +164,7 @@ def _parse_naukri_job(raw: dict) -> Optional[Dict[str, Any]]:
 
 # ── Playwright fetch + intercept ──────────────────────────────────────────────
 
+
 async def _fetch_jobs_via_browser(
     url: str,
     timeout_ms: int = 40_000,
@@ -194,10 +193,11 @@ async def _fetch_jobs_via_browser(
         _time.sleep(0.3)
         xvfb_proc = subprocess.Popen(
             ["Xvfb", ":99", "-screen", "0", "1280x900x24", "-ac"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         os.environ["DISPLAY"] = ":99"
-        os.environ.pop("WAYLAND_DISPLAY", None)   # prevent Chromium Wayland fallback
+        os.environ.pop("WAYLAND_DISPLAY", None)  # prevent Chromium Wayland fallback
         os.environ.pop("XDG_SESSION_TYPE", None)
         # Wait for Xvfb to be ready (up to 5 s)
         for _attempt in range(10):
@@ -208,7 +208,7 @@ async def _fetch_jobs_via_browser(
         else:
             logger.warning("Xvfb :99 did not become ready in time — window may appear")
     else:
-        _os_name = platform.system()   # 'Darwin' or 'Windows'
+        _os_name = platform.system()  # 'Darwin' or 'Windows'
         logger.info(
             f"Naukri: running on {_os_name} — Xvfb not available. "
             "Browser window may briefly appear. Use Docker for invisible operation."
@@ -273,7 +273,7 @@ async def _fetch_jobs_via_browser(
 
                 logger.info("Naukri Playwright navigating", url=url[:120])
                 await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-                await asyncio.sleep(6)   # let lazy API call fire
+                await asyncio.sleep(6)  # let lazy API call fire
 
                 if not captured:
                     logger.debug("Naukri: no results yet, scrolling to trigger lazy load")
@@ -295,6 +295,7 @@ async def _fetch_jobs_via_browser(
 
 
 # ── Scraper class ─────────────────────────────────────────────────────────────
+
 
 class NaukriScraper:
     """

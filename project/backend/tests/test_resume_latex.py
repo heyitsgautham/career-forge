@@ -30,7 +30,12 @@ SAMPLE = {
     },
     "professional_summary": "Backend engineer who ships FastAPI services & data pipelines.",
     "education": [
-        {"school": "Example Institute", "metric": "CGPA 8.9", "degree": "B.Tech CSE", "dates": "2021 -- 2025"}
+        {
+            "school": "Example Institute",
+            "metric": "CGPA 8.9",
+            "degree": "B.Tech CSE",
+            "dates": "2021 -- 2025",
+        }
     ],
     "experience": [
         {
@@ -42,7 +47,12 @@ SAMPLE = {
         }
     ],
     "projects": [
-        {"name": "job_scout", "url": "https://github.com/asha-example/job_scout", "technologies": "Python, AWS", "highlights": ["Ranks 500 jobs/day"]},
+        {
+            "name": "job_scout",
+            "url": "https://github.com/asha-example/job_scout",
+            "technologies": "Python, AWS",
+            "highlights": ["Ranks 500 jobs/day"],
+        },
         {"name": "offline-tool", "technologies": "Go", "highlights": []},
     ],
     "skills": [
@@ -119,7 +129,16 @@ def test_achievements_keep_only_non_empty_strings():
 
 def test_full_template_orders_sections():
     doc = _fill_jakes_template(SAMPLE)
-    order = ["\\begin{document}", "Professional Summary", "{Education}", "{Experience}", "{Projects}", "Technical Skills", "{Achievements}", "\\end{document}"]
+    order = [
+        "\\begin{document}",
+        "Professional Summary",
+        "{Education}",
+        "{Experience}",
+        "{Projects}",
+        "Technical Skills",
+        "{Achievements}",
+        "\\end{document}",
+    ]
     positions = [doc.index(marker) for marker in order]
     assert positions == sorted(positions)
     assert doc.startswith(r"\documentclass")

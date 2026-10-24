@@ -9,11 +9,13 @@ Run:
 
 # ── start Xvfb and force X11 (not Wayland) BEFORE playwright loads ───────────
 import os, subprocess, time as _t
+
 subprocess.run(["pkill", "-f", "Xvfb :99"], capture_output=True)
 _t.sleep(0.3)
 _xvfb = subprocess.Popen(
     ["Xvfb", ":99", "-screen", "0", "1280x900x24", "-ac"],
-    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
 )
 os.environ["DISPLAY"] = ":99"
 os.environ.pop("WAYLAND_DISPLAY", None)
@@ -22,7 +24,9 @@ for _i in range(10):
     _t.sleep(0.5)
     if subprocess.run(["xdpyinfo", "-display", ":99"], capture_output=True).returncode == 0:
         break
-import atexit; atexit.register(_xvfb.terminate)
+import atexit
+
+atexit.register(_xvfb.terminate)
 
 import asyncio, http.server, socketserver, threading, time
 from collections import Counter
@@ -34,30 +38,35 @@ from playwright.async_api import async_playwright, Response as PwResponse
 from playwright_stealth import Stealth
 
 # ── config ──────────────────────────────────────────────────────────────────
-KEYWORD    = "full stack developer"
-LOCATIONS  = ["chennai", "bengaluru", "mumbai", "hyderabad", "delhi ncr", "pune", "noida"]
-JOB_AGE    = 7
-OUTPUT     = Path("/tmp/demo_fullstack.html")
-PORT       = 7791
+KEYWORD = "full stack developer"
+LOCATIONS = ["chennai", "bengaluru", "mumbai", "hyderabad", "delhi ncr", "pune", "noida"]
+JOB_AGE = 7
+OUTPUT = Path("/tmp/demo_fullstack.html")
+PORT = 7791
+
 
 # ── URL builder ──────────────────────────────────────────────────────────────
 def _url(keyword: str, locs: List[str], age: int, path: str) -> str:
-    return (
-        f"https://www.naukri.com/{path}?"
-        + urlencode({"k": keyword, "l": ", ".join(locs),
-                     "nignbevent_src": "jobsearchDeskGNB",
-                     "experience": "0", "jobAge": str(age)})
+    return f"https://www.naukri.com/{path}?" + urlencode(
+        {
+            "k": keyword,
+            "l": ", ".join(locs),
+            "nignbevent_src": "jobsearchDeskGNB",
+            "experience": "0",
+            "jobAge": str(age),
+        }
     )
+
 
 # ── parser ───────────────────────────────────────────────────────────────────
 def _parse(raw: dict, path: str) -> Optional[Dict[str, Any]]:
     title = (raw.get("title") or "").strip()
-    url   = (raw.get("jdURL") or raw.get("jobUrl") or raw.get("url") or "").strip()
+    url = (raw.get("jdURL") or raw.get("jobUrl") or raw.get("url") or "").strip()
     if not title or not url:
         return None
     if not url.startswith("http"):
         url = "https://www.naukri.com" + url
-    company = (raw.get("companyName") or (raw.get("company") or {}).get("name","") or "—").strip()
+    company = (raw.get("companyName") or (raw.get("company") or {}).get("name", "") or "—").strip()
 
     loc_parts: List[str] = []
     for ph in raw.get("placeholders") or []:
@@ -69,33 +78,42 @@ def _parse(raw: dict, path: str) -> Optional[Dict[str, Any]]:
         loc_parts = rl if isinstance(rl, list) else [str(rl)]
     location = ", ".join(loc_parts[:2]) or "India"
 
-    tags  = raw.get("tagsAndSkills") or raw.get("skills") or ""
-    skills= ", ".join(tags) if isinstance(tags, list) else str(tags)
+    tags = raw.get("tagsAndSkills") or raw.get("skills") or ""
+    skills = ", ".join(tags) if isinstance(tags, list) else str(tags)
 
     jtype = "Internship" if path == "internship-jobs" else "Full-time"
-    return dict(title=title, company=company, location=location,
-                skills=skills[:100], type=jtype, url=url)
+    return dict(
+        title=title, company=company, location=location, skills=skills[:100], type=jtype, url=url
+    )
+
 
 # ── browser scrape ────────────────────────────────────────────────────────────
 async def _scrape_one(keyword: str, locs: List[str], age: int, path: str) -> List[dict]:
     target = _url(keyword, locs, age, path)
     captured: List[dict] = []
-    label   = f"[{path}|age={age}d]"
+    label = f"[{path}|age={age}d]"
     print(f"  {label}  →  {target[:100]}…")
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(
             headless=False,
-            args=["--ozone-platform=x11",
-                  "--disable-blink-features=AutomationControlled",
-                  "--no-sandbox", "--disable-dev-shm-usage",
-                  "--disable-gpu", "--window-size=1280,900"],
+            args=[
+                "--ozone-platform=x11",
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--window-size=1280,900",
+            ],
         )
         ctx = await browser.new_context(
-            user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/124.0.0.0 Safari/537.36"),
-            locale="en-IN", timezone_id="Asia/Kolkata",
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            locale="en-IN",
+            timezone_id="Asia/Kolkata",
             viewport={"width": 1280, "height": 900},
         )
         page = await ctx.new_page()
@@ -113,7 +131,9 @@ async def _scrape_one(keyword: str, locs: List[str], age: int, path: str) -> Lis
 
         page.on("response", _on)
         try:
-            await page.goto("https://www.naukri.com/", wait_until="domcontentloaded", timeout=30_000)
+            await page.goto(
+                "https://www.naukri.com/", wait_until="domcontentloaded", timeout=30_000
+            )
             await asyncio.sleep(2)
             await page.goto(target, wait_until="domcontentloaded", timeout=40_000)
             await asyncio.sleep(6)
@@ -127,10 +147,11 @@ async def _scrape_one(keyword: str, locs: List[str], age: int, path: str) -> Lis
 
     return [j for raw in captured if (j := _parse(raw, path))]
 
+
 # ── main ──────────────────────────────────────────────────────────────────────
 async def run():
     jobs: List[dict] = []
-    seen: set         = set()
+    seen: set = set()
 
     for path in ["internship-jobs", "jobs"]:
         batch = await _scrape_one(KEYWORD, LOCATIONS, JOB_AGE, path)
@@ -142,6 +163,7 @@ async def run():
 
     print(f"\n  Total unique jobs: {len(jobs)}")
     return jobs
+
 
 # ── HTML ──────────────────────────────────────────────────────────────────────
 def _html(jobs: List[dict]) -> str:
@@ -155,8 +177,8 @@ def _html(jobs: List[dict]) -> str:
     for j in jobs:
         badge = (
             '<span style="background:#0ea5e9;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px">Intern</span>'
-            if j["type"] == "Internship" else
-            '<span style="background:#8b5cf6;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px">Full-time</span>'
+            if j["type"] == "Internship"
+            else '<span style="background:#8b5cf6;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px">Full-time</span>'
         )
         rows += (
             f'<tr><td><a href="{j["url"]}" target="_blank" '
@@ -202,21 +224,27 @@ td {{padding:9px 12px;border-bottom:1px solid #1e293b;vertical-align:top}}
   </table></div>
 </div></body></html>"""
 
+
 # ── HTTP server ───────────────────────────────────────────────────────────────
 def _serve(path: Path, port: int):
     data = path.read_bytes()
+
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
-            self.send_header("Content-Type","text/html;charset=utf-8")
+            self.send_header("Content-Type", "text/html;charset=utf-8")
             self.end_headers()
             self.wfile.write(data)
-        def log_message(self,*a): pass
+
+        def log_message(self, *a):
+            pass
+
     try:
         with socketserver.TCPServer(("", port), H) as s:
             s.serve_forever()
     except OSError:
         pass
+
 
 # ── entry ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
@@ -240,6 +268,7 @@ if __name__ == "__main__":
         print(f"    {loc:<25} {n} jobs")
 
     try:
-        while True: time.sleep(1)
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
         print("\n  Stopped.")
