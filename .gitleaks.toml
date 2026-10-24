@@ -1,0 +1,12 @@
+# Secret scanning config for gitleaks, run in CI on every push and pull request.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures with dummy keys, and build output that never gets committed"
+paths = [
+  '''project/backend/tests/''',
+  '''project/frontend/\.next/''',
+  '''node_modules/''',
+  '''\.venv/''',
+]
