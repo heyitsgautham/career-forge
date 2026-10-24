@@ -1,4 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
+// Testing Library only auto-cleans when Vitest globals are on, so unmount here.
+afterEach(() => cleanup());
 
 // Node 25+ ships its own global localStorage, which is undefined unless Node is
 // started with --localstorage-file, and it hides the jsdom one. Use jsdom's.
