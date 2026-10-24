@@ -239,6 +239,9 @@ class DynamoService:
                 response = dynamo_table.query(**kwargs)
                 items.extend(response.get("Items", []))
 
+            # A later page can overshoot when a filter dropped items earlier
+            if limit is not None:
+                items = items[:limit]
             return [_convert_decimals(item) for item in items]
         except ClientError as e:
             logger.error("DynamoDB query failed", table=table, error=str(e))
