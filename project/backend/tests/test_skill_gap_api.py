@@ -146,3 +146,86 @@ def test_roadmap_generation_failure_is_a_400(dynamo_client, dynamo_auth, bedrock
     r = dynamo_client.post("/api/skill-gap/roadmap/generate", json={"roleId": ROLE}, headers=h)
     assert r.status_code == 400
     assert r.json()["detail"].startswith("Failed to generate learning roadmap")
+
+
+def test_report_endpoint_returns_the_newest_analysis(dynamo_client, dynamo_auth):
+    uid = dynamo_auth["user_id"]
+    # reportId is a random UUID and the table's sort key, so put the newest
+    # report on the smallest id to show order must come from createdAt
+    for report_id, created in [
+        ("ffff", "2026-01-01T00:00:00Z"),
+        ("0000", "2026-03-01T00:00:00Z"),
+        ("8888", "2026-02-01T00:00:00Z"),
+    ]:
+        asyncio.run(
+            dynamo_service.put_item(
+                "SkillGapReports",
+                {
+                    "userId": uid,
+                    "reportId": report_id,
+                    "roleId": ROLE,
+                    "createdAt": created,
+                    "gaps": [],
+                },
+            )
+        )
+    assert (
+        dynamo_client.get("/api/skill-gap/report", headers=dynamo_auth["headers"]).json()[
+            "reportId"
+        ]
+        == "0000"
+    )
+
+
+def test_reports_beyond_the_first_ten_ids_are_still_found(dynamo_client, dynamo_auth):
+    uid = dynamo_auth["user_id"]
+    for i in range(12):
+        asyncio.run(
+            dynamo_service.put_item(
+                "SkillGapReports",
+                {
+                    "userId": uid,
+                    "reportId": f"r{i:02d}",
+                    "roleId": "frontend-dev" if i == 0 else ROLE,
+                    "createdAt": f"2026-01-{i + 1:02d}",
+                },
+            )
+        )
+    found = dynamo_client.get(
+        "/api/skill-gap/report?roleId=frontend-dev", headers=dynamo_auth["headers"]
+    ).json()
+    assert found["reportId"] == "r00"
+
+
+def test_roadmaps_list_newest_first(dynamo_client, dynamo_auth):
+    uid = dynamo_auth["user_id"]
+    for roadmap_id, created in [("ffff", "2026-01-01"), ("0000", "2026-03-01")]:
+        asyncio.run(
+            dynamo_service.put_item(
+                "Roadmaps", {"userId": uid, "roadmapId": roadmap_id, "createdAt": created}
+            )
+        )
+    listed = dynamo_client.get("/api/skill-gap/roadmaps", headers=dynamo_auth["headers"]).json()[
+        "roadmaps"
+    ]
+    assert [r["roadmapId"] for r in listed] == ["0000", "ffff"]
+
+
+def test_users_cannot_read_each_others_roadmaps(dynamo_client, dynamo_auth):
+    asyncio.run(
+        dynamo_service.put_item(
+            "Roadmaps", {"userId": "someone-else", "roadmapId": "theirs", "weeks": []}
+        )
+    )
+    assert (
+        dynamo_client.get(
+            "/api/skill-gap/roadmap/theirs", headers=dynamo_auth["headers"]
+        ).status_code
+        == 404
+    )
+    assert (
+        dynamo_client.patch(
+            "/api/skill-gap/roadmap/theirs/milestone/1", headers=dynamo_auth["headers"]
+        ).status_code
+        == 400
+    )

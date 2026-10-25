@@ -285,20 +285,19 @@ async def get_cached_report(
 ) -> Optional[Dict[str, Any]]:
     """Fetch the most recent cached gap report for a user (optionally filtered by role)."""
     try:
+        # The sort key is a random reportId, so DynamoDB order says nothing
+        # about age. Read the user's reports and pick the newest by createdAt.
         reports = await dynamo_service.query(
             table="SkillGapReports",
             pk_name="userId",
             pk_value=user_id,
-            scan_forward=False,
-            limit=10,
         )
+        if role_id:
+            reports = [r for r in reports if r.get("roleId") == role_id]
         if not reports:
             return None
 
-        if role_id:
-            reports = [r for r in reports if r.get("roleId") == role_id]
-
-        return reports[0] if reports else None
+        return max(reports, key=lambda r: r.get("createdAt", ""))
     except Exception as e:
         logger.warning("Failed to fetch cached gap report", error=str(e))
         return None

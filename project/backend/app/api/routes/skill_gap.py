@@ -126,8 +126,8 @@ async def fetch_roadmap(
     roadmap_id: str,
     current_user=Depends(get_current_user),
 ):
-    """Fetch a specific roadmap by ID."""
-    roadmap = await get_roadmap(roadmap_id)
+    """Fetch one of the current user's roadmaps by ID."""
+    roadmap = await get_roadmap(roadmap_id, str(current_user.id))
     if not roadmap:
         raise HTTPException(status_code=404, detail="Roadmap not found")
     return roadmap
