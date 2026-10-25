@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithQuery } from '@/test/render-with-query';
 import { makeResume } from '@/test/resumes';
@@ -73,6 +73,47 @@ describe('ResumesList', () => {
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith({
         title: 'Some resumes could not be deleted',
+        variant: 'destructive',
+      })
+    );
+  });
+
+  it('shows a new resume after the generator is closed with its X button', async () => {
+    // Regression: only the Done button refreshed the list, so closing the
+    // generator any other way hid the resume it had just made.
+    api.resumesApi.generateFromSummaries.mockResolvedValue({
+      data: { resume_id: 'r9', pdf_url: null, tex_url: null, analysis: '', status: 'generated' },
+    });
+    const { user } = renderWithQuery(<ResumesList />);
+    await user.click(await screen.findByRole('button', { name: /^Generate Resume$/ }));
+    api.resumesApi.list.mockResolvedValue({
+      data: [...RESUMES, makeResume({ id: 'r9', name: 'Fresh resume' })],
+    });
+    const dialog = screen.getByLabelText(/Job Description/).closest('.fixed') as HTMLElement;
+    await user.click(
+      within(dialog)
+        .getAllByRole('button', { name: /Generate Resume/ })
+        .at(-1)!
+    );
+    await screen.findByText(/generated \(LaTeX saved\)/);
+
+    await user.click(within(dialog).getAllByRole('button')[0]);
+
+    expect(await screen.findByText('Fresh resume')).toBeInTheDocument();
+  });
+
+  it('tells the user when a single delete fails', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    api.resumesApi.delete.mockRejectedValue({ response: { data: { detail: 'Resume is locked' } } });
+    const { user } = renderWithQuery(<ResumesList />);
+    await screen.findByText('Backend resume');
+    const row = screen.getByText('Backend resume').closest('.group') as HTMLElement;
+    const buttons = row.querySelectorAll('button');
+    await user.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Failed to delete resume',
+        description: 'Resume is locked',
         variant: 'destructive',
       })
     );

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { FileText, Trash2, Loader2, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { apiErrorDetail } from '@/lib/api-error';
 import { ResumeGenerator } from './resumes/resume-generator';
 import { ResumeRow } from './resumes/resume-row';
 import type { Resume } from './resumes/types';
@@ -33,6 +34,13 @@ export function ResumesList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       toast({ title: 'Resume deleted' });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Failed to delete resume',
+        description: apiErrorDetail(error, 'Please try again.'),
+        variant: 'destructive',
+      });
     },
   });
 

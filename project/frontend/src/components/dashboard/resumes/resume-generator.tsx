@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { resumesApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -42,6 +42,7 @@ export function ResumeGenerator({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { downloadTex } = useResumeFiles();
 
@@ -50,6 +51,8 @@ export function ResumeGenerator({
     onSuccess: (res) => {
       setResult(res.data);
       setError(null);
+      // Refresh now, so the list is current however the dialog is closed.
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
       toast({ title: 'Resume generated successfully!' });
     },
     onError: (err: unknown) => {
