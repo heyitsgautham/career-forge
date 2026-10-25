@@ -1,0 +1,45 @@
+# Runs the CI lint and format checks on staged files before each commit.
+# Install once with `uvx pre-commit install`, after `uv sync` in project/backend
+# and `npm ci` in project/frontend.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: ^project/lambda/daily-job-digest/template\.yaml$
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: end-of-file-fixer
+        # Planning notes under docs/ and milestones/ are kept as written.
+        exclude: (^(docs|milestones)/|^\.github/copilot-instructions\.md$|\.(svg|tex)$)
+      - id: trailing-whitespace
+        exclude: \.(md|tex)$
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check (backend)
+        # Ruff reads its settings from project/backend/pyproject.toml, so run it from there.
+        entry: bash -c 'cd project/backend && uv run ruff check --force-exclude "${@#project/backend/}"' --
+        language: system
+        types: [python]
+        files: ^project/backend/
+      - id: ruff-format
+        name: ruff format (backend)
+        entry: bash -c 'cd project/backend && uv run ruff format --check --force-exclude "${@#project/backend/}"' --
+        language: system
+        types: [python]
+        files: ^project/backend/
+      - id: eslint
+        name: eslint (frontend)
+        # ESLint resolves its flat config from the working directory, so run it from the frontend.
+        entry: bash -c 'cd project/frontend && npx eslint --no-warn-ignored "${@#project/frontend/}"' --
+        language: system
+        files: ^project/frontend/.*\.(ts|tsx|js|mjs)$
+      - id: prettier
+        name: prettier (frontend)
+        entry: npm --prefix project/frontend exec -- prettier --check --ignore-unknown
+        language: system
+        files: ^project/frontend/

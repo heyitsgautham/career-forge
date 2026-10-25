@@ -32,6 +32,16 @@ npm run build
 
 A pull request needs every CI job green before it merges.
 
+To run the lint and format checks on every commit instead, install the hooks in `.pre-commit-config.yaml` once from the repo root:
+
+```bash
+uvx pre-commit install
+uvx pre-commit run --all-files   # check the whole tree once
+```
+
+The hooks call the backend's uv environment and the frontend's `node_modules`, so run `uv sync` and `npm ci` first.
+`.editorconfig` sets indentation and line endings to match what Ruff and Prettier write.
+
 ## How changes should land
 
 Keep each commit to one change, and put the tests that prove a behavior change in the same commit.
