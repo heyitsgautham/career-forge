@@ -6,19 +6,7 @@ import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  FileText,
-  FolderGit2,
-  Target,
-  Search,
-  Send,
-  Github,
-  LogOut,
-  Settings,
-  Menu,
-  User,
-  Map,
-} from 'lucide-react';
+import { Github, LogOut, Settings, Menu, User } from 'lucide-react';
 import { ProjectsList } from '@/components/dashboard/projects-list';
 import { JobsList } from '@/components/dashboard/jobs-list';
 import { ResumesList } from '@/components/dashboard/resumes-list';
@@ -29,24 +17,17 @@ import { SkillGapShell } from '@/components/dashboard/skill-gap-shell';
 import { JobScoutShell } from '@/components/dashboard/job-scout-shell';
 import { ApplyTrackShell } from '@/components/dashboard/apply-shell';
 import { ProjectRoadmapShell } from '@/components/dashboard/project-roadmap-shell';
+import {
+  TABS,
+  TAB_DESCRIPTIONS,
+  TAB_TITLES,
+  parseTab,
+  type TabKey,
+} from '@/components/dashboard/dashboard-tabs';
+import { SidebarItem } from '@/components/dashboard/sidebar-item';
 import { useToast } from '@/hooks/use-toast';
 import { userApi, authApi, projectsApi, resumesApi, jobMatchApi, skillGapApi } from '@/lib/api';
 import type { User as UserType } from '@/lib/api';
-
-/* ─── Tab definitions ────────────────────────────────────────────────────── */
-const TABS = [
-  { key: 'resumes', label: 'Resumes', icon: FileText },
-  { key: 'projects', label: 'Projects', icon: FolderGit2 },
-  { key: 'roadmap', label: 'Roadmap', icon: Map },
-  { key: 'skill-gap', label: 'Skill Gap', icon: Target },
-  { key: 'job-scout', label: 'Job Scout', icon: Search },
-  { key: 'apply', label: 'Apply & Track', icon: Send },
-] as const;
-
-// Hidden tabs — still routable via ?tab= but removed from sidebar
-const HIDDEN_TABS = ['jobs', 'templates'] as const;
-
-type TabKey = (typeof TABS)[number]['key'] | (typeof HIDDEN_TABS)[number] | 'profile';
 
 /* ─── Dashboard inner (needs Suspense for useSearchParams) ───────────────── */
 function DashboardInner() {
@@ -102,8 +83,8 @@ function DashboardInner() {
 
   /* Sync active tab from URL param on client mount */
   useEffect(() => {
-    const tab = searchParams.get('tab') as TabKey;
-    if (tab && TABS.some((t) => t.key === (tab as string))) {
+    const tab = parseTab(searchParams.get('tab'));
+    if (tab) {
       setActiveTab(tab);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,19 +183,6 @@ function DashboardInner() {
     [queryClient]
   );
 
-  /* Tab → Content mapping */
-  const tabDescription: Record<TabKey, string> = {
-    resumes: 'Generate and manage your LaTeX resumes',
-    projects: 'Your imported projects and repositories',
-    roadmap: 'AI-generated project-based learning paths',
-    jobs: 'Job descriptions to tailor resumes to',
-    templates: 'LaTeX templates for your resumes',
-    'skill-gap': 'AI-powered gap analysis against target roles',
-    'job-scout': 'Matched jobs ranked by fit',
-    apply: 'Generate tailored resumes and track applications',
-    profile: 'View and edit your profile information',
-  };
-
   return (
     <div className="flex h-screen overflow-hidden">
       {/* ─── Sidebar ─────────────────────────────────────────────────────── */}
@@ -293,19 +261,9 @@ function DashboardInner() {
         {/* Header bar */}
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b border-border/60 bg-card/80 backdrop-blur-xl px-6">
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold capitalize truncate">
-              {activeTab === 'skill-gap'
-                ? 'Skill Gap'
-                : activeTab === 'job-scout'
-                  ? 'Job Scout'
-                  : activeTab === 'apply'
-                    ? 'Apply & Track'
-                    : activeTab === 'roadmap'
-                      ? 'Project Roadmap'
-                      : activeTab}
-            </h1>
+            <h1 className="text-lg font-semibold capitalize truncate">{TAB_TITLES[activeTab]}</h1>
             <p className="text-xs text-muted-foreground truncate hidden sm:block">
-              {tabDescription[activeTab]}
+              {TAB_DESCRIPTIONS[activeTab]}
             </p>
           </div>
 
@@ -373,39 +331,6 @@ function DashboardInner() {
         />
       )}
     </div>
-  );
-}
-
-/* ─── Sidebar Item ───────────────────────────────────────────────────────── */
-function SidebarItem({
-  icon,
-  label,
-  active = false,
-  onClick,
-  onMouseEnter,
-  collapsed = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-  onMouseEnter?: () => void;
-  collapsed?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      className={`w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200 ${
-        active
-          ? 'bg-primary/10 text-primary font-medium shadow-sm border-l-2 border-primary'
-          : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground'
-      }`}
-      aria-current={active ? 'page' : undefined}
-    >
-      {icon}
-      {!collapsed && <span className="truncate">{label}</span>}
-    </button>
   );
 }
 
