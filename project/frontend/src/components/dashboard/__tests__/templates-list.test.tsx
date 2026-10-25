@@ -66,6 +66,27 @@ describe('TemplatesList', () => {
     expect(api.templatesApi.list).toHaveBeenCalledTimes(2);
   });
 
+  it('tells the user when a delete fails instead of failing silently', async () => {
+    api.templatesApi.list.mockResolvedValue({ data: TEMPLATES });
+    api.templatesApi.delete.mockRejectedValue({
+      response: { data: { detail: 'Template in use' } },
+    });
+    const { user } = renderWithQuery(<TemplatesList />);
+    await screen.findByText('Compact one-pager');
+
+    const [, remove] = within(section('Your Templates')).getAllByRole('button');
+    await user.click(remove);
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Failed to delete template',
+        description: 'Template in use',
+        variant: 'destructive',
+      })
+    );
+    expect(screen.getByText('Compact one-pager')).toBeInTheDocument();
+  });
+
   it('opens the create modal from the header button', async () => {
     api.templatesApi.list.mockResolvedValue({ data: TEMPLATES });
     const { user } = renderWithQuery(<TemplatesList />);

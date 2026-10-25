@@ -4,6 +4,7 @@ import {
   extractSections,
   hasPlaceholder,
 } from '@/components/dashboard/templates/latex-outline';
+import { DEFAULT_TEMPLATE } from '@/components/dashboard/templates/default-template';
 
 describe('extractName', () => {
   it('reads the first bold text as the name', () => {
@@ -12,6 +13,13 @@ describe('extractName', () => {
 
   it('reads a \\LARGE group when there is no bold text', () => {
     expect(extractName('\\LARGE {Asha Example}')).toBe('Asha Example');
+  });
+
+  it('treats a name placeholder as no name', () => {
+    // The default template wraps <<NAME>> in \textbf, which the preview used to print verbatim.
+    expect(extractName('{\\LARGE\\textbf{<<NAME>>}}')).toBe('Your Name');
+    expect(extractName('{\\LARGE\\textbf{{{NAME}}}}')).toBe('Your Name');
+    expect(extractName(DEFAULT_TEMPLATE)).toBe('Your Name');
   });
 
   it('falls back to a generic name', () => {

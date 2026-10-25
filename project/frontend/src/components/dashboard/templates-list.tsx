@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LayoutTemplate, Star, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiErrorDetail } from '@/lib/api-error';
 import { AddTemplateModal } from './templates/add-template-modal';
 import { TemplateCard } from './templates/template-card';
 import { TemplatePreviewModal } from './templates/template-preview-modal';
@@ -33,6 +34,13 @@ export function TemplatesList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       toast({ title: 'Template deleted' });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Failed to delete template',
+        description: apiErrorDetail(error, 'Please try again.'),
+        variant: 'destructive',
+      });
     },
   });
 

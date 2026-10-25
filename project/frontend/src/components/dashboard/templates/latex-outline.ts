@@ -10,7 +10,9 @@ const SECTION_PATTERN = /\\section\*?\{([^}]+)\}([\s\S]*?)(?=\\section|\\end\{do
 
 export function extractName(latex: string): string {
   const match = latex.match(NAME_PATTERN);
-  return match ? match[1] || match[2] || 'Your Name' : 'Your Name';
+  const name = match ? match[1] || match[2] : undefined;
+  // The default template wraps <<NAME>> in \textbf, so a captured slot means there is no real name.
+  return name && !hasPlaceholder(name) ? name : 'Your Name';
 }
 
 export function extractSections(latex: string): OutlineSection[] {
