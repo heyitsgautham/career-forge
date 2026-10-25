@@ -5,7 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useState } from 'react';
 import type { ProfileChangeHandler, ProfileData } from './types';
+
+/** Splits comma-separated skills, trimming each and dropping empty entries. */
+export function parseSkills(text: string): string[] {
+  return text
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+const sameSkills = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((skill, i) => skill === b[i]);
 
 /** Skills and achievements lists. */
 export function SkillsAndAchievements({
@@ -15,6 +27,14 @@ export function SkillsAndAchievements({
   profile: ProfileData;
   onChange: ProfileChangeHandler;
 }) {
+  // The box keeps the raw text, so a space typed inside a skill name survives
+  // until the next character. It resyncs when the skills change from outside.
+  const skills = profile.skills ?? [];
+  const [skillsText, setSkillsText] = useState(skills.join(', '));
+  if (!sameSkills(parseSkills(skillsText), skills)) {
+    setSkillsText(skills.join(', '));
+  }
+
   return (
     <>
       {/* Skills */}
@@ -28,13 +48,11 @@ export function SkillsAndAchievements({
             <Label htmlFor="skills">Skills (comma-separated)</Label>
             <Textarea
               id="skills"
-              value={profile.skills?.join(', ') || ''}
-              onChange={(e) =>
-                onChange(
-                  'skills',
-                  e.target.value.split(',').map((s) => s.trim())
-                )
-              }
+              value={skillsText}
+              onChange={(e) => {
+                setSkillsText(e.target.value);
+                onChange('skills', parseSkills(e.target.value));
+              }}
               placeholder="Python, JavaScript, React, etc."
               rows={4}
             />

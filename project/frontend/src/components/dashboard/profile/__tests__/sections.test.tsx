@@ -99,6 +99,31 @@ describe('CertificationsSection', () => {
 });
 
 describe('SkillsAndAchievements', () => {
+  it('lets a skill name contain spaces', async () => {
+    // Regression: every keystroke re-trimmed the list, so "Machine Learning" became "MachineLearning".
+    const latest = renderSection(SkillsAndAchievements, { skills: ['Python'] });
+    const box = screen.getByLabelText('Skills (comma-separated)');
+    await userEvent.type(box, ', Machine Learning');
+    expect(box).toHaveValue('Python, Machine Learning');
+    expect(latest.profile.skills).toEqual(['Python', 'Machine Learning']);
+  });
+
+  it('drops empty entries left by stray commas', async () => {
+    const latest = renderSection(SkillsAndAchievements, { skills: [] });
+    await userEvent.type(screen.getByLabelText('Skills (comma-separated)'), 'Go,, Rust,');
+    expect(latest.profile.skills).toEqual(['Go', 'Rust']);
+  });
+
+  it('shows skills that arrive after mount, such as from an import', () => {
+    const { rerender } = render(
+      <SkillsAndAchievements profile={{ ...BASE, skills: ['Python'] }} onChange={() => {}} />
+    );
+    rerender(
+      <SkillsAndAchievements profile={{ ...BASE, skills: ['Python', 'Go'] }} onChange={() => {}} />
+    );
+    expect(screen.getByLabelText('Skills (comma-separated)')).toHaveValue('Python, Go');
+  });
+
   it('adds, edits and removes an achievement', async () => {
     const latest = renderSection(SkillsAndAchievements, { achievements: [] });
     await userEvent.click(screen.getByRole('button', { name: /Add Achievement/ }));
