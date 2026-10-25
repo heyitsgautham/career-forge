@@ -215,3 +215,21 @@ def make_admin(dynamo_client):
         return user
 
     return promote
+
+
+@pytest.fixture
+def chroma(monkeypatch):
+    """An in-memory Chroma client in place of the Chroma server."""
+    import chromadb
+    from chromadb.config import Settings
+
+    from app.services.vector_store import vector_store
+
+    client = chromadb.EphemeralClient(
+        settings=Settings(anonymized_telemetry=False, allow_reset=True)
+    )
+    client.reset()
+    monkeypatch.setattr(vector_store, "_client", client)
+    monkeypatch.setattr(vector_store, "_collections", {})
+    yield vector_store
+    client.reset()
