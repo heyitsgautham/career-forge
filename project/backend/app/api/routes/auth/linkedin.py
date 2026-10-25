@@ -13,7 +13,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, reload_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
@@ -245,7 +245,7 @@ async def scrape_linkedin_certifications_endpoint(
             )
             await db.commit()
             # Refresh user to get updated data
-            await db.refresh(current_user)
+            current_user = await reload_user(db, current_user)
 
         logger.info(f"Successfully saved certifications. Total: {len(updated_certs)}")
 
@@ -382,7 +382,7 @@ async def import_linkedin_profile(
         if update_fields:
             await db.execute(update(User).where(User.id == current_user.id).values(**update_fields))
             await db.commit()
-            await db.refresh(current_user)
+            current_user = await reload_user(db, current_user)
 
     logger.info(f"LinkedIn profile import complete. Updated fields: {list(update_fields.keys())}")
 

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, reload_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
@@ -208,7 +208,7 @@ Extract only information clearly present. For experience and education, extract 
                     update(User).where(User.id == current_user.id).values(**update_values)
                 )
                 await db.commit()
-                await db.refresh(current_user)
+                current_user = await reload_user(db, current_user)
 
         logger.info(f"Updated {len(update_values)} profile fields for user {current_user.id}")
 
@@ -242,7 +242,7 @@ async def get_profile(
 
             current_user = DynamoUser(user_data)
     else:
-        await db.refresh(current_user)
+        current_user = await reload_user(db, current_user)
 
     return UserProfileResponse(
         id=str(current_user.id),
@@ -314,7 +314,7 @@ async def update_profile(
         if update_values:
             await db.execute(update(User).where(User.id == current_user.id).values(**update_values))
             await db.commit()
-            await db.refresh(current_user)
+            current_user = await reload_user(db, current_user)
         logger.info(f"Updated {len(update_values)} profile fields for user {current_user.id}")
 
     return UserProfileResponse(
