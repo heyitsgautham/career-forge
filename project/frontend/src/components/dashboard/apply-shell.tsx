@@ -1,157 +1,35 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Kanban, Plus, Briefcase } from 'lucide-react';
-import { applicationsApi, jobMatchApi, type Application } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
-import { COLUMNS, getUserId } from './apply/helpers';
+import { COLUMNS, groupByColumn } from './apply/helpers';
 import { KanbanColumn, StatsBar } from './apply/kanban';
 import { AddApplicationModal } from './apply/add-application-modal';
-import { apiErrorDetail } from '@/lib/api-error';
-
-/* ─── Main Component ─────────────────────────────────────────────────────── */
+import { useApplications } from './apply/use-applications';
 
 export function ApplyTrackShell() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
-  const userId = getUserId();
+  const {
+    applications,
+    isLoading,
+    jobs,
+    createApplication,
+    creating,
+    moveApplication,
+    removeApplication,
+  } = useApplications(() => setShowAddModal(false));
 
-  // Fetch applications
-  const { data: applications = [], isLoading } = useQuery({
-    queryKey: ['applications', userId],
-    queryFn: async () => {
-      if (!userId) return [];
-      const res = await applicationsApi.list(userId);
-      return res.data;
-    },
-    enabled: !!userId,
-    staleTime: 15_000,
-  });
+  const columnApps = useMemo(() => groupByColumn(applications), [applications]);
 
-  // Fetch jobs (for job selector in tailor panel + add modal)
-  const { data: jobs = [] } = useQuery({
-    queryKey: ['job-scout-matches'],
-    queryFn: async () => {
-      const res = await jobMatchApi.list();
-      return res.data;
-    },
-    staleTime: 30_000,
-  });
-
-  // Group applications by status for Kanban columns
-  const columnApps = useMemo(() => {
-    const grouped: Record<string, Application[]> = {};
-    for (const col of COLUMNS) {
-      grouped[col.key] = [];
-    }
-    for (const app of applications) {
-      const key = app.status as string;
-      if (grouped[key]) {
-        grouped[key].push(app);
-      } else {
-        // Status not in columns (saved, viewed) — put in "applied"
-        grouped['applied']?.push(app);
-      }
-    }
-    return grouped;
-  }, [applications]);
-
-  // Create application mutation
-  const createMutation = useMutation({
-    mutationFn: (data: {
-      jobId: string;
-      companyName: string;
-      roleTitle: string;
-      notes: string;
-      url: string;
-    }) => applicationsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
-      setShowAddModal(false);
-      toast({ title: 'Application added!' });
-    },
-    onError: (err: unknown) => {
-      toast({
-        title: 'Failed to create application',
-        description: apiErrorDetail(err, 'Something went wrong'),
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Update application mutation (for DnD status changes)
-  const updateMutation = useMutation({
-    mutationFn: (params: { applicationId: string; status: string }) =>
-      applicationsApi.update(params.applicationId, {
-        status: params.status as Application['status'],
-      }),
-    onError: (err: unknown) => {
-      // Rollback on error — refetch
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
-      toast({
-        title: 'Failed to update status',
-        description: apiErrorDetail(err, 'Could not move application'),
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Delete application mutation
-  const deleteMutation = useMutation({
-    mutationFn: (applicationId: string) => applicationsApi.delete(applicationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
-      toast({ title: 'Application removed' });
-    },
-  });
-
-  // DnD handler — optimistic update + sync to Job Scout tracking
   const handleDragEnd = useCallback(
-    (result: DropResult) => {
-      const { draggableId, source, destination } = result;
+    ({ draggableId, source, destination }: DropResult) => {
       if (!destination || destination.droppableId === source.droppableId) return;
-
-      const newStatus = destination.droppableId;
-
-      // Find the dragged application to get its jobId for cross-page sync
-      const draggedApp = applications.find((a) => a.applicationId === draggableId);
-
-      // Optimistic update in cache
-      queryClient.setQueryData(['applications', userId], (old: Application[] | undefined) => {
-        if (!old) return old;
-        return old.map((app) =>
-          app.applicationId === draggableId
-            ? { ...app, status: newStatus as Application['status'] }
-            : app
-        );
-      });
-
-      // Persist application status to API
-      updateMutation.mutate({ applicationId: draggableId, status: newStatus });
-
-      // Sync tracking status back to Job Scout (fire-and-forget)
-      if (draggedApp && !draggedApp.jobId.startsWith('manual-')) {
-        jobMatchApi
-          .track(draggedApp.jobId, newStatus)
-          .then(() => queryClient.invalidateQueries({ queryKey: ['jobs', 'tracking'] }))
-          .catch(() => {
-            /* sync failure is non-critical */
-          });
-      }
+      moveApplication(draggableId, destination.droppableId);
     },
-    [queryClient, userId, updateMutation, applications]
-  );
-
-  const handleDelete = useCallback(
-    (applicationId: string) => {
-      deleteMutation.mutate(applicationId);
-    },
-    [deleteMutation]
+    [moveApplication]
   );
 
   return (
@@ -201,7 +79,7 @@ export function ApplyTrackShell() {
                   color={col.color}
                   bg={col.bg}
                   apps={columnApps[col.key] || []}
-                  onDelete={handleDelete}
+                  onDelete={removeApplication}
                 />
               ))}
             </div>
@@ -225,8 +103,8 @@ export function ApplyTrackShell() {
       <AddApplicationModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSubmit={(data) => createMutation.mutate(data)}
-        isSubmitting={createMutation.isPending}
+        onSubmit={createApplication}
+        isSubmitting={creating}
         jobs={jobs}
       />
     </div>

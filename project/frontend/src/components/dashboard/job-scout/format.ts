@@ -37,17 +37,3 @@ export function formatPostedDate(
   const mm = d.getMinutes().toString().padStart(2, '0');
   return `${day}${ordinalSuffix(day)} ${month}, ${hh}:${mm}`;
 }
-
-// ── Current user id from the stored JWT ─────────────────────────────────────
-
-export function getUserId(): string {
-  if (typeof window === 'undefined') return '';
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) return '';
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || '';
-  } catch {
-    return '';
-  }
-}

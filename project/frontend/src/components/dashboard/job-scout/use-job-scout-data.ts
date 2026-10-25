@@ -10,7 +10,7 @@ import {
 } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { KANBAN_STATUSES } from './constants';
-import { getUserId } from './format';
+import { currentUserId } from '@/lib/session';
 import { tailoredResumeMap, type ResumeSummary } from './tailored-resumes';
 
 /**
@@ -63,7 +63,7 @@ export function useJobScoutData() {
 
   // ── Applications query (for cross-page sync) ───────────────────────────
 
-  const userId = typeof window !== 'undefined' ? getUserId() : '';
+  const userId = currentUserId();
 
   const { data: applications = [] } = useQuery<Application[]>({
     queryKey: ['applications', userId],

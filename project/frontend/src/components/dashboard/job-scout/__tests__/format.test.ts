@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatPostedDate, getUserId, ordinalSuffix, timeAgo, unescapeMarkdown } from '../format';
+import { formatPostedDate, ordinalSuffix, timeAgo, unescapeMarkdown } from '../format';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -62,20 +62,5 @@ describe('formatPostedDate', () => {
     expect(formatPostedDate('3 days ago', null)).toBe('3 days ago');
     expect(formatPostedDate('nan', null)).toBe('—');
     expect(formatPostedDate(null, null)).toBe('—');
-  });
-});
-
-describe('getUserId', () => {
-  const tokenFor = (payload: object) => `header.${btoa(JSON.stringify(payload))}.sig`;
-
-  it('reads sub from the stored JWT', () => {
-    localStorage.setItem('token', tokenFor({ sub: 'user-42' }));
-    expect(getUserId()).toBe('user-42');
-  });
-
-  it('returns an empty string without a token or with a broken one', () => {
-    expect(getUserId()).toBe('');
-    localStorage.setItem('token', 'garbage');
-    expect(getUserId()).toBe('');
   });
 });

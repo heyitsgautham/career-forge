@@ -1,4 +1,5 @@
 import { Send, CheckCircle2, XCircle, PhoneCall } from 'lucide-react';
+import type { Application } from '@/lib/api';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
 
@@ -29,16 +30,19 @@ export const COLUMNS = [
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
-export function getUserId(): string {
-  if (typeof window === 'undefined') return '';
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) return '';
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || '';
-  } catch {
-    return '';
+/**
+ * Buckets applications into the Kanban columns. Statuses without a column of
+ * their own, such as saved and viewed, land in Applied.
+ */
+export function groupByColumn(applications: Application[]): Record<string, Application[]> {
+  const grouped: Record<string, Application[]> = {};
+  for (const col of COLUMNS) {
+    grouped[col.key] = [];
   }
+  for (const app of applications) {
+    (grouped[app.status] ?? grouped.applied).push(app);
+  }
+  return grouped;
 }
 
 export function formatDate(iso: string): string {
