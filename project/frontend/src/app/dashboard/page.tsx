@@ -259,7 +259,7 @@ function DashboardInner() {
       {/* ─── Main ────────────────────────────────────────────────────────── */}
       <main className="flex-1 min-w-0 flex flex-col overflow-y-auto" id="main-content">
         {/* Header bar */}
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b border-border/60 bg-card/80 backdrop-blur-xl px-6">
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-card/80 backdrop-blur-xl px-6">
           <div className="min-w-0">
             <h1 className="text-lg font-semibold capitalize truncate">{TAB_TITLES[activeTab]}</h1>
             <p className="text-xs text-muted-foreground truncate hidden sm:block">
