@@ -102,18 +102,18 @@ export function useProjectImport() {
 
     // Advance the "processing" indicator along the queue while waiting for the API
     if (fullNames.length > 1) {
-      let currentIdx = 1;
+      let nextIdx = 1;
       simulationIntervalRef.current = setInterval(() => {
-        if (currentIdx < fullNames.length) {
+        if (nextIdx < fullNames.length) {
+          // React may run the updater after this callback returns, so it must
+          // not read nextIdx, which has moved on by then.
+          const step = nextIdx;
           setImportProgress((prev) =>
-            prev.map((item, i) => {
-              if (i < currentIdx)
-                return item.status === 'queued' ? { ...item, status: 'processing' as const } : item;
-              if (i === currentIdx) return { ...item, status: 'processing' as const };
-              return item;
-            })
+            prev.map((item, i) =>
+              i <= step && item.status === 'queued' ? { ...item, status: 'processing' } : item
+            )
           );
-          currentIdx++;
+          nextIdx++;
         } else {
           stopSimulation();
         }

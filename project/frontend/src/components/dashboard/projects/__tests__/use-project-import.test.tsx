@@ -46,6 +46,23 @@ describe('useProjectImport', () => {
     ]);
   });
 
+  it('moves the processing marker one repository per step while the API works', async () => {
+    api.projectsApi.importGithub.mockReturnValue(new Promise(() => {}));
+    const { result } = renderImport();
+    act(() => result.current.startImport(['a/1', 'a/2', 'a/3']));
+
+    // Regression: the state updater read the step counter after it had already
+    // moved on, so the first step marked two repositories as processing.
+    await act(() => vi.advanceTimersByTimeAsync(SIMULATED_STEP_MS));
+    expect(statuses(result.current.importProgress)).toEqual(['processing', 'processing', 'queued']);
+    await act(() => vi.advanceTimersByTimeAsync(SIMULATED_STEP_MS * 3));
+    expect(statuses(result.current.importProgress)).toEqual([
+      'processing',
+      'processing',
+      'processing',
+    ]);
+  });
+
   it('reveals each result in turn, toasts, then clears the skeletons', async () => {
     api.projectsApi.importGithub.mockResolvedValue({
       data: {
