@@ -177,7 +177,7 @@ describe('DayDetailModal', () => {
 
   it('hides the complete button on a finished day and closes on the backdrop', async () => {
     const onClose = vi.fn();
-    const { container } = render(
+    render(
       <DayDetailModal
         day={makeDay(1, { completedAt: '2026-03-01' })}
         color={color}
@@ -190,7 +190,7 @@ describe('DayDetailModal', () => {
     expect(screen.queryByRole('button', { name: /Mark Day/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByText('Task 1a'));
     expect(onClose).not.toHaveBeenCalled();
-    await userEvent.click(container.firstElementChild as Element);
+    await userEvent.click(document.querySelector('.fixed.inset-0') as Element);
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

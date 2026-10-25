@@ -74,7 +74,7 @@ describe('TemplatePreviewModal', () => {
   it('closes on the backdrop but not on clicks inside the dialog', async () => {
     api.templatesApi.get.mockResolvedValue({ data: { ...TEMPLATE, latex_content: LATEX } });
     const onClose = vi.fn();
-    const { user, container } = renderWithQuery(
+    const { user } = renderWithQuery(
       <TemplatePreviewModal template={TEMPLATE} onClose={onClose} />
     );
     await screen.findByRole('heading', { name: 'Asha Example' });
@@ -82,7 +82,7 @@ describe('TemplatePreviewModal', () => {
     await user.click(screen.getByText('ATS-tested'));
     expect(onClose).not.toHaveBeenCalled();
 
-    await user.click(container.firstElementChild as Element);
+    await user.click(document.querySelector('.fixed.inset-0') as Element);
     expect(onClose).toHaveBeenCalledOnce();
   });
 });
