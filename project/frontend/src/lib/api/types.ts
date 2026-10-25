@@ -148,12 +148,6 @@ export interface TrackingStatuses {
   [jobId: string]: { status: string; notes: string };
 }
 
-export interface BlacklistedCompany {
-  companyName: string;
-  addedBy?: string;
-  createdAt?: string;
-}
-
 // ─── Applications API (M5) ─────────────────────────────────────────────────
 
 export interface TailorResponse {
@@ -170,16 +164,6 @@ export interface TailorResponse {
     sectionsModified?: string[];
   };
   compilationError?: string | null;
-}
-
-export interface ApplicationStats {
-  total: number;
-  saved: number;
-  applied: number;
-  viewed: number;
-  interviewing: number;
-  offered: number;
-  rejected: number;
 }
 
 // ─── Project Roadmap API ──────────────────────────────────────────────────────

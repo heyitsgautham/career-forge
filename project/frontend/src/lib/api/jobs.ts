@@ -1,35 +1,15 @@
 import { api } from './client';
 import { z } from 'zod';
 import { JobSchema, validated } from './schemas';
-import type {
-  Job,
-  Application,
-  SchedulerStatus,
-  TrackingStatuses,
-  BlacklistedCompany,
-  TailorResponse,
-  ApplicationStats,
-} from './types';
+import type { Job, Application, SchedulerStatus, TrackingStatuses, TailorResponse } from './types';
 
 // ─── Job Descriptions API ─────────────────────────────────────────────────────
 
 export const jobsApi = {
   list: () => api.get('/api/jobs'),
 
-  get: (id: string) => api.get(`/api/jobs/${id}`),
-
   create: (data: { title: string; company: string; raw_text: string; url?: string }) =>
     api.post('/api/jobs', data),
-
-  update: (
-    id: string,
-    data: Partial<{
-      title: string;
-      company: string;
-      raw_text: string;
-      url: string;
-    }>
-  ) => api.patch(`/api/jobs/${id}`, data),
 
   delete: (id: string) => api.delete(`/api/jobs/${id}`),
 
@@ -41,13 +21,6 @@ export const jobsApi = {
 export const jobMatchApi = {
   /** List all shared jobs (sorted by date) */
   list: () => api.get<Job[]>('/api/jobs/matches').then(validated(z.array(JobSchema))),
-
-  /** List with filters */
-  listFiltered: (params: { role?: string; minMatch?: number; sortBy?: string; limit?: number }) =>
-    api.get<Job[]>('/api/jobs/matches', { params: { ...params } }),
-
-  /** Get full detail for one job */
-  get: (jobId: string) => api.get<Job>(`/api/jobs/scout/${jobId}`),
 
   /** Get summary stats (includes newToday & lastScrape) */
   stats: () =>
@@ -61,9 +34,6 @@ export const jobMatchApi = {
       lastScrape: SchedulerStatus['lastScrape'];
     }>('/api/jobs/stats'),
 
-  /** Delete a scraped job (admin only) */
-  delete: (jobId: string) => api.delete(`/api/jobs/scout/${jobId}`),
-
   /** Scheduler status */
   schedulerStatus: () => api.get<SchedulerStatus>('/api/jobs/scheduler/status'),
 
@@ -73,33 +43,16 @@ export const jobMatchApi = {
 
   /** Get all user tracking statuses */
   getTracking: () => api.get<TrackingStatuses>('/api/jobs/tracking'),
-
-  /** Blacklist CRUD (admin) */
-  getBlacklist: () => api.get<BlacklistedCompany[]>('/api/jobs/blacklist'),
-
-  addBlacklist: (companyName: string) => api.post('/api/jobs/blacklist', { companyName }),
-
-  removeBlacklist: (companyName: string) =>
-    api.delete(`/api/jobs/blacklist/${encodeURIComponent(companyName)}`),
 };
 
 export const tailorApi = {
   /** Generate a tailored resume for a specific job */
   generate: (jobId: string) => api.post<TailorResponse>('/api/resumes/tailor', { jobId }),
-
-  /** Fetch existing tailored resume for a job */
-  getForJob: (jobId: string) => api.get<TailorResponse>(`/api/resumes/job/${jobId}`),
 };
 
 export const applicationsApi = {
   /** List all applications for the current user */
   list: (userId: string) => api.get<Application[]>(`/api/applications/user/${userId}`),
-
-  /** List with status filter */
-  listFiltered: (userId: string, status: string) =>
-    api.get<Application[]>(`/api/applications/user/${userId}`, {
-      params: { status_filter: status },
-    }),
 
   /** Create a new application record */
   create: (data: {
@@ -124,7 +77,4 @@ export const applicationsApi = {
 
   /** Delete an application */
   delete: (applicationId: string) => api.delete(`/api/applications/${applicationId}`),
-
-  /** Get stats summary */
-  stats: (userId: string) => api.get<ApplicationStats>(`/api/applications/stats/${userId}`),
 };

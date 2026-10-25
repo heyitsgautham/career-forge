@@ -12,19 +12,7 @@ export const templatesApi = {
   create: (data: { name: string; description: string; latex_content: string; category?: string }) =>
     api.post('/api/templates', data),
 
-  update: (
-    id: string,
-    data: Partial<{
-      name: string;
-      description: string;
-      latex_content: string;
-      category: string;
-    }>
-  ) => api.patch(`/api/templates/${id}`, data),
-
   delete: (id: string) => api.delete(`/api/templates/${id}`),
-
-  getSystemTemplates: () => api.get('/api/templates/system'),
 };
 
 // ─── Resumes API ──────────────────────────────────────────────────────────────
@@ -92,14 +80,9 @@ export const resumesApi = {
       latex_content ? { latex_content } : {}
     ),
 
-  updateLatex: (id: string, latex_content: string) =>
-    api.patch(`/api/resumes/${id}/latex`, { latex_content }),
-
   /** M2.5: Save LaTeX via proper PUT endpoint (also syncs S3 tex key) */
   saveLaTeX: (id: string, latex_content: string) =>
     api.put<{ id: string; updated_at: string }>(`/api/resumes/${id}/latex`, { latex_content }),
-
-  downloadPdf: (id: string) => api.get(`/api/resumes/${id}/pdf`, { responseType: 'blob' }),
 
   /** Get presigned S3 URL for PDF preview (no Content-Disposition) */
   getPdfUrl: (id: string) => api.get<{ url: string }>(`/api/resumes/${id}/pdf-url`),

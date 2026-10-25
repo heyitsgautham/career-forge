@@ -7,12 +7,6 @@ export const skillGapApi = {
 
   /** Run skill gap analysis for user vs role */
   analyse: (roleId: string) => api.post<SkillGapReport>('/api/skill-gap/analyse', { roleId }),
-
-  /** Fetch cached gap report */
-  getReport: (roleId?: string) =>
-    api.get<SkillGapReport | { report: null }>('/api/skill-gap/report', {
-      params: roleId ? { roleId } : {},
-    }),
 };
 
 // ─── Roadmap API ──────────────────────────────────────────────────────────────
@@ -21,12 +15,6 @@ export const roadmapApi = {
   /** Generate a learning roadmap from gap analysis */
   generate: (roleId: string, reportId?: string) =>
     api.post<Roadmap>('/api/skill-gap/roadmap/generate', { roleId, reportId }),
-
-  /** Fetch a specific roadmap */
-  get: (roadmapId: string) => api.get<Roadmap>(`/api/skill-gap/roadmap/${roadmapId}`),
-
-  /** List all roadmaps for current user */
-  list: () => api.get<{ roadmaps: Roadmap[] }>('/api/skill-gap/roadmaps'),
 
   /** Mark a milestone week as complete */
   markComplete: (roadmapId: string, weekNumber: number) =>

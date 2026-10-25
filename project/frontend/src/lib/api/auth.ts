@@ -1,5 +1,4 @@
 import { api } from './client';
-import type { User } from './types';
 
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
@@ -37,13 +36,6 @@ export const authApi = {
     window.location.href = `https://github.com/apps/${slug}/installations/new${state ? `?state=${state}` : ''}`;
   },
 
-  githubCallback: (code: string, installationId?: number, linkToken?: string) =>
-    api.post('/api/auth/github/callback', {
-      code,
-      installation_id: installationId,
-      link_token: linkToken || undefined,
-    }),
-
   cognitoGoogleLogin: () => {
     const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN;
     const clientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
@@ -56,19 +48,13 @@ export const authApi = {
     window.location.href = `https://${domain}/oauth2/authorize?client_id=${clientId}&response_type=code&scope=openid+email+profile&redirect_uri=${redirectUri}&identity_provider=Google`;
   },
 
-  cognitoCallback: (code: string) => api.post('/api/auth/cognito/callback', { code }),
-
   getProfile: () => api.get('/api/auth/profile'),
 };
 
 // ─── User API ─────────────────────────────────────────────────────────────────
 
 export const userApi = {
-  getMe: () => api.get('/api/auth/me'),
-
   getProfile: () => api.get('/api/auth/profile'),
-
-  updateProfile: (data: Partial<User>) => api.put('/api/auth/profile', data),
 
   getGithubStatus: () => api.get('/api/auth/github/status'),
 
@@ -79,6 +65,4 @@ export const userApi = {
 
   importLinkedInProfile: (linkedinUrl?: string) =>
     api.post('/api/auth/linkedin/import-profile', linkedinUrl ? { linkedin_url: linkedinUrl } : {}),
-
-  scrapeCertifications: () => api.post('/api/auth/linkedin/scrape-certifications'),
 };
