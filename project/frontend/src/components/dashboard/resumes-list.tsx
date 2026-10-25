@@ -4,14 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { resumesApi } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Edit, Trash2, Loader2, Sparkles, Eye } from 'lucide-react';
-import Link from 'next/link';
+import { FileText, Trash2, Loader2, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { statusConfig } from './resumes/status-config';
-import { CompileButton } from './resumes/compile-button';
 import { ResumeGenerator } from './resumes/resume-generator';
+import { ResumeRow } from './resumes/resume-row';
 import type { Resume } from './resumes/types';
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -59,58 +56,6 @@ export function ResumesList() {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
     } finally {
       setIsDeletingAll(false);
-    }
-  };
-
-  const previewPdf = async (resume: Resume) => {
-    if (!resume.pdf_path) {
-      toast({ title: 'PDF not available', variant: 'destructive' });
-      return;
-    }
-    try {
-      const { data } = await resumesApi.getPdfUrl(resume.id);
-      window.open(data.url, '_blank', 'noopener,noreferrer');
-    } catch {
-      toast({ title: 'Failed to open PDF', variant: 'destructive' });
-    }
-  };
-
-  const downloadPdf = async (resume: Resume) => {
-    if (!resume.pdf_path) {
-      toast({ title: 'PDF not available', variant: 'destructive' });
-      return;
-    }
-    try {
-      // Use the /pdf endpoint which returns a redirect to a presigned URL
-      // with Content-Disposition: attachment so the browser saves the file.
-      const { data } = await resumesApi.getPdfDownloadUrl(resume.id);
-      const link = document.createElement('a');
-      link.href = data.url;
-      link.setAttribute(
-        'download',
-        `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.pdf`
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch {
-      toast({ title: 'Failed to download PDF', variant: 'destructive' });
-    }
-  };
-
-  const downloadTex = async (resumeId: string, filename?: string) => {
-    try {
-      const response = await resumesApi.downloadTex(resumeId);
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/plain' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename ?? `resume-${resumeId.slice(0, 8)}.tex`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toast({ title: '.tex download failed', variant: 'destructive' });
     }
   };
 
@@ -211,119 +156,13 @@ export function ResumesList() {
         {/* Resume list */}
         {resumes && resumes.length > 0 && (
           <div className="rounded-lg border divide-y overflow-hidden">
-            {resumes.map((resume) => {
-              const status = statusConfig[resume.status] || statusConfig.draft;
-              const StatusIcon = status.icon;
-              const isProcessing = resume.status === 'generating' || resume.status === 'compiling';
-
-              return (
-                <div
-                  key={resume.id}
-                  className="group flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
-                >
-                  {/* Icon */}
-                  <div className="shrink-0 h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                  </div>
-
-                  {/* Name + date */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{resume.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(resume.updated_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                    {resume.error_message && (
-                      <p className="text-xs text-red-500 truncate mt-0.5">{resume.error_message}</p>
-                    )}
-                  </div>
-
-                  {/* Status badge */}
-                  <Badge
-                    variant="secondary"
-                    className={`shrink-0 text-xs font-medium gap-1 ${status.color}`}
-                  >
-                    <StatusIcon className={`h-3 w-3 ${isProcessing ? 'animate-spin' : ''}`} />
-                    {status.text}
-                  </Badge>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {(resume.status === 'compiled' || resume.status === 'generated') &&
-                      resume.pdf_path && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 h-7 text-xs"
-                            onClick={() => previewPdf(resume)}
-                          >
-                            <Eye className="h-3 w-3" />
-                            Preview
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="gap-1 h-7 text-xs"
-                            onClick={() => downloadPdf(resume)}
-                          >
-                            <Download className="h-3 w-3" />
-                            PDF
-                          </Button>
-                          {resume.tex_s3_key && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1 h-7 text-xs"
-                              onClick={() =>
-                                downloadTex(
-                                  resume.id,
-                                  `resume-${new Date(resume.created_at).toISOString().split('T')[0]}.tex`
-                                )
-                              }
-                            >
-                              <FileText className="h-3 w-3" />
-                              .tex
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    {resume.status === 'generated' && !resume.pdf_path && (
-                      <CompileButton resumeId={resume.id} />
-                    )}
-                    {(resume.latex_content ||
-                      ['generated', 'compiled', 'error'].includes(resume.status)) && (
-                      <Link href={`/dashboard/resumes/${resume.id}/edit`}>
-                        <Button
-                          size="sm"
-                          variant={resume.status === 'compiled' ? 'default' : 'outline'}
-                          className={`gap-1 h-7 text-xs ${resume.status === 'compiled' ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : ''}`}
-                        >
-                          <Edit className="h-3 w-3" />
-                          {resume.status === 'compiled' ? 'Open in Editor' : 'Edit'}
-                        </Button>
-                      </Link>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => {
-                        if (confirm('Delete this resume?')) {
-                          deleteMutation.mutate(resume.id);
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+            {resumes.map((resume) => (
+              <ResumeRow
+                key={resume.id}
+                resume={resume}
+                onDelete={() => deleteMutation.mutate(resume.id)}
+              />
+            ))}
           </div>
         )}
       </div>

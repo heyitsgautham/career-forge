@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiErrorDetail } from '@/lib/api-error';
+import { useResumeFiles } from './use-resume-files';
 
 // ─── Resume Generator (M2 Flow) ────────────────────────────────────────────
 
@@ -42,21 +43,7 @@ export function ResumeGenerator({
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const downloadTex = async (resumeId: string, filename?: string) => {
-    try {
-      const response = await resumesApi.downloadTex(resumeId);
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/plain' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename ?? `resume-${resumeId.slice(0, 8)}.tex`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toast({ title: '.tex download failed', variant: 'destructive' });
-    }
-  };
+  const { downloadTex } = useResumeFiles();
 
   const generateMutation = useMutation({
     mutationFn: () => resumesApi.generateFromSummaries(jdText || undefined),
