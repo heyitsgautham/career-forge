@@ -244,17 +244,12 @@ Return JSON:
 # ─── Fetch / List / Complete ─────────────────────────────────────────────────
 
 
-async def get_project_roadmap(roadmap_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch a specific project roadmap by ID."""
+async def get_project_roadmap(roadmap_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch one of the user's project roadmaps by ID, or None if they have no such roadmap."""
     try:
-        from boto3.dynamodb.conditions import Attr
-
-        results = await dynamo_service.scan(
-            table="ProjectRoadmaps",
-            filter_expression=Attr("projectRoadmapId").eq(roadmap_id),
-            limit=1,
+        return await dynamo_service.get_item(
+            "ProjectRoadmaps", {"userId": user_id, "projectRoadmapId": roadmap_id}
         )
-        return results[0] if results else None
     except Exception as e:
         logger.warning("Failed to fetch project roadmap", error=str(e))
         return None
@@ -267,9 +262,9 @@ async def get_user_project_roadmaps(user_id: str) -> List[Dict[str, Any]]:
             table="ProjectRoadmaps",
             pk_name="userId",
             pk_value=user_id,
-            scan_forward=False,
         )
-        return roadmaps
+        # projectRoadmapId is a random UUID, so sort by creation time, newest first
+        return sorted(roadmaps, key=lambda r: r.get("createdAt", ""), reverse=True)
     except Exception as e:
         logger.warning("Failed to fetch user project roadmaps", error=str(e))
         return []
@@ -281,12 +276,9 @@ async def mark_day_complete(
     user_id: str,
 ) -> Dict[str, Any]:
     """Mark a day in the roadmap as complete."""
-    roadmap = await get_project_roadmap(roadmap_id)
+    roadmap = await get_project_roadmap(roadmap_id, user_id)
     if not roadmap:
         raise ValueError("Project roadmap not found")
-
-    if roadmap.get("userId") != user_id:
-        raise ValueError("Unauthorized: roadmap belongs to another user")
 
     days = roadmap.get("days", [])
     if day_number < 1 or day_number > len(days):
@@ -328,12 +320,9 @@ async def unlock_all_days(
     user_id: str,
 ) -> Dict[str, Any]:
     """Set the unlockedAll flag so all days are accessible."""
-    roadmap = await get_project_roadmap(roadmap_id)
+    roadmap = await get_project_roadmap(roadmap_id, user_id)
     if not roadmap:
         raise ValueError("Project roadmap not found")
-
-    if roadmap.get("userId") != user_id:
-        raise ValueError("Unauthorized: roadmap belongs to another user")
 
     try:
         await dynamo_service.update_item(
@@ -354,12 +343,9 @@ async def delete_project_roadmap(
     user_id: str,
 ) -> None:
     """Delete a project roadmap."""
-    roadmap = await get_project_roadmap(roadmap_id)
+    roadmap = await get_project_roadmap(roadmap_id, user_id)
     if not roadmap:
         raise ValueError("Project roadmap not found")
-
-    if roadmap.get("userId") != user_id:
-        raise ValueError("Unauthorized: roadmap belongs to another user")
 
     try:
         await dynamo_service.delete_item(
