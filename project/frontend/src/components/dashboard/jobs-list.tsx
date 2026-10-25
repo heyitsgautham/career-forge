@@ -35,6 +35,13 @@ export function JobsList() {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       toast({ title: 'Job description deleted' });
     },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Failed to delete job description',
+        description: apiErrorDetail(error, 'Please try again.'),
+        variant: 'destructive',
+      });
+    },
   });
 
   const analyzeMutation = useMutation({
@@ -112,7 +119,7 @@ export function JobsList() {
           <JobDescriptionCard
             key={job.id}
             job={job}
-            analyzing={analyzeMutation.isPending}
+            analyzing={analyzeMutation.isPending && analyzeMutation.variables === job.id}
             onOpen={() => setSelectedJob(job)}
             onAnalyze={() => analyzeMutation.mutate(job.id)}
             onDelete={() => deleteMutation.mutate(job.id)}

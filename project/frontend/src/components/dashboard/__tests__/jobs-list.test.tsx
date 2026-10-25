@@ -62,6 +62,40 @@ describe('JobsList', () => {
     expect(toast).toHaveBeenCalledWith({ title: 'Job description deleted' });
   });
 
+  it('spins only the card being analyzed', async () => {
+    // Regression: every unanalyzed card showed "Analyzing…" and went disabled.
+    api.jobsApi.list.mockResolvedValue({
+      data: [
+        makeJobDescription({ id: 'jd1', title: 'Backend Intern', is_analyzed: false }),
+        makeJobDescription({ id: 'jd3', title: 'ML Intern', is_analyzed: false }),
+      ],
+    });
+    api.jobsApi.analyze.mockReturnValue(new Promise(() => {}));
+    const { user } = renderWithQuery(<JobsList />);
+    const [first] = await screen.findAllByRole('button', { name: /Analyze/ });
+
+    await user.click(first);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Analyzing/ })).toBeDisabled());
+    expect(screen.getByRole('button', { name: /^Analyze$/ })).toBeEnabled();
+  });
+
+  it('tells the user when a delete fails', async () => {
+    api.jobsApi.delete.mockRejectedValue({ response: { data: { detail: 'Job in use' } } });
+    const { user } = renderWithQuery(<JobsList />);
+    await screen.findByText('Data Intern');
+    const card = screen.getByText('Data Intern').closest('[class*="border-l-4"]')!;
+    const buttons = card.querySelectorAll('button');
+    await user.click(buttons[buttons.length - 1]);
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Failed to delete job description',
+        description: 'Job in use',
+        variant: 'destructive',
+      })
+    );
+  });
+
   it('opens the full description from a card', async () => {
     const { user } = renderWithQuery(<JobsList />);
     await user.click(await screen.findByText('Data Intern'));
