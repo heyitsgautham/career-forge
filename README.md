@@ -139,7 +139,7 @@ Backend, from `project/backend`:
 
 ```bash
 uv run pytest                    # offline, uses a throwaway SQLite database
-uv run pytest --cov              # with coverage, fails under the floor in pyproject.toml
+uv run pytest --cov              # with coverage, fails under 70 percent
 uv run ruff check .              # lint
 uv run ruff format --check .     # formatting
 ```
