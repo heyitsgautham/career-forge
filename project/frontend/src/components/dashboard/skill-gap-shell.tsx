@@ -1,121 +1,29 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Target, BookOpen, ArrowRight, Loader2 } from 'lucide-react';
-import { skillGapApi, roadmapApi, type SkillGapReport, type Roadmap } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
 import { ROLE_ICONS } from './skill-gap/helpers';
 import { GapResults } from './skill-gap/gap-results';
 import { LearningRoadmap } from './skill-gap/learning-roadmap';
-import { apiErrorDetail } from '@/lib/api-error';
+import { toRadarData } from './skill-gap/radar-data';
+import { useSkillGap } from './skill-gap/use-skill-gap';
 
-/* ─── Main component ─────────────────────────────────────────────────────── */
 export function SkillGapShell() {
-  const { toast } = useToast();
-
-  // State
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [report, setReport] = useState<SkillGapReport | null>(null);
-  const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
-  const [analysing, setAnalysing] = useState(false);
-  const [generatingRoadmap, setGeneratingRoadmap] = useState(false);
-  const [roadmapOpen, setRoadmapOpen] = useState(true);
-
-  // Load roles via React Query (static data, long cache)
-  const { data: roles = [], isLoading: loadingRoles } = useQuery({
-    queryKey: ['skill-gap-roles'],
-    queryFn: async () => {
-      const res = await skillGapApi.getRoles();
-      return res.data.roles || [];
-    },
-    staleTime: 60 * 60 * 1000, // 1 hour — static data
-    gcTime: 2 * 60 * 60 * 1000, // 2 hours
-  });
-
-  // Run analysis
-  const handleAnalyse = useCallback(async () => {
-    if (!selectedRole) return;
-    setAnalysing(true);
-    setReport(null);
-    setRoadmap(null);
-
-    try {
-      const res = await skillGapApi.analyse(selectedRole);
-      if (res.data && res.data.reportId) {
-        setReport(res.data);
-        toast({
-          title: 'Analysis complete!',
-          description: `Overall fit: ${res.data.overallFitPercent}%`,
-        });
-      } else {
-        toast({
-          title: 'No results',
-          description: 'Could not compute gap analysis.',
-          variant: 'destructive',
-        });
-      }
-    } catch (err: unknown) {
-      toast({
-        title: 'Analysis failed',
-        description: apiErrorDetail(err, 'An error occurred.'),
-        variant: 'destructive',
-      });
-    } finally {
-      setAnalysing(false);
-    }
-  }, [selectedRole, toast]);
-
-  // Generate roadmap
-  const handleGenerateRoadmap = useCallback(async () => {
-    if (!selectedRole || !report) return;
-    setGeneratingRoadmap(true);
-
-    try {
-      const res = await roadmapApi.generate(selectedRole, report.reportId);
-      if (res.data && res.data.roadmapId) {
-        setRoadmap(res.data);
-        setRoadmapOpen(true);
-        toast({ title: 'Roadmap generated!' });
-      }
-    } catch (err: unknown) {
-      toast({
-        title: 'Roadmap generation failed',
-        description: apiErrorDetail(err, 'An error occurred.'),
-        variant: 'destructive',
-      });
-    } finally {
-      setGeneratingRoadmap(false);
-    }
-  }, [selectedRole, report, toast]);
-
-  // Mark milestone complete
-  const handleMarkComplete = useCallback(
-    async (week: number) => {
-      if (!roadmap) return;
-      try {
-        const res = await roadmapApi.markComplete(roadmap.roadmapId, week);
-        if (res.data) {
-          setRoadmap(res.data);
-          toast({ title: `Week ${week} completed!` });
-        }
-      } catch {
-        toast({ title: 'Failed to update milestone', variant: 'destructive' });
-      }
-    },
-    [roadmap, toast]
-  );
-
-  // ─── Radar chart data ─────────────────────────────────────────────────
-  const radarData = report
-    ? report.gaps.map((g) => ({
-        domain: g.domain.length > 18 ? g.domain.slice(0, 16) + '…' : g.domain,
-        fullDomain: g.domain,
-        user: g.userScore,
-        benchmark: g.requiredScore,
-      }))
-    : [];
+  const {
+    roles,
+    loadingRoles,
+    report,
+    roadmap,
+    analysing,
+    generatingRoadmap,
+    roadmapOpen,
+    toggleRoadmap,
+    analyse,
+    generateRoadmap,
+    markWeekComplete,
+  } = useSkillGap();
 
   return (
     <div className="space-y-6">
@@ -165,7 +73,7 @@ export function SkillGapShell() {
 
       {/* Analyse button */}
       <Button
-        onClick={handleAnalyse}
+        onClick={() => analyse(selectedRole)}
         disabled={!selectedRole || analysing}
         className="w-full sm:w-auto gap-2"
         aria-label="Run Skill Gap Analysis"
@@ -182,12 +90,12 @@ export function SkillGapShell() {
       {/* ─── Results ─────────────────────────────────────────────────────── */}
       {report && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <GapResults report={report} radarData={radarData} />
+          <GapResults report={report} radarData={toRadarData(report.gaps)} />
 
           {/* ─── Generate Roadmap Button ──────────────────────────────────── */}
           {!roadmap && (
             <Button
-              onClick={handleGenerateRoadmap}
+              onClick={() => generateRoadmap(selectedRole)}
               disabled={generatingRoadmap}
               className="w-full sm:w-auto gap-2"
               variant="outline"
@@ -206,8 +114,8 @@ export function SkillGapShell() {
             <LearningRoadmap
               roadmap={roadmap}
               open={roadmapOpen}
-              onToggle={() => setRoadmapOpen(!roadmapOpen)}
-              onMarkComplete={handleMarkComplete}
+              onToggle={toggleRoadmap}
+              onMarkComplete={markWeekComplete}
             />
           )}
         </div>
