@@ -1,234 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import api, { githubApi } from '@/lib/api';
-
-import type { IngestionSummary, ProfileData } from './profile/types';
+import api from '@/lib/api';
 import { ContactSections } from './profile/contact-sections';
 import { ExperienceSection } from './profile/experience-section';
 import { EducationSection } from './profile/education-section';
 import { CertificationsSection } from './profile/certifications-section';
 import { GithubProjectsSection } from './profile/github-projects-section';
 import { SkillsAndAchievements } from './profile/skills-achievements';
+import { describeLinkedInImport } from './profile/linkedin-import';
+import { useGithubIngestion } from './profile/use-github-ingestion';
+import { useProfile } from './profile/use-profile';
 import { apiErrorDetail } from '@/lib/api-error';
 
 export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: number }) {
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-
-  // GitHub ingestion state
-  const [ingesting, setIngesting] = useState(false);
+  const { profile, loading, saving, save, change, reload } = useProfile(externalRefreshKey);
+  const { projects, ingesting, ingestionStatus, ingestionSummary, refreshRepos } =
+    useGithubIngestion(reload);
   const [linkedInUrlPrompt, setLinkedInUrlPrompt] = useState(false);
   const [linkedInUrlInput, setLinkedInUrlInput] = useState('');
-  const [ingestionStatus, setIngestionStatus] = useState<string>('none');
-  const [ingestionSummary, setIngestionSummary] = useState<IngestionSummary | null>(null);
-  const [projects, setProjects] = useState<Array<Record<string, unknown>>>([]);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalRefreshKey]);
-
-  // Poll ingestion status and load projects on mount
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
-
-  const loadProjects = useCallback(async () => {
-    try {
-      const res = await githubApi.listProjects();
-      setProjects(res.data as Array<Record<string, unknown>>);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const pollCountRef = useRef(0);
-  const MAX_POLLS = 40; // 40 × 3s = 2 minutes max
-
-  const pollIngestionStatus = useCallback(async () => {
-    try {
-      const res = await githubApi.getIngestStatus();
-      const s = res.data.status;
-      setIngestionStatus(s);
-      setIngestionSummary(res.data.summary);
-
-      if (s === 'done') {
-        stopPolling();
-        setIngesting(false);
-        await loadProjects();
-        // Reload profile so newly-added skills appear immediately
-        try {
-          const profileRes = await api.get('/api/auth/profile');
-          setProfile(profileRes.data);
-        } catch {}
-        toast({
-          title: 'Import Complete',
-          description: `${res.data.summary?.processed ?? 0} projects imported.`,
-        });
-      } else if (s === 'failed' || s === 'stale') {
-        stopPolling();
-        setIngesting(false);
-        if (s === 'stale') {
-          toast({
-            title: 'Import Timed Out',
-            description: 'The previous import did not complete. Please try again.',
-            variant: 'destructive',
-          });
-        } else {
-          toast({
-            title: 'Import Failed',
-            description: 'Check your GitHub connection and try again.',
-            variant: 'destructive',
-          });
-        }
-      } else {
-        // Safety cap: stop polling after MAX_POLLS attempts
-        pollCountRef.current += 1;
-        if (pollCountRef.current >= MAX_POLLS) {
-          stopPolling();
-          setIngesting(false);
-          toast({
-            title: 'Import Timed Out',
-            description: 'The import is taking too long. Please try again.',
-            variant: 'destructive',
-          });
-        }
-      }
-    } catch {
-      stopPolling();
-      setIngesting(false);
-    }
-  }, [stopPolling, loadProjects, toast]);
-
-  const startPolling = useCallback(() => {
-    stopPolling();
-    pollCountRef.current = 0;
-    setIngesting(true);
-    pollRef.current = setInterval(pollIngestionStatus, 3000);
-    // Also poll immediately
-    pollIngestionStatus();
-  }, [stopPolling, pollIngestionStatus]);
-
-  useEffect(() => {
-    // On mount: only resume polling if a sync is actively running.
-    // Never auto-trigger a new sync — user must click the button.
-    (async () => {
-      try {
-        const res = await githubApi.getIngestStatus();
-        const s = res.data.status;
-        setIngestionStatus(s);
-        setIngestionSummary(res.data.summary);
-        if (s === 'in_progress') {
-          startPolling();
-        }
-      } catch {
-        /* ignore */
-      }
-      await loadProjects();
-    })();
-    return () => stopPolling();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleRefreshRepos = async () => {
-    setIngesting(true);
-    try {
-      await githubApi.ingest(false);
-      // Ingest is synchronous — skills are already updated in DynamoDB.
-      // Reload profile immediately so the skills field reflects the new data.
-      try {
-        const profileRes = await api.get('/api/auth/profile');
-        setProfile(profileRes.data);
-      } catch {
-        /* silent — UI still shows old skills */
-      }
-      await loadProjects();
-      setIngesting(false);
-      setIngestionStatus('done');
-      toast({ title: 'Sync complete', description: 'Projects refreshed and skills updated.' });
-    } catch {
-      // Ingest may be running as a background job — fall back to polling.
-      startPolling();
-    }
-  };
-
-  const loadProfile = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get('/api/auth/profile');
-      setProfile(response.data);
-    } catch (error: unknown) {
-      const msg = apiErrorDetail(error, 'Failed to load profile');
-      toast({
-        title: 'Error',
-        description: msg,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!profile) return;
-
-    try {
-      setSaving(true);
-      const response = await api.put('/api/auth/profile', {
-        name: profile.name,
-        headline: profile.headline,
-        summary: profile.summary,
-        location: profile.location,
-        phone: profile.phone,
-        website: profile.website,
-        linkedin_url: profile.linkedin_url,
-        address_line1: profile.address_line1,
-        address_line2: profile.address_line2,
-        city: profile.city,
-        state: profile.state,
-        zip_code: profile.zip_code,
-        country: profile.country,
-        institution: profile.institution,
-        degree: profile.degree,
-        field_of_study: profile.field_of_study,
-        graduation_year: profile.graduation_year,
-        experience: profile.experience,
-        education: profile.education,
-        skills: profile.skills,
-        certifications: profile.certifications,
-        achievements: profile.achievements,
-      });
-      setProfile(response.data);
-      toast({
-        title: 'Success',
-        description: 'Profile updated successfully',
-      });
-    } catch (error: unknown) {
-      const msg = apiErrorDetail(error, 'Failed to save profile');
-      toast({
-        title: 'Error',
-        description: msg,
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleChange = (field: keyof ProfileData, value: any) => {
-    if (profile) {
-      setProfile({ ...profile, [field]: value });
-    }
-  };
 
   if (loading) {
     return (
@@ -272,26 +65,10 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
       });
 
       if (response.data.success) {
-        const updatedProfile = await api.get('/api/auth/profile');
-        setProfile(updatedProfile.data);
-
-        const imp = response.data.imported;
-        const parts: string[] = [];
-        if (imp?.education_added) parts.push(`${imp.education_added} education`);
-        if (imp?.certifications_added) parts.push(`${imp.certifications_added} certifications`);
-        if (imp?.name) parts.push('name');
-        if (imp?.headline) parts.push('headline');
-        if (imp?.location) parts.push('location');
-        if (imp?.email) parts.push('email');
-        if (imp?.phone) parts.push('phone');
-        if (imp?.website) parts.push('website');
-
+        await reload();
         toast({
           title: 'Import Complete!',
-          description:
-            parts.length > 0
-              ? `Imported: ${parts.join(', ')}`
-              : 'Profile imported (no new data found).',
+          description: describeLinkedInImport(response.data.imported),
         });
       }
     } catch (error: unknown) {
@@ -321,7 +98,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
             </svg>
             Import from LinkedIn
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={save} disabled={saving}>
             {saving ? 'Saving…' : 'Save Changes'}
           </Button>
         </div>
@@ -355,22 +132,22 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         )}
       </div>
 
-      <ContactSections profile={profile} onChange={handleChange} />
-      <ExperienceSection profile={profile} onChange={handleChange} />
-      <EducationSection profile={profile} onChange={handleChange} />
-      <CertificationsSection profile={profile} onChange={handleChange} />
+      <ContactSections profile={profile} onChange={change} />
+      <ExperienceSection profile={profile} onChange={change} />
+      <EducationSection profile={profile} onChange={change} />
+      <CertificationsSection profile={profile} onChange={change} />
       <GithubProjectsSection
         projects={projects}
         ingesting={ingesting}
         ingestionStatus={ingestionStatus}
         ingestionSummary={ingestionSummary}
-        onRefresh={handleRefreshRepos}
+        onRefresh={refreshRepos}
       />
-      <SkillsAndAchievements profile={profile} onChange={handleChange} />
+      <SkillsAndAchievements profile={profile} onChange={change} />
 
       {/* Save Button (bottom) */}
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving} size="lg">
+        <Button onClick={save} disabled={saving} size="lg">
           {saving ? 'Saving…' : 'Save Changes'}
         </Button>
       </div>

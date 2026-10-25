@@ -51,7 +51,10 @@ export interface ProfileData {
 }
 
 export type ProfileField = keyof ProfileData;
-export type ProfileChangeHandler = (field: ProfileField, value: any) => void;
+export type ProfileChangeHandler = <K extends ProfileField>(
+  field: K,
+  value: ProfileData[K]
+) => void;
 
 export interface IngestionSummary {
   total: number;
