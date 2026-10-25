@@ -9,7 +9,7 @@ import subprocess
 
 import pytest
 
-from app.services import linkedin_scraper
+from app.services import linkedin_certifications, linkedin_profile, linkedin_scraper
 from app.services.linkedin_scraper import parse_linkedin_url
 
 INJECTION = 'https://www.linkedin.com/in/x"\nimport os; os.system("touch /tmp/pwned")\n#'
@@ -63,8 +63,9 @@ def captured_scripts(monkeypatch):
             scripts.append(f.read())
         return subprocess.CompletedProcess(args, 0, stdout='{"ok": true}' + " " * 200, stderr="")
 
-    monkeypatch.setattr(linkedin_scraper.subprocess, "run", fake_run)
-    monkeypatch.setattr(linkedin_scraper, "_get_chrome_user_data_dir", lambda: 'C:\\Users\\a"b')
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    for module in (linkedin_certifications, linkedin_profile):
+        monkeypatch.setattr(module, "_get_chrome_user_data_dir", lambda: 'C:\\Users\\a"b')
     return scripts
 
 
