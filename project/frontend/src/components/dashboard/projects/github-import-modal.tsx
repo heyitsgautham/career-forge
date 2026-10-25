@@ -332,7 +332,7 @@ export function GithubImportModal({
               <Button
                 onClick={handleImport}
                 disabled={
-                  (importMode === 'url' && !repoUrl) ||
+                  (importMode === 'url' && !parseGithubRepoUrl(repoUrl)) ||
                   (importMode === 'select' && selectedRepos.size === 0)
                 }
               >

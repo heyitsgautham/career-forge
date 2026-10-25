@@ -55,6 +55,19 @@ describe('parseGithubRepoUrl', () => {
     );
   });
 
+  it('keeps ".git" inside a name and drops queries and fragments', () => {
+    // Regression: replace('.git', '') turned asha-example.github.io into asha-examplehub.io.
+    expect(parseGithubRepoUrl('https://github.com/asha-example/asha-example.github.io')).toBe(
+      'asha-example/asha-example.github.io'
+    );
+    expect(parseGithubRepoUrl('https://github.com/asha-example/job-scout?tab=readme')).toBe(
+      'asha-example/job-scout'
+    );
+    expect(parseGithubRepoUrl('https://github.com/asha-example/job-scout#install')).toBe(
+      'asha-example/job-scout'
+    );
+  });
+
   it('rejects URLs without an owner and a name', () => {
     expect(parseGithubRepoUrl('https://github.com/asha-example')).toBeNull();
     expect(parseGithubRepoUrl('https://gitlab.com/asha-example/job-scout')).toBeNull();

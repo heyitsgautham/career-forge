@@ -29,9 +29,14 @@ export function filterRepos(repos: GithubRepo[], query: string, visibility: Visi
   });
 }
 
-/** The owner/name pair in a GitHub repository URL, or null when the URL has none. */
+/**
+ * The owner/name pair in a GitHub repository URL, or null when the URL has
+ * none. A trailing .git, a query and a fragment are dropped, while .git
+ * inside a name such as user.github.io is kept.
+ */
 export function parseGithubRepoUrl(url: string): string | null {
-  const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  const match = url.match(/github\.com\/([^\/?#\s]+)\/([^\/?#\s]+)/);
   if (!match) return null;
-  return `${match[1]}/${match[2].replace('.git', '')}`;
+  const name = match[2].replace(/\.git$/, '');
+  return name ? `${match[1]}/${name}` : null;
 }

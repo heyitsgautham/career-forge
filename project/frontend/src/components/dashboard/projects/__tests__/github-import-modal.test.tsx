@@ -88,6 +88,15 @@ describe('GithubImportModal', () => {
     expect(onStartImport).toHaveBeenCalledWith(['asha/job-scout']);
   });
 
+  it('keeps Import disabled until the URL names a repository', async () => {
+    const { user } = renderModal();
+    await user.click(screen.getByRole('button', { name: /Import by URL/ }));
+    await user.type(screen.getByLabelText('GitHub Repository URL'), 'https://github.com/asha');
+    expect(screen.getByRole('button', { name: 'Import Repository' })).toBeDisabled();
+    await user.type(screen.getByLabelText('GitHub Repository URL'), '/job-scout');
+    expect(screen.getByRole('button', { name: 'Import Repository' })).toBeEnabled();
+  });
+
   it('explains when GitHub is not connected and offers the URL route', async () => {
     api.projectsApi.listGithubUserRepos.mockRejectedValue({
       response: { data: { detail: 'GitHub token expired' } },
