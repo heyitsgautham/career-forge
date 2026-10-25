@@ -276,6 +276,18 @@ def test_sqlite_compile_failures(client, auth, compiler, mode, message):
     assert body["error_message"].startswith(message)
 
 
+def test_sqlite_compile_rejects_unsafe_latex_with_400(client, auth, compiler):
+    rid = sqlite_resume(client, auth)
+    r = client.post(
+        f"/api/resumes/{rid}/compile",
+        json={"latex_content": DOC + "\\write18{ls}"},
+        headers=auth["headers"],
+    )
+    assert r.status_code == 400
+    assert "unsafe commands" in r.json()["detail"]
+    assert compiler["latex"] == []
+
+
 def test_sqlite_edits_and_missing_content(client, auth):
     h = auth["headers"]
     rid = client.post("/api/resumes", json={"name": "Blank"}, headers=h).json()["id"]
@@ -298,3 +310,15 @@ def test_sqlite_edits_and_missing_content(client, auth):
     assert client.get(f"/api/resumes/{missing}/tex", headers=h).status_code == 404
     assert client.post(f"/api/resumes/{missing}/compile", headers=h).status_code == 404
     assert client.get(f"/api/resumes/{rid}/pdf-url", headers=h).status_code == 501
+
+
+def test_sqlite_unsafe_latex_leaves_the_resume_editable(client, auth, compiler):
+    rid = sqlite_resume(client, auth)
+    client.post(
+        f"/api/resumes/{rid}/compile",
+        json={"latex_content": "\\write18{ls}"},
+        headers=auth["headers"],
+    )
+    assert (
+        client.get(f"/api/resumes/{rid}", headers=auth["headers"]).json()["status"] == "generated"
+    )
