@@ -9,7 +9,7 @@ import pytest
 from github import GithubException
 
 from app.core.security import TokenEncryptor
-from app.services import github_service as gh_module
+from app.services import github_repos as gh_module
 from app.services.dynamo_service import dynamo_service
 from app.services.github_service import GitHubIngestionService
 
