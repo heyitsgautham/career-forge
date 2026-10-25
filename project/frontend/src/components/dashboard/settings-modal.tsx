@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Github, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { userApi, authApi } from '@/lib/api';
+import { apiErrorDetail } from '@/lib/api-error';
 
 /** Settings dialog: resume upload, GitHub connection and logout. */
 export function SettingsModal({
@@ -71,10 +72,10 @@ export function SettingsModal({
                   queryClient.invalidateQueries({ queryKey: ['user-profile'] });
                   onResumeUploaded();
                   onClose();
-                } catch {
+                } catch (error: unknown) {
                   toast({
                     title: 'Upload failed',
-                    description: 'Could not process resume',
+                    description: apiErrorDetail(error, 'Could not process resume'),
                     variant: 'destructive',
                   });
                 }
