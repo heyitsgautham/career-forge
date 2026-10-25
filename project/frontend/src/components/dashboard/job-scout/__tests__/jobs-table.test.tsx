@@ -55,6 +55,15 @@ describe('JobsTable', () => {
     expect(screen.getByText('No jobs match the current filters.')).toBeInTheDocument();
   });
 
+  it('spans the empty-state message across every column so it sits centred', () => {
+    renderTable({ rows: [], filteredCount: 0, totalCount: 5 });
+    const headerCount = screen.getAllByRole('columnheader').length;
+    expect(screen.getByText('No jobs match the current filters.')).toHaveAttribute(
+      'colspan',
+      String(headerCount)
+    );
+  });
+
   it('passes the job id up for track, tailor and select', async () => {
     const props = renderTable();
     const [first] = bodyRows();
