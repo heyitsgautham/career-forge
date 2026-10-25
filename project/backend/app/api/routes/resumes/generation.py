@@ -197,7 +197,10 @@ async def generate_resume(
                 "skills": generate_data.skills or _parse(_get("skills", None)),
                 "projects": [
                     {
-                        "title": p.get("title", "") if isinstance(p, dict) else p.title,
+                        # DynamoDB project items store the title as "name" and the link as "repoUrl"
+                        "title": (p.get("title") or p.get("name", ""))
+                        if isinstance(p, dict)
+                        else p.title,
                         "description": p.get("description", "")
                         if isinstance(p, dict)
                         else p.description,
@@ -207,7 +210,7 @@ async def generate_resume(
                         "highlights": (p.get("highlights") or [])
                         if isinstance(p, dict)
                         else (p.highlights if isinstance(p.highlights, list) else []),
-                        "url": p.get("url") if isinstance(p, dict) else p.url,
+                        "url": (p.get("url") or p.get("repoUrl")) if isinstance(p, dict) else p.url,
                     }
                     for p in projects
                 ],

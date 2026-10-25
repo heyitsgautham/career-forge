@@ -107,6 +107,8 @@ def test_legacy_generate_on_dynamo_fills_the_template(dynamo_client, dynamo_auth
     assert body["latex_content"] == FILLED
     prompt = bedrock.prompts[0]
     assert "Target Role: SDE Intern" in prompt
+    assert "Title: job-scout" in prompt
+    assert "URL: https://github.com/asha-example/job-scout" in prompt
 
 
 def test_legacy_generate_on_dynamo_records_errors(dynamo_client, dynamo_auth, bedrock):
