@@ -39,7 +39,7 @@ career-forge/
 │   │   ├── scripts/          one-off maintenance and smoke_* live-AWS checks
 │   │   ├── pyproject.toml    dependencies and tool config
 │   │   └── uv.lock           locked dependency versions
-│   ├── frontend/             Next.js 14 App Router app (TypeScript, Tailwind)
+│   ├── frontend/             Next.js 15 App Router app (React 19, TypeScript, Tailwind)
 │   │   └── src/
 │   │       ├── app/          pages
 │   │       ├── components/   dashboard screens, resume editor, ui kit
@@ -171,8 +171,11 @@ They are not part of the test suite, and they cost money to run.
 | Dependency audit | pip-audit on `requirements.txt`, audit-ci on runtime npm packages |
 | Secret scan | gitleaks over the working tree with `.gitleaks.toml` |
 
-Each audit ignore list sits next to its command with the reason for every entry.
-The Next.js advisories stay allowlisted until the frontend moves to Next 15.
+The pip-audit ignore list sits next to its command with the reason for every entry, and the npm audit has no allowlist.
+
+`project/frontend/package.json` has two npm `overrides`.
+One lets lucide-react 0.309 install against React 19, because its peer range stops at React 18 and newer releases redraw several icons.
+The other moves the PostCSS copy bundled inside Next 15.5 to 8.5.30, which clears its advisories.
 
 ## Environment variables
 
