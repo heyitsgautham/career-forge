@@ -46,7 +46,7 @@
     "@vitejs/plugin-react": "5.2.0",
     "@vitest/coverage-v8": "5.0.3",
     "autoprefixer": "^10.4.16",
-    "eslint": "^8.56.0",
+    "eslint": "^10.13.0",
     "eslint-config-next": "15.5.28",
     "jsdom": "26.1.0",
     "postcss": "^8.4.32",
