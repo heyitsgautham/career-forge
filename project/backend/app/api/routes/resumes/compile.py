@@ -208,6 +208,11 @@ async def compile_resume(
             await db.commit()
             return CompileOnDemandResponse(status="error", pdf_url=None, error_message=error_msg)
 
+    except HTTPException:
+        # The unsafe-LaTeX 400 must reach the client as a 400, as on DynamoDB
+        resume.status = ResumeStatus.GENERATED
+        await db.commit()
+        raise
     except Exception as e:
         import traceback
 
