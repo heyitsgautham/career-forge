@@ -23,3 +23,10 @@ if (!globalThis.ResizeObserver) {
     disconnect() {}
   };
 }
+
+// jsdom lacks pointer capture, which Radix primitives such as Toast call on press.
+if (typeof Element !== 'undefined' && !Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+}
