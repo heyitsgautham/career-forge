@@ -6,7 +6,7 @@ import { type Job } from '@/lib/api';
 import { formatPostedDate } from './format';
 import { TRACKING_OPTIONS, TRACKING_COLORS, SOURCE_ICONS } from './constants';
 
-export function SourceLogo({ source }: { source?: string }) {
+export function SourceLogo({ source }: { source?: string | null }) {
   const key = (source || '').toLowerCase();
   const icon = SOURCE_ICONS[key];
   if (!icon) return <Building2 className="h-7 w-7 shrink-0 text-muted-foreground" />;

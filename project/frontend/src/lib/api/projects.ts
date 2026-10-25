@@ -1,9 +1,11 @@
 import { api } from './client';
+import { z } from 'zod';
+import { ProjectSchema, validated } from './schemas';
 
 // ─── Projects API ─────────────────────────────────────────────────────────────
 
 export const projectsApi = {
-  list: () => api.get('/api/projects'),
+  list: () => api.get('/api/projects').then(validated(z.array(ProjectSchema))),
 
   get: (id: string) => api.get(`/api/projects/${id}`),
 

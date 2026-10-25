@@ -1,12 +1,14 @@
 import axios from 'axios';
 import { api } from './client';
+import { z } from 'zod';
+import { ResumeSummarySchema, TemplateListItemSchema, TemplateSchema, validated } from './schemas';
 
 // ─── Templates API ────────────────────────────────────────────────────────────
 
 export const templatesApi = {
-  list: () => api.get('/api/templates'),
+  list: () => api.get('/api/templates').then(validated(z.array(TemplateListItemSchema))),
 
-  get: (id: string) => api.get(`/api/templates/${id}`),
+  get: (id: string) => api.get(`/api/templates/${id}`).then(validated(TemplateSchema)),
 
   create: (data: { name: string; description: string; latex_content: string; category?: string }) =>
     api.post('/api/templates', data),
@@ -29,7 +31,7 @@ export const templatesApi = {
 // ─── Resumes API ──────────────────────────────────────────────────────────────
 
 export const resumesApi = {
-  list: () => api.get('/api/resumes'),
+  list: () => api.get('/api/resumes').then(validated(z.array(ResumeSummarySchema))),
 
   get: (id: string) => api.get(`/api/resumes/${id}`),
 

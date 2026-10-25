@@ -81,34 +81,7 @@ export interface SkillGapReport {
   report?: null; // present when no report found
 }
 
-export interface Job {
-  jobId: string;
-  title: string;
-  company: string;
-  matchScore: number | null;
-  url: string;
-  location?: string;
-  source?: string;
-  datePosted?: string;
-  salary?: string;
-  jobType?: string;
-  category?: string;
-  requiredSkills?: string[];
-  preferredSkills?: string[];
-  missingSkills?: string[];
-  experienceLevel?: string;
-  atsKeywords?: string[];
-  matchBreakdown?: {
-    vectorScore?: number;
-    keywordScore?: number;
-    matchedSkills?: string[];
-    explanation?: string;
-  };
-  isAnalyzed?: boolean;
-  description?: string;
-  postedAt?: string; // alias for datePosted
-  createdAt?: string;
-}
+export type { Job } from './schemas';
 
 export interface Application {
   applicationId: string;

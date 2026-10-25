@@ -23,7 +23,7 @@ export function TemplatesList() {
     queryKey: ['templates'],
     queryFn: async () => {
       const res = await templatesApi.list();
-      return res.data as Template[];
+      return res.data;
     },
     staleTime: 30 * 60 * 1000, // 30 min — templates rarely change
     gcTime: 60 * 60 * 1000, // 60 min

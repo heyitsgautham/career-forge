@@ -113,7 +113,7 @@ export function useJobScoutData() {
               jobId,
               companyName: job?.company,
               roleTitle: job?.title,
-              url: job?.url,
+              url: job?.url ?? undefined,
               status,
             });
           }

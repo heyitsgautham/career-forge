@@ -19,9 +19,9 @@ export function TemplateCard({
     <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
       {/* Preview */}
       <div className="h-48 bg-muted flex items-center justify-center border-b">
-        {template.preview_image ? (
+        {template.preview_image_path ? (
           <img
-            src={template.preview_image}
+            src={template.preview_image_path}
             alt={template.name}
             className="w-full h-full object-cover"
           />

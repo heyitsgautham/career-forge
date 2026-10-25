@@ -30,7 +30,7 @@ describe('TemplateCard', () => {
   });
 
   it('renders the preview image when the template has one', () => {
-    render(<TemplateCard template={{ ...TEMPLATE, preview_image: '/t1.png' }} />);
+    render(<TemplateCard template={{ ...TEMPLATE, preview_image_path: '/t1.png' }} />);
     expect(screen.getByRole('img', { name: 'Compact one-pager' })).toHaveAttribute(
       'src',
       '/t1.png'

@@ -1,4 +1,6 @@
 import { api } from './client';
+import { z } from 'zod';
+import { JobSchema, validated } from './schemas';
 import type {
   Job,
   Application,
@@ -38,7 +40,7 @@ export const jobsApi = {
 
 export const jobMatchApi = {
   /** List all shared jobs (sorted by date) */
-  list: () => api.get<Job[]>('/api/jobs/matches'),
+  list: () => api.get<Job[]>('/api/jobs/matches').then(validated(z.array(JobSchema))),
 
   /** List with filters */
   listFiltered: (params: { role?: string; minMatch?: number; sortBy?: string; limit?: number }) =>
