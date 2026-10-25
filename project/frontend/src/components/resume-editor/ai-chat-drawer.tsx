@@ -140,6 +140,8 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
+      // The editor page compiles on Ctrl+Enter, so keep this one to the chat.
+      e.stopPropagation();
       handleSend();
     }
   };

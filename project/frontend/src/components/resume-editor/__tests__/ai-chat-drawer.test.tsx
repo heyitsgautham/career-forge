@@ -89,4 +89,19 @@ describe('AiChatDrawer', () => {
     await userEvent.click(screen.getByRole('button', { name: /Reset chat/ }));
     await waitFor(() => expect(screen.queryByText('Hi.')).not.toBeInTheDocument());
   });
+
+  it('keeps Ctrl+Enter inside the chat so the editor does not also compile', async () => {
+    // Regression: the editor page compiles on Ctrl+Enter from a window listener,
+    // so sending a chat message also started a compile.
+    api.resumesApi.aiEdit.mockResolvedValue(sse({ text: 'Sure.' }));
+    const windowKeys = vi.fn();
+    window.addEventListener('keydown', windowKeys);
+    renderDrawer();
+
+    await userEvent.type(screen.getByRole('textbox'), 'Go{Control>}{Enter}{/Control}');
+
+    await screen.findByText('Sure.');
+    expect(windowKeys.mock.calls.some(([e]) => e.key === 'Enter')).toBe(false);
+    window.removeEventListener('keydown', windowKeys);
+  });
 });
