@@ -15,71 +15,17 @@ from pydantic import BaseModel
 
 from app.api.deps import get_current_user_dynamo
 from app.core.config import settings
+from app.schemas.projects import (
+    GitHubIngestRequest,
+    ProjectCreate,
+    ProjectUpdate,
+)
 from app.services.bedrock_client import bedrock_client
 from app.services.dynamo_service import dynamo_service
 from app.services.github_service import github_service
 
 router = APIRouter()
 logger = structlog.get_logger()
-
-
-# Pydantic models
-class ProjectCreate(BaseModel):
-    title: str
-    description: str
-    technologies: List[str]
-    highlights: Optional[List[str]] = None
-    url: Optional[str] = None
-    demo_url: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-
-
-class ProjectUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    technologies: Optional[List[str]] = None
-    highlights: Optional[List[str]] = None
-    url: Optional[str] = None
-    demo_url: Optional[str] = None
-    is_featured: Optional[bool] = None
-
-
-class ProjectResponse(BaseModel):
-    id: str
-    title: str
-    description: str
-    technologies: List[str]
-    highlights: List[str]
-    url: Optional[str]
-    demo_url: Optional[str]
-    source_type: str
-    is_verified: bool
-    is_featured: bool
-    start_date: Optional[str]
-    end_date: Optional[str]
-
-    class Config:
-        from_attributes = True
-
-
-class GitHubIngestRequest(BaseModel):
-    repo_urls: Optional[List[str]] = None
-    full_names: Optional[List[str]] = None  # preferred: skip URL parsing entirely
-    include_forks: bool = False
-    include_private: bool = True
-    sync_all: bool = False
-
-
-class GitHubRepoResponse(BaseModel):
-    id: str
-    full_name: str
-    name: str
-    description: Optional[str]
-    stars: int
-    languages: dict
-    topics: List[str]
-    project_id: Optional[str]
 
 
 def _dynamo_to_response(p: dict) -> dict:
