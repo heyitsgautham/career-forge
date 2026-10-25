@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { resumesApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { LatexDiffViewer } from '@/components/resume-editor/latex-diff-viewer';
+import { readAiEditStream } from './ai-edit-stream';
 
 interface Message {
   id: string;
@@ -92,39 +93,11 @@ export function AiChatDrawer({ resumeId, getLatex, onApplyLatex }: AiChatDrawerP
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let collectedLatex: string | null = null;
-      let fullText = ''; // accumulate for finalize cleanup
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done || abort.signal.aborted) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const rawData = line.slice(6).trim();
-            if (!rawData || rawData === '{}') continue;
-            try {
-              const parsed = JSON.parse(rawData);
-              if (parsed.text !== undefined) {
-                // Server guarantees this is clean conversational text only
-                fullText += parsed.text as string;
-                appendToAssistant(assistantMsgId, parsed.text as string);
-              }
-              if (parsed.latex !== undefined) {
-                collectedLatex = parsed.latex;
-              }
-            } catch {
-              // SSE comment or non-JSON line
-            }
-          }
-        }
-      }
+      const { text: fullText, latex: collectedLatex } = await readAiEditStream(
+        reader,
+        (chunk) => appendToAssistant(assistantMsgId, chunk),
+        () => abort.signal.aborted
+      );
 
       finalizeAssistant(assistantMsgId, collectedLatex, fullText);
     } catch (err) {

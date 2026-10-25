@@ -14,3 +14,12 @@ if (dom && !globalThis.localStorage) {
     value: dom.window.localStorage,
   });
 }
+
+// jsdom has no ResizeObserver, which react-resizable-panels and Recharts call on mount.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
