@@ -67,7 +67,8 @@ describe('StatsBar', () => {
       />
     );
     expect(screen.getByText('4')).toBeInTheDocument();
-    expect(screen.getByText('2 Applied')).toBeInTheDocument();
+    // Saved and viewed applications sit in the Applied column, so they count there too.
+    expect(screen.getByText('3 Applied')).toBeInTheDocument();
     expect(screen.getByText('0 Interviewing')).toBeInTheDocument();
     expect(screen.getByText('1 Offer')).toBeInTheDocument();
     expect(screen.getByText('0 Rejected')).toBeInTheDocument();

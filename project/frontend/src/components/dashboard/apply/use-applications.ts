@@ -85,6 +85,13 @@ export function useApplications(onCreated: () => void) {
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       toast({ title: 'Application removed' });
     },
+    onError: (err: unknown) => {
+      toast({
+        title: 'Failed to remove application',
+        description: apiErrorDetail(err, 'Please try again.'),
+        variant: 'destructive',
+      });
+    },
   });
 
   // Optimistic status change, then sync the tracking status back to Job Scout

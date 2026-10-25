@@ -8,7 +8,8 @@ const api = vi.hoisted(() => ({
   jobMatchApi: { list: vi.fn(), track: vi.fn() },
 }));
 vi.mock('@/lib/api', () => api);
-vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
+const toast = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
 
 import { ApplyTrackShell } from '@/components/dashboard/apply-shell';
 
@@ -17,7 +18,10 @@ beforeEach(() => {
   localStorage.setItem('token', TOKEN_U1);
   api.jobMatchApi.list.mockResolvedValue({ data: [] });
 });
-afterEach(() => localStorage.clear());
+afterEach(() => {
+  localStorage.clear();
+  vi.restoreAllMocks();
+});
 
 describe('ApplyTrackShell', () => {
   it('puts each application in its column', async () => {
@@ -50,6 +54,42 @@ describe('ApplyTrackShell', () => {
     await vi.waitFor(() => expect(api.applicationsApi.create).toHaveBeenCalled());
     await vi.waitFor(() =>
       expect(screen.queryByPlaceholderText('e.g. Stripe')).not.toBeInTheDocument()
+    );
+  });
+
+  it('opens an empty form after an application was added', async () => {
+    // Regression: the form kept the last entry and asked to discard it on close.
+    api.applicationsApi.list.mockResolvedValue({ data: [] });
+    api.applicationsApi.create.mockResolvedValue({});
+    const confirm = vi.spyOn(window, 'confirm');
+    const { user } = renderWithQuery(<ApplyTrackShell />);
+    await screen.findByText(/Your application tracker is empty/);
+
+    await user.click(screen.getByRole('button', { name: 'Add application' }));
+    await user.type(screen.getByPlaceholderText('e.g. Stripe'), 'Sample Labs');
+    await user.type(screen.getByPlaceholderText('e.g. Backend SDE'), 'Backend Intern');
+    await user.click(screen.getByRole('button', { name: /^Add Application$/ }));
+    await vi.waitFor(() =>
+      expect(screen.queryByPlaceholderText('e.g. Stripe')).not.toBeInTheDocument()
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Add application' }));
+    expect(screen.getByPlaceholderText('e.g. Stripe')).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('tells the user when removing an application fails', async () => {
+    api.applicationsApi.list.mockResolvedValue({ data: [makeApplication()] });
+    api.applicationsApi.delete.mockRejectedValue({ response: { data: { detail: 'Not found' } } });
+    const { user } = renderWithQuery(<ApplyTrackShell />);
+    await user.click(await screen.findByRole('button', { name: 'Delete application' }));
+    await vi.waitFor(() =>
+      expect(toast).toHaveBeenCalledWith({
+        title: 'Failed to remove application',
+        description: 'Not found',
+        variant: 'destructive',
+      })
     );
   });
 });

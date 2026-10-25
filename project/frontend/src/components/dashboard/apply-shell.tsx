@@ -100,13 +100,16 @@ export function ApplyTrackShell() {
       </Card>
 
       {/* Add Application Modal */}
-      <AddApplicationModal
-        open={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSubmit={createApplication}
-        isSubmitting={creating}
-        jobs={jobs}
-      />
+      {/* Mounted only while open, so every open starts from an empty form */}
+      {showAddModal && (
+        <AddApplicationModal
+          open
+          onClose={() => setShowAddModal(false)}
+          onSubmit={createApplication}
+          isSubmitting={creating}
+          jobs={jobs}
+        />
+      )}
     </div>
   );
 }

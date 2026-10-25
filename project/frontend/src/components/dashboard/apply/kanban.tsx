@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Trash2, Calendar, Building2, BarChart3 } from 'lucide-react';
 import { type Application } from '@/lib/api';
-import { formatDate } from './helpers';
+import { formatDate, groupByColumn } from './helpers';
 
 /* ─── Application Card (Draggable) ───────────────────────────────────────── */
 
@@ -135,12 +135,10 @@ export function KanbanColumn({
 /* ─── Stats Bar ──────────────────────────────────────────────────────────── */
 
 export function StatsBar({ applications }: { applications: Application[] }) {
+  // Count the way the board files them, so each number matches its column.
   const counts = useMemo(() => {
-    const c: Record<string, number> = { applied: 0, interviewing: 0, offered: 0, rejected: 0 };
-    for (const app of applications) {
-      if (app.status in c) c[app.status]++;
-    }
-    return c;
+    const grouped = groupByColumn(applications);
+    return Object.fromEntries(Object.entries(grouped).map(([key, apps]) => [key, apps.length]));
   }, [applications]);
 
   if (applications.length === 0) return null;
