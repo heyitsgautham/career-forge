@@ -47,4 +47,19 @@ describe('SkillGapShell', () => {
       screen.queryByRole('button', { name: /Generate Learning Roadmap/ })
     ).not.toBeInTheDocument();
   });
+
+  it('builds the roadmap for the analysed role even after another role is picked', async () => {
+    // Regression: the roadmap request paired the newly picked role with the old report.
+    api.skillGapApi.analyse.mockResolvedValue({ data: makeReport() });
+    api.roadmapApi.generate.mockResolvedValue({ data: makeLearningRoadmap() });
+    const { user } = renderWithQuery(<SkillGapShell />);
+
+    await user.click(await screen.findByText('Backend Engineer'));
+    await user.click(screen.getByRole('button', { name: 'Run Skill Gap Analysis' }));
+    await screen.findByText('62%');
+    await user.click(screen.getByText('ML Engineer'));
+    await user.click(screen.getByRole('button', { name: /Generate Learning Roadmap/ }));
+
+    expect(api.roadmapApi.generate).toHaveBeenCalledWith('backend', 'rep1');
+  });
 });

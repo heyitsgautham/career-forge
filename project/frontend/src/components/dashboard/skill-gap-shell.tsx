@@ -95,7 +95,7 @@ export function SkillGapShell() {
           {/* ─── Generate Roadmap Button ──────────────────────────────────── */}
           {!roadmap && (
             <Button
-              onClick={() => generateRoadmap(selectedRole)}
+              onClick={generateRoadmap}
               disabled={generatingRoadmap}
               className="w-full sm:w-auto gap-2"
               variant="outline"

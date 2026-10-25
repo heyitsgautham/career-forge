@@ -66,30 +66,28 @@ export function useSkillGap() {
   );
 
   // Generate roadmap
-  const handleGenerateRoadmap = useCallback(
-    async (selectedRole: string | null) => {
-      if (!selectedRole || !report) return;
-      setGeneratingRoadmap(true);
+  // The roadmap belongs to the report's role, whatever role is selected now.
+  const handleGenerateRoadmap = useCallback(async () => {
+    if (!report) return;
+    setGeneratingRoadmap(true);
 
-      try {
-        const res = await roadmapApi.generate(selectedRole, report.reportId);
-        if (res.data && res.data.roadmapId) {
-          setRoadmap(res.data);
-          setRoadmapOpen(true);
-          toast({ title: 'Roadmap generated!' });
-        }
-      } catch (err: unknown) {
-        toast({
-          title: 'Roadmap generation failed',
-          description: apiErrorDetail(err, 'An error occurred.'),
-          variant: 'destructive',
-        });
-      } finally {
-        setGeneratingRoadmap(false);
+    try {
+      const res = await roadmapApi.generate(report.roleId, report.reportId);
+      if (res.data && res.data.roadmapId) {
+        setRoadmap(res.data);
+        setRoadmapOpen(true);
+        toast({ title: 'Roadmap generated!' });
       }
-    },
-    [report, toast]
-  );
+    } catch (err: unknown) {
+      toast({
+        title: 'Roadmap generation failed',
+        description: apiErrorDetail(err, 'An error occurred.'),
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingRoadmap(false);
+    }
+  }, [report, toast]);
 
   // Mark milestone complete
   const handleMarkComplete = useCallback(

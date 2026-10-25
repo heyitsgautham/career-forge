@@ -75,7 +75,7 @@ describe('useSkillGap', () => {
     api.roadmapApi.markComplete.mockResolvedValue({ data: makeLearningRoadmap(1) });
     const { result } = renderSkillGap();
     await act(() => result.current.analyse('backend'));
-    await act(() => result.current.generateRoadmap('backend'));
+    await act(() => result.current.generateRoadmap());
 
     expect(api.roadmapApi.generate).toHaveBeenCalledWith('backend', 'rep1');
     expect(result.current.roadmap?.roadmapId).toBe('rm1');
@@ -99,12 +99,12 @@ describe('useSkillGap', () => {
     const { result } = renderSkillGap();
     await act(() => result.current.analyse('backend'));
 
-    await act(() => result.current.generateRoadmap('backend'));
+    await act(() => result.current.generateRoadmap());
     expect(toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Roadmap generation failed', description: 'Bedrock down' })
     );
 
-    await act(() => result.current.generateRoadmap('backend'));
+    await act(() => result.current.generateRoadmap());
     await act(() => result.current.markWeekComplete(2));
     expect(toast).toHaveBeenCalledWith({
       title: 'Failed to update milestone',
