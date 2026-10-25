@@ -19,3 +19,11 @@ export type ImportProgressItem = {
   fullName: string;
   status: 'queued' | 'processing' | 'done' | 'failed';
 };
+
+/** Result of the last GitHub sync, from GET /api/github/ingest-status. */
+export interface SyncSummary {
+  processed: number;
+  failed: number;
+  mode?: string;
+  lastRunAt?: string;
+}
