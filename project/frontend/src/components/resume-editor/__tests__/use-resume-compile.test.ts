@@ -8,7 +8,7 @@ vi.mock('@/lib/api', () => api);
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
 
-import { useResumeCompile } from '../use-resume-compile';
+import { summarizeCompileError, useResumeCompile } from '../use-resume-compile';
 
 const LATEX = '\\documentclass{article}\\begin{document}Hi\\end{document}';
 
@@ -70,22 +70,54 @@ describe('useResumeCompile', () => {
     expect(result.current.pdfUrl).toBe('/raw.pdf');
   });
 
-  it('records the LaTeX error when compilation fails', async () => {
+  it('shows the LaTeX error in the toast when compilation fails', async () => {
     api.resumesApi.compileWithContent.mockResolvedValue({
-      data: { status: 'error', pdf_url: null, error_message: 'Undefined control sequence' },
+      data: {
+        status: 'error',
+        pdf_url: null,
+        error_message: '! Undefined control sequence.\nl.12 \\foo',
+      },
     });
     const { result } = renderCompile();
     await act(() => result.current.compile());
     expect(result.current.compileStatus).toBe('error');
-    expect(result.current.compileError).toBe('Undefined control sequence');
+    expect(toast).toHaveBeenCalledWith({
+      title: 'Compilation failed',
+      description: '! Undefined control sequence. l.12 \\foo',
+      variant: 'destructive',
+    });
   });
 
-  it('records a request failure', async () => {
-    api.resumesApi.compileWithContent.mockRejectedValue(new Error('Network Error'));
+  it('falls back to a generic reason when the backend sends none', async () => {
+    api.resumesApi.compileWithContent.mockResolvedValue({
+      data: { status: 'error', pdf_url: null, error_message: null },
+    });
+    const { result } = renderCompile();
+    await act(() => result.current.compile());
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: 'Compilation failed' })
+    );
+  });
+
+  it('shows the API detail when the compile request itself fails', async () => {
+    api.resumesApi.compileWithContent.mockRejectedValue({
+      response: { data: { detail: 'Resume not found' } },
+    });
     const { result } = renderCompile();
     await act(() => result.current.compile());
     expect(result.current.compileStatus).toBe('error');
-    expect(result.current.compileError).toBe('Network Error');
+    expect(toast).toHaveBeenCalledWith({
+      title: 'Compile error',
+      description: 'Resume not found',
+      variant: 'destructive',
+    });
+  });
+
+  it('shows the network error when there is no response', async () => {
+    api.resumesApi.compileWithContent.mockRejectedValue(new Error('Network Error'));
+    const { result } = renderCompile();
+    await act(() => result.current.compile());
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Network Error' }));
   });
 
   it('does nothing while the editor is empty', async () => {
@@ -93,5 +125,17 @@ describe('useResumeCompile', () => {
     await act(() => result.current.compile());
     expect(api.resumesApi.compileWithContent).not.toHaveBeenCalled();
     expect(result.current.compileStatus).toBe('idle');
+  });
+});
+
+describe('summarizeCompileError', () => {
+  it('keeps the first three non-blank lines', () => {
+    expect(summarizeCompileError('a\n\n b \nc\nd')).toBe('a b c');
+  });
+
+  it('cuts long messages to 300 characters', () => {
+    const summary = summarizeCompileError('x'.repeat(500));
+    expect(summary).toHaveLength(300);
+    expect(summary.endsWith('…')).toBe(true);
   });
 });

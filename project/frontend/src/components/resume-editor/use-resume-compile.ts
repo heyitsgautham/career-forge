@@ -1,8 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
 import { resumesApi } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { apiErrorDetail } from '@/lib/api-error';
 
 export type CompileStatus = 'idle' | 'compiling' | 'success' | 'error';
+
+const MAX_ERROR_LINES = 3;
+const MAX_ERROR_CHARS = 300;
+
+/** The first few lines of a LaTeX log message on one line, short enough for a toast. */
+export function summarizeCompileError(message: string): string {
+  const lines = message
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, MAX_ERROR_LINES)
+    .join(' ');
+  return lines.length > MAX_ERROR_CHARS ? `${lines.slice(0, MAX_ERROR_CHARS - 1)}…` : lines;
+}
 
 interface LoadedResume {
   status?: string;
@@ -66,15 +81,23 @@ export function useResumeCompile(
         setCompileStatus('success');
         toast({ title: 'Compiled successfully' });
       } else {
+        const message = error_message || 'Compilation failed';
         setCompileStatus('error');
-        setCompileError(error_message ?? 'Compilation failed');
-        toast({ title: 'Compilation failed', variant: 'destructive' });
+        setCompileError(message);
+        toast({
+          title: 'Compilation failed',
+          description: summarizeCompileError(message),
+          variant: 'destructive',
+        });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Compilation failed';
+      const message = apiErrorDetail(
+        err,
+        err instanceof Error && err.message ? err.message : 'Compilation failed'
+      );
       setCompileStatus('error');
       setCompileError(message);
-      toast({ title: 'Compile error', variant: 'destructive' });
+      toast({ title: 'Compile error', description: message, variant: 'destructive' });
     }
   }, [resumeId, toast, getContent, beforeCompile]);
 
