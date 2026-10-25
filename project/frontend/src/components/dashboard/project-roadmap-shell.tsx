@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Map, Loader2, Sparkles, Unlock, Trash2 } from 'lucide-react';
+import { Map, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import {
   projectRoadmapApi,
   type ProjectRoadmap,
@@ -212,7 +212,6 @@ export function ProjectRoadmapShell() {
         <DuolingoPath
           roadmap={activeRoadmap}
           onDayClick={(day) => setSelectedDay(day)}
-          onComplete={handleDayComplete}
           onBack={() => {
             setStep('form');
             setActiveRoadmap(null);

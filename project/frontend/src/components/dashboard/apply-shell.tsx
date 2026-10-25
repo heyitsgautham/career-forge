@@ -6,7 +6,7 @@ import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Kanban, Plus, Briefcase } from 'lucide-react';
-import { applicationsApi, jobMatchApi, type Application, type Job } from '@/lib/api';
+import { applicationsApi, jobMatchApi, type Application } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { COLUMNS, getUserId } from './apply/helpers';
 import { KanbanColumn, StatsBar } from './apply/kanban';

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Github, Loader2, ChevronDown, Chrome } from 'lucide-react';
+import { Github, Loader2, ChevronDown } from 'lucide-react';
 import { apiErrorDetail } from '@/lib/api-error';
 
 export default function LoginPage() {

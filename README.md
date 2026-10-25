@@ -152,7 +152,7 @@ Frontend, from `project/frontend`:
 ```bash
 npm test                 # Vitest in jsdom
 npm run test:coverage    # with v8 coverage
-npm run lint             # next lint
+npm run lint             # ESLint 9 with eslint.config.mjs
 npm run typecheck        # tsc --noEmit
 npm run build            # production build
 ```

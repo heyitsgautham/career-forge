@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -37,6 +37,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "3.3.7",
     "@testing-library/dom": "10.4.0",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.3.0",
@@ -47,7 +48,7 @@
     "@vitejs/plugin-react": "5.2.0",
     "@vitest/coverage-v8": "5.0.3",
     "autoprefixer": "^10.4.16",
-    "eslint": "^8.56.0",
+    "eslint": "9.39.5",
     "eslint-config-next": "15.5.28",
     "jsdom": "26.1.0",
     "postcss": "^8.4.32",

@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { api } from './client';
 import { z } from 'zod';
 import { ResumeSummarySchema, TemplateListItemSchema, TemplateSchema, validated } from './schemas';

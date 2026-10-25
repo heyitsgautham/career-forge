@@ -18,7 +18,6 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const { toast } = useToast();
 
   // GitHub ingestion state
@@ -33,7 +32,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
   useEffect(() => {
     loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey, externalRefreshKey]);
+  }, [externalRefreshKey]);
 
   // Poll ingestion status and load projects on mount
   const stopPolling = useCallback(() => {

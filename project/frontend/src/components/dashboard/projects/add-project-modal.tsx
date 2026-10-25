@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { Project } from './types';
 import { apiErrorDetail } from '@/lib/api-error';
 
 export function AddProjectModal({ onClose }: { onClose: () => void }) {

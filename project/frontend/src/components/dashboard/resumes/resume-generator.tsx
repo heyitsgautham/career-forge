@@ -19,7 +19,6 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import type { Resume, Job } from './types';
 import { apiErrorDetail } from '@/lib/api-error';
 
 // ─── Resume Generator (M2 Flow) ────────────────────────────────────────────

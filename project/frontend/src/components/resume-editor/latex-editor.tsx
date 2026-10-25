@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback } from 'react';
 import Editor, { OnMount, OnChange } from '@monaco-editor/react';
 import { editor as MonacoEditor } from 'monaco-editor';
 

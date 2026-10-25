@@ -83,14 +83,12 @@ export function MountainConnector({
 export function DuolingoPath({
   roadmap,
   onDayClick,
-  onComplete,
   onBack,
   onUnlockAll,
   unlocking,
 }: {
   roadmap: ProjectRoadmap;
   onDayClick: (day: RoadmapDay) => void;
-  onComplete: (dayNum: number) => void;
   onBack: () => void;
   onUnlockAll: () => void;
   unlocking: boolean;
@@ -209,7 +207,6 @@ export function DuolingoPath({
             const isCompleted = !!day.completedAt;
             const isNext = !isCompleted && roadmap.days.slice(0, i).every((d) => d.completedAt);
             const isLocked = !allUnlocked && !isCompleted && !isNext;
-            const isAccessible = allUnlocked || isCompleted || isNext;
             const isLeft = i % 2 === 0;
 
             return (

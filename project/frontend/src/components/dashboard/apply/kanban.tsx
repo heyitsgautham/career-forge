@@ -2,10 +2,9 @@
 
 import { useMemo } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Kanban, FileText, Trash2, Calendar, Building2, BarChart3 } from 'lucide-react';
+import { FileText, Trash2, Calendar, Building2, BarChart3 } from 'lucide-react';
 import { type Application } from '@/lib/api';
 import { formatDate } from './helpers';
 
