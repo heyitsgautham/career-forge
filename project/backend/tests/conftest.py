@@ -199,3 +199,19 @@ def bedrock(monkeypatch):
     fake = FakeBedrock()
     monkeypatch.setattr(bedrock_client, "_client", fake)
     return fake
+
+
+@pytest.fixture
+def make_admin(dynamo_client):
+    """Give a DynamoDB-backed user the admin role."""
+    import asyncio
+
+    from app.services.dynamo_service import dynamo_service
+
+    def promote(user):
+        asyncio.run(
+            dynamo_service.update_item("Users", {"userId": user["user_id"]}, {"role": "admin"})
+        )
+        return user
+
+    return promote
