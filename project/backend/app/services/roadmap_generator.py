@@ -171,18 +171,12 @@ Return ONLY the JSON object with exactly 4 weeks."""
     return roadmap
 
 
-async def get_roadmap(roadmap_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch a specific roadmap by ID."""
+async def get_roadmap(roadmap_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    """Fetch one of the user's roadmaps by ID, or None if they have no such roadmap."""
     try:
-        # Scan for the roadmap by ID (since we store by userId PK)
-        from boto3.dynamodb.conditions import Attr
-
-        results = await dynamo_service.scan(
-            table="Roadmaps",
-            filter_expression=Attr("roadmapId").eq(roadmap_id),
-            limit=1,
+        return await dynamo_service.get_item(
+            "Roadmaps", {"userId": user_id, "roadmapId": roadmap_id}
         )
-        return results[0] if results else None
     except Exception as e:
         logger.warning("Failed to fetch roadmap", error=str(e))
         return None
@@ -195,9 +189,9 @@ async def get_user_roadmaps(user_id: str) -> List[Dict[str, Any]]:
             table="Roadmaps",
             pk_name="userId",
             pk_value=user_id,
-            scan_forward=False,
         )
-        return roadmaps
+        # roadmapId is a random UUID, so sort by creation time, newest first
+        return sorted(roadmaps, key=lambda r: r.get("createdAt", ""), reverse=True)
     except Exception as e:
         logger.warning("Failed to fetch user roadmaps", error=str(e))
         return []
@@ -219,12 +213,9 @@ async def mark_milestone_complete(
     Returns:
         Updated roadmap dict
     """
-    roadmap = await get_roadmap(roadmap_id)
+    roadmap = await get_roadmap(roadmap_id, user_id)
     if not roadmap:
         raise ValueError("Roadmap not found")
-
-    if roadmap.get("userId") != user_id:
-        raise ValueError("Unauthorized: roadmap belongs to another user")
 
     weeks = roadmap.get("weeks", [])
     if week_number < 1 or week_number > len(weeks):
