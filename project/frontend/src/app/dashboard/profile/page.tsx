@@ -45,7 +45,7 @@ export default function ProfilePage() {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/auth/profile');
+      const response = await api.get('/api/auth/profile');
       setProfile(response.data);
     } catch (error: any) {
       toast({
@@ -63,7 +63,7 @@ export default function ProfilePage() {
 
     try {
       setSaving(true);
-      const response = await api.put('/auth/profile', {
+      const response = await api.put('/api/auth/profile', {
         name: profile.name,
         headline: profile.headline,
         summary: profile.summary,
