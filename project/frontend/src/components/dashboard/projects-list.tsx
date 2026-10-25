@@ -3,16 +3,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectsApi, githubApi } from '@/lib/api';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Github, ExternalLink, RefreshCw, Trash2, Calendar, Plus, Lock, Globe } from 'lucide-react';
+import { Github, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProjectDetailsModal } from './projects/project-details-modal';
 import { AddProjectModal } from './projects/add-project-modal';
 import { GithubImportModal } from './projects/github-import-modal';
 import { ImportSkeletonCard, ImportProgressBanner } from './projects/import-progress';
-import type { Project } from './projects/types';
+import type { Project, SyncSummary } from './projects/types';
+import { SyncBanner } from './projects/sync-banner';
+import { ProjectCard } from './projects/project-card';
 
 export function ProjectsList() {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -28,12 +30,7 @@ export function ProjectsList() {
   const [syncing, setSyncing] = useState(false); // "Sync All Repos"
   const busy = syncing;
   const [syncStatus, setSyncStatus] = useState<string>('none');
-  const [syncSummary, setSyncSummary] = useState<{
-    processed: number;
-    failed: number;
-    mode?: string;
-    lastRunAt?: string;
-  } | null>(null);
+  const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPoll = useCallback(() => {
@@ -305,73 +302,15 @@ export function ProjectsList() {
 
   // ── GitHub sync banner (always visible at top) ────────────────────────
   const syncBanner = (
-    <Card className="mb-4 border-l-4 border-l-primary bg-card">
-      <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-2">
-          <Github className="h-5 w-5 text-primary" />
-          <span className="text-base font-semibold leading-none tracking-tight">GitHub Sync</span>
-          {syncStatus === 'done' || syncStatus === 'completed' ? (
-            <Badge className="bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-0">
-              {syncSummary ? `${syncSummary.processed} imported` : 'Synced'}
-            </Badge>
-          ) : syncStatus === 'in_progress' || syncStatus === 'pending' ? (
-            <Badge className="bg-primary/10 text-primary border-0 animate-pulse">
-              {syncStatus === 'pending' ? 'Pending…' : 'Importing…'}
-            </Badge>
-          ) : syncStatus === 'failed' ? (
-            <Badge variant="destructive">Failed</Badge>
-          ) : null}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            onClick={handleSyncAll}
-            disabled={busy}
-            variant="outline"
-            className="gap-2 border-primary/40 text-primary hover:bg-primary/5"
-          >
-            {syncing ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Syncing…
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                Sync Existing
-              </>
-            )}
-          </Button>
-          {mounted && projects && projects.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5"
-              onClick={() => setShowClearConfirm(true)}
-              disabled={deleteAllMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4" />
-              {deleteAllMutation.isPending ? 'Clearing…' : 'Clear All'}
-            </Button>
-          )}
-        </div>
-      </div>
-      {(syncStatus === 'in_progress' || syncStatus === 'pending') && (
-        <CardContent className="pt-0">
-          <p className="text-sm text-muted-foreground animate-pulse">
-            Refreshing existing projects via Bedrock — this takes ~1–2 min for large accounts.
-          </p>
-        </CardContent>
-      )}
-      {syncStatus === 'done' && syncSummary?.lastRunAt && (
-        <CardContent className="pt-0">
-          <p className="text-xs text-muted-foreground">
-            Last synced {new Date(syncSummary.lastRunAt).toLocaleString()}
-            {syncSummary.failed > 0 && ` · ${syncSummary.failed} failed`}
-          </p>
-        </CardContent>
-      )}
-    </Card>
+    <SyncBanner
+      syncing={syncing}
+      syncStatus={syncStatus}
+      syncSummary={syncSummary}
+      onSyncAll={handleSyncAll}
+      showClearAll={Boolean(mounted && projects && projects.length > 0)}
+      clearing={deleteAllMutation.isPending}
+      onClearAll={() => setShowClearConfirm(true)}
+    />
   );
 
   // ── Non-blocking import progress banner ─────────────────────────────────
@@ -483,81 +422,12 @@ export function ProjectsList() {
         ))}
         {/* Real project cards */}
         {(projects ?? []).map((project) => (
-          <Card
+          <ProjectCard
             key={project.id}
-            className="hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 border-l-4 border-l-[hsl(var(--success))]"
-          >
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-2 min-w-0">
-                  <CardTitle className="text-lg truncate">{project.title}</CardTitle>
-                  {project.source_type === 'github' &&
-                    (project.is_private ? (
-                      <span title="Private repository" className="flex-shrink-0">
-                        <Lock className="h-3.5 w-3.5 text-amber-500" />
-                      </span>
-                    ) : (
-                      <span title="Public repository" className="flex-shrink-0">
-                        <Globe className="h-3.5 w-3.5 text-green-500" />
-                      </span>
-                    ))}
-                </div>
-                <div className="flex gap-1">
-                  {project.url && (
-                    <Button variant="ghost" size="icon" asChild>
-                      <a href={project.url} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <CardDescription className="line-clamp-2">{project.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-1 mb-4">
-                {project.technologies?.slice(0, 5).map((tech, idx) => (
-                  <Badge
-                    key={tech}
-                    variant="secondary"
-                    className={`text-xs ${
-                      idx % 3 === 0
-                        ? 'bg-primary/10 text-primary'
-                        : idx % 3 === 1
-                          ? 'bg-[hsl(var(--accent))]/10 text-[hsl(var(--accent))]'
-                          : 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
-                    }`}
-                  >
-                    {tech}
-                  </Badge>
-                ))}
-                {project.technologies?.length > 5 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{project.technologies.length - 5}
-                  </Badge>
-                )}
-              </div>
-              {project.start_date && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {project.start_date} - {project.end_date || 'Present'}
-                </div>
-              )}
-              <div className="flex justify-between gap-2 mt-4">
-                <Button variant="outline" size="sm" onClick={() => setSelectedProject(project)}>
-                  Show Details
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => deleteMutation.mutate(project.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            project={project}
+            onShowDetails={() => setSelectedProject(project)}
+            onDelete={() => deleteMutation.mutate(project.id)}
+          />
         ))}
       </div>
 
