@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Github, RefreshCw, X, Lock, Globe } from 'lucide-react';
 import { apiErrorDetail } from '@/lib/api-error';
 import { Portal } from '@/components/ui/portal';
+import { filterRepos, parseGithubRepoUrl, type GithubRepo, type Visibility } from './github-repos';
 
 export function GithubImportModal({
   onClose,
@@ -26,7 +27,7 @@ export function GithubImportModal({
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [importMode, setImportMode] = useState<'select' | 'url'>('select');
-  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
+  const [visibilityFilter, setVisibilityFilter] = useState<Visibility>('all');
 
   // Fetch user's GitHub repositories
   const {
@@ -37,39 +38,14 @@ export function GithubImportModal({
     queryKey: ['github-user-repos'],
     queryFn: async () => {
       const res = await projectsApi.listGithubUserRepos();
-      return res.data as Array<{
-        full_name: string;
-        name: string;
-        description?: string;
-        html_url: string;
-        stars: number;
-        forks: number;
-        language?: string;
-        is_private: boolean;
-        is_fork: boolean;
-      }>;
+      return res.data as GithubRepo[];
     },
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 min
     gcTime: 30 * 60 * 1000, // 30 min
   });
 
-  // Filter repos based on search query and visibility
-  const filteredRepos = userRepos?.filter((repo) => {
-    // Apply visibility filter first
-    if (visibilityFilter === 'public' && repo.is_private) return false;
-    if (visibilityFilter === 'private' && !repo.is_private) return false;
-
-    // Then apply search query
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      repo.full_name.toLowerCase().includes(query) ||
-      repo.name.toLowerCase().includes(query) ||
-      repo.description?.toLowerCase().includes(query) ||
-      repo.language?.toLowerCase().includes(query)
-    );
-  });
+  const filteredRepos = userRepos && filterRepos(userRepos, searchQuery, visibilityFilter);
 
   // Compute visibility counts from full userRepos list
   const publicCount = userRepos?.filter((r) => !r.is_private).length ?? 0;
@@ -113,9 +89,8 @@ export function GithubImportModal({
       if (selectedRepos.size === 0) return;
       onStartImport(Array.from(selectedRepos));
     } else {
-      const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-      if (!match) return;
-      const fullName = `${match[1]}/${match[2].replace('.git', '')}`;
+      const fullName = parseGithubRepoUrl(repoUrl);
+      if (!fullName) return;
       onStartImport([fullName]);
     }
   };
