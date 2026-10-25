@@ -66,3 +66,8 @@ export const DAY_COLORS = [
     glow: 'shadow-orange-400/40',
   },
 ];
+
+/** Whole-number percentage of days done. A roadmap with no days counts as 0%. */
+export function progressPercent(completed: number, total: number): number {
+  return total > 0 ? Math.round((completed / total) * 100) : 0;
+}

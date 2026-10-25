@@ -2,6 +2,7 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { ProjectRoadmap } from '@/lib/api';
+import { progressPercent } from './constants';
 
 /** Saved roadmaps with their progress, each opening on click. */
 export function RoadmapHistory({
@@ -24,7 +25,7 @@ export function RoadmapHistory({
       </h3>
       <div className="space-y-2">
         {history.map((rm) => {
-          const pct = Math.round((rm.completedDays / rm.totalDays) * 100);
+          const pct = progressPercent(rm.completedDays, rm.totalDays);
           return (
             <Card
               key={rm.projectRoadmapId}

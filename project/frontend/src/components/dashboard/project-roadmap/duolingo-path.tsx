@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Clock, CheckCircle2, ArrowLeft, Trophy, Star, Lock, Unlock } from 'lucide-react';
 import { type ProjectRoadmap, type RoadmapDay } from '@/lib/api';
-import { DAY_COLORS } from './constants';
+import { DAY_COLORS, progressPercent } from './constants';
 
 /* ─── Mountain-curve SVG connector between day cards ─────────────────────── */
 export function MountainConnector({
@@ -94,7 +94,7 @@ export function DuolingoPath({
   unlocking: boolean;
 }) {
   const completedCount = roadmap.days.filter((d) => d.completedAt).length;
-  const progressPercent = Math.round((completedCount / roadmap.totalDays) * 100);
+  const percent = progressPercent(completedCount, roadmap.totalDays);
   const allUnlocked = !!roadmap.unlockedAll;
 
   return (
@@ -121,7 +121,7 @@ export function DuolingoPath({
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-3xl font-bold text-primary tabular-nums">{progressPercent}%</div>
+          <div className="text-3xl font-bold text-primary tabular-nums">{percent}%</div>
           <p className="text-xs text-muted-foreground">
             {completedCount}/{roadmap.totalDays} days
           </p>
@@ -132,7 +132,7 @@ export function DuolingoPath({
       <div className="relative h-3 rounded-full bg-muted overflow-hidden">
         <div
           className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary via-violet-500 to-emerald-500 rounded-full transition-all duration-1000 ease-out"
-          style={{ width: `${progressPercent}%` }}
+          style={{ width: `${percent}%` }}
         />
       </div>
 

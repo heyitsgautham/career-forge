@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { DAY_COLORS } from '../constants';
+import { DAY_COLORS, progressPercent } from '../constants';
 import { DayDetailModal } from '../day-detail-modal';
 import { DomainForm } from '../domain-form';
 import { DuolingoPath } from '../duolingo-path';
@@ -74,6 +74,20 @@ describe('RoadmapHistory', () => {
 
     await userEvent.click(screen.getByText('Job board API'));
     expect(onOpen).toHaveBeenCalledWith('pr1');
+  });
+
+  it('shows 0% for a roadmap that has no days', () => {
+    // Regression: dividing by totalDays rendered "NaN%" and a NaN-width bar.
+    render(
+      <RoadmapHistory
+        history={[makeRoadmap(0, { days: [], totalDays: 0 })]}
+        deleting={null}
+        onOpen={() => {}}
+        onDelete={() => {}}
+      />
+    );
+    expect(screen.getByText('0%')).toBeInTheDocument();
+    expect(screen.queryByText('NaN%')).not.toBeInTheDocument();
   });
 
   it('disables the delete button while that roadmap is deleting', () => {
@@ -198,6 +212,19 @@ describe('DuolingoPath', () => {
     expect(onDayClick).toHaveBeenCalledWith(expect.objectContaining({ day: 3 }));
   });
 
+  it('shows 0% progress for a roadmap without days', () => {
+    render(
+      <DuolingoPath
+        roadmap={makeRoadmap(0, { days: [], totalDays: 0 })}
+        onDayClick={() => {}}
+        onBack={() => {}}
+        onUnlockAll={() => {}}
+        unlocking={false}
+      />
+    );
+    expect(screen.getByText('0%')).toBeInTheDocument();
+  });
+
   it('offers unlock-all until every day is unlocked', async () => {
     const onUnlockAll = vi.fn();
     const { rerender } = render(
@@ -239,5 +266,13 @@ describe('DuolingoPath', () => {
     await userEvent.click(header);
     expect(onBack).toHaveBeenCalledOnce();
     expect(within(header).queryByText(/Unlock/)).not.toBeInTheDocument();
+  });
+});
+
+describe('progressPercent', () => {
+  it('rounds to a whole percent and treats no days as 0%', () => {
+    expect(progressPercent(2, 7)).toBe(29);
+    expect(progressPercent(7, 7)).toBe(100);
+    expect(progressPercent(0, 0)).toBe(0);
   });
 });
