@@ -6,6 +6,7 @@ Resume generation, from S3 project summaries (M2) and from a template.
 
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 import structlog
 from fastapi import Depends, HTTPException
@@ -30,6 +31,9 @@ from app.schemas.resumes import (
 from app.services.resume_agent import resume_agent
 
 logger = structlog.get_logger()
+
+# project/backend/templates, found from this file's place in app/api/routes/resumes/
+_BASE_TEMPLATE = Path(__file__).resolve().parents[4] / "templates" / "base_resume_template.tex"
 
 
 @router.post("/generate", response_model=M2GenerateResponse)
@@ -139,9 +143,7 @@ async def generate_resume(
             {"status": "generating", "updatedAt": dynamo_service.now_iso()},
         )
         try:
-            template_path = os.path.join(
-                os.path.dirname(__file__), "..", "..", "..", "templates", "base_resume_template.tex"
-            )
+            template_path = str(_BASE_TEMPLATE)
             if not os.path.exists(template_path):
                 raise HTTPException(status_code=404, detail="No template file found")
             with open(template_path, "r") as f:
