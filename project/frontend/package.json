@@ -26,11 +26,11 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "idb-keyval": "^6.2.2",
-    "lucide-react": "^0.309.0",
+    "lucide-react": "0.309.0",
     "monaco-editor": "^0.45.0",
-    "next": "14.2.35",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "next": "15.5.28",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
     "react-resizable-panels": "^4.7.1",
     "recharts": "^3.7.0",
     "tailwind-merge": "^2.2.0"
@@ -41,13 +41,13 @@
     "@testing-library/react": "16.3.0",
     "@testing-library/user-event": "14.6.1",
     "@types/node": "22.20.5",
-    "@types/react": "^18.2.46",
-    "@types/react-dom": "^18.2.18",
+    "@types/react": "19.1.17",
+    "@types/react-dom": "19.1.11",
     "@vitejs/plugin-react": "5.2.0",
     "@vitest/coverage-v8": "5.0.3",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.56.0",
-    "eslint-config-next": "14.2.35",
+    "eslint-config-next": "15.5.28",
     "jsdom": "26.1.0",
     "postcss": "^8.4.32",
     "prettier": "3.6.2",
@@ -58,5 +58,13 @@
   },
   "engines": {
     "node": ">=22.12"
+  },
+  "overrides": {
+    "lucide-react": {
+      "react": "$react"
+    },
+    "next": {
+      "postcss": "8.5.30"
+    }
   }
 }
