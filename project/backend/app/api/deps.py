@@ -95,6 +95,18 @@ async def get_current_user(
             return user
 
 
+async def reload_user(db, user):
+    """Load the SQLite user again in the route's own session.
+
+    get_current_user reads the user in a short-lived session of its own, so the
+    object it returns is detached. db.refresh() on it raises "not persistent
+    within this Session", which made every SQLite profile request a 500.
+    """
+    from app.models.user import User
+
+    return await db.get(User, user.id, populate_existing=True)
+
+
 async def get_optional_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
 ) -> Optional[object]:
