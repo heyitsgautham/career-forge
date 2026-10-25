@@ -16,6 +16,7 @@ import { DOMAIN_CHIPS, DAY_COLORS } from './project-roadmap/constants';
 import { DuolingoPath } from './project-roadmap/duolingo-path';
 import { DayDetailModal } from './project-roadmap/day-detail-modal';
 import { ProjectPicker } from './project-roadmap/project-picker';
+import { apiErrorDetail } from '@/lib/api-error';
 
 export function ProjectRoadmapShell() {
   const { toast } = useToast();
@@ -72,13 +73,10 @@ export function ProjectRoadmapShell() {
         setSuggestions(res.data);
         setStep('pick');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Failed to get suggestions',
-        description:
-          typeof err?.response?.data?.detail === 'string'
-            ? err.response.data.detail
-            : 'Please try again.',
+        description: apiErrorDetail(err, 'Please try again.'),
         variant: 'destructive',
       });
     } finally {
@@ -107,13 +105,10 @@ export function ProjectRoadmapShell() {
             description: `7-day plan for "${project.title}" generated.`,
           });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         toast({
           title: 'Plan generation failed',
-          description:
-            typeof err?.response?.data?.detail === 'string'
-              ? err.response.data.detail
-              : 'Please try again.',
+          description: apiErrorDetail(err, 'Please try again.'),
           variant: 'destructive',
         });
       } finally {
@@ -136,13 +131,10 @@ export function ProjectRoadmapShell() {
         if (updated) setSelectedDay(updated);
         refetchHistory();
         toast({ title: `Day ${dayNum} complete!`, description: 'Keep the momentum going!' });
-      } catch (err: any) {
+      } catch (err: unknown) {
         toast({
           title: 'Failed to update',
-          description:
-            typeof err?.response?.data?.detail === 'string'
-              ? err.response.data.detail
-              : 'Please try again.',
+          description: apiErrorDetail(err, 'Please try again.'),
           variant: 'destructive',
         });
       } finally {
@@ -177,13 +169,10 @@ export function ProjectRoadmapShell() {
         title: 'All days unlocked!',
         description: 'You can now access any day in any order.',
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Failed to unlock',
-        description:
-          typeof err?.response?.data?.detail === 'string'
-            ? err.response.data.detail
-            : 'Please try again.',
+        description: apiErrorDetail(err, 'Please try again.'),
         variant: 'destructive',
       });
     } finally {
@@ -203,13 +192,10 @@ export function ProjectRoadmapShell() {
           setStep('form');
         }
         toast({ title: 'Roadmap deleted' });
-      } catch (err: any) {
+      } catch (err: unknown) {
         toast({
           title: 'Failed to delete',
-          description:
-            typeof err?.response?.data?.detail === 'string'
-              ? err.response.data.detail
-              : 'Please try again.',
+          description: apiErrorDetail(err, 'Please try again.'),
           variant: 'destructive',
         });
       } finally {

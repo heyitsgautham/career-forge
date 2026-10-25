@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Project } from './types';
+import { apiErrorDetail } from '@/lib/api-error';
 
 export function AddProjectModal({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState('');
@@ -40,10 +41,10 @@ export function AddProjectModal({ onClose }: { onClose: () => void }) {
       toast({ title: 'Project created successfully' });
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Failed to create project',
-        description: error.response?.data?.detail || 'Unknown error',
+        description: apiErrorDetail(error, 'Unknown error'),
         variant: 'destructive',
       });
     },

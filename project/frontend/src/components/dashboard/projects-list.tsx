@@ -15,6 +15,7 @@ import { ImportSkeletonCard, ImportProgressBanner } from './projects/import-prog
 import type { Project, SyncSummary } from './projects/types';
 import { SyncBanner } from './projects/sync-banner';
 import { ProjectCard } from './projects/project-card';
+import { apiErrorDetail } from '@/lib/api-error';
 
 export function ProjectsList() {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -246,7 +247,7 @@ export function ProjectsList() {
       }, 5000);
       setTimeout(() => clearInterval(pollId), 30_000);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       if (simulationIntervalRef.current) {
         clearInterval(simulationIntervalRef.current);
         simulationIntervalRef.current = null;
@@ -255,7 +256,10 @@ export function ProjectsList() {
       setImportProgress((prev) => prev.map((repo) => ({ ...repo, status: 'failed' })));
       toast({
         title: 'Failed to import repositories',
-        description: error.response?.data?.detail || error.message || 'Unknown error',
+        description: apiErrorDetail(
+          error,
+          error instanceof Error && error.message ? error.message : 'Unknown error'
+        ),
         variant: 'destructive',
       });
       setTimeout(() => setImportProgress([]), 4000);

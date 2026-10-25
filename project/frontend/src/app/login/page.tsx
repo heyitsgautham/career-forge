@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Github, Loader2, ChevronDown, Chrome } from 'lucide-react';
+import { apiErrorDetail } from '@/lib/api-error';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,9 +43,7 @@ export default function LoginPage() {
       toast({ title: 'Welcome back!' });
       router.push('/dashboard');
     } catch (error: unknown) {
-      const msg =
-        (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-        'Invalid credentials';
+      const msg = apiErrorDetail(error, 'Invalid credentials');
       toast({ title: 'Login failed', description: msg, variant: 'destructive' });
     } finally {
       setIsLoading(false);
@@ -75,9 +74,7 @@ export default function LoginPage() {
       toast({ title: 'Account created!' });
       router.push('/dashboard');
     } catch (error: unknown) {
-      const msg =
-        (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-        'Could not create account';
+      const msg = apiErrorDetail(error, 'Could not create account');
       toast({ title: 'Registration failed', description: msg, variant: 'destructive' });
     } finally {
       setIsLoading(false);

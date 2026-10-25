@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Github, RefreshCw, X, Lock, Globe } from 'lucide-react';
+import { apiErrorDetail } from '@/lib/api-error';
 
 export function GithubImportModal({
   onClose,
@@ -167,8 +168,10 @@ export function GithubImportModal({
                     Failed to load repositories
                   </p>
                   <p className="text-xs text-muted-foreground mb-3">
-                    {(reposError as any)?.response?.data?.detail ||
-                      'No GitHub account connected or connection expired'}
+                    {apiErrorDetail(
+                      reposError,
+                      'No GitHub account connected or connection expired'
+                    )}
                   </p>
                   <Button variant="outline" size="sm" onClick={() => setImportMode('url')}>
                     Switch to URL Import

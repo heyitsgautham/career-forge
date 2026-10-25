@@ -5,6 +5,7 @@ import { resumesApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiErrorDetail } from '@/lib/api-error';
 
 // ─── Compile Button ─────────────────────────────────────────────────────────
 
@@ -18,10 +19,10 @@ export function CompileButton({ resumeId }: { resumeId: string }) {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       toast({ title: 'PDF compiled successfully!' });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Compilation failed',
-        description: error.response?.data?.detail || 'Check LaTeX syntax',
+        description: apiErrorDetail(error, 'Check LaTeX syntax'),
         variant: 'destructive',
       });
       queryClient.invalidateQueries({ queryKey: ['resumes'] });

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, X, Linkedin, CheckCircle2 } from 'lucide-react';
 import { userApi } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { apiErrorDetail } from '@/lib/api-error';
 
 /** Modal that imports the user's LinkedIn profile into their CareerForge profile. */
 export function LinkedInImportModal({ onClose }: { onClose: () => void }) {
@@ -51,10 +52,10 @@ export function LinkedInImportModal({ onClose }: { onClose: () => void }) {
             .join(' · ') || 'Profile updated',
       });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       toast({
         title: 'Import failed',
-        description: err?.response?.data?.detail || 'Could not import LinkedIn profile.',
+        description: apiErrorDetail(err, 'Could not import LinkedIn profile.'),
         variant: 'destructive',
       });
     },

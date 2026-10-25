@@ -12,6 +12,7 @@ import { EducationSection } from './profile/education-section';
 import { CertificationsSection } from './profile/certifications-section';
 import { GithubProjectsSection } from './profile/github-projects-section';
 import { SkillsAndAchievements } from './profile/skills-achievements';
+import { apiErrorDetail } from '@/lib/api-error';
 
 export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: number }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -167,9 +168,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
       const response = await api.get('/api/auth/profile');
       setProfile(response.data);
     } catch (error: unknown) {
-      const msg =
-        (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-        'Failed to load profile';
+      const msg = apiErrorDetail(error, 'Failed to load profile');
       toast({
         title: 'Error',
         description: msg,
@@ -215,9 +214,7 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
         description: 'Profile updated successfully',
       });
     } catch (error: unknown) {
-      const msg =
-        (error as { response?: { data?: { detail?: string } } }).response?.data?.detail ||
-        'Failed to save profile';
+      const msg = apiErrorDetail(error, 'Failed to save profile');
       toast({
         title: 'Error',
         description: msg,
@@ -298,13 +295,14 @@ export function ProfileView({ externalRefreshKey = 0 }: { externalRefreshKey?: n
               : 'Profile imported (no new data found).',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error importing LinkedIn profile:', error);
       toast({
         title: 'Import Failed',
-        description:
-          error.response?.data?.detail ||
-          'Failed to import from LinkedIn. Make sure you logged in when the browser opened.',
+        description: apiErrorDetail(
+          error,
+          'Failed to import from LinkedIn. Make sure you logged in when the browser opened.'
+        ),
         variant: 'destructive',
       });
     }

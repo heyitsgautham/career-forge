@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { COLUMNS, getUserId } from './apply/helpers';
 import { KanbanColumn, StatsBar } from './apply/kanban';
 import { AddApplicationModal } from './apply/add-application-modal';
+import { apiErrorDetail } from '@/lib/api-error';
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 
@@ -74,10 +75,10 @@ export function ApplyTrackShell() {
       setShowAddModal(false);
       toast({ title: 'Application added!' });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       toast({
         title: 'Failed to create application',
-        description: err?.response?.data?.detail || 'Something went wrong',
+        description: apiErrorDetail(err, 'Something went wrong'),
         variant: 'destructive',
       });
     },
@@ -89,12 +90,12 @@ export function ApplyTrackShell() {
       applicationsApi.update(params.applicationId, {
         status: params.status as Application['status'],
       }),
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       // Rollback on error — refetch
       queryClient.invalidateQueries({ queryKey: ['applications'] });
       toast({
         title: 'Failed to update status',
-        description: err?.response?.data?.detail || 'Could not move application',
+        description: apiErrorDetail(err, 'Could not move application'),
         variant: 'destructive',
       });
     },

@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { Resume, Job } from './types';
+import { apiErrorDetail } from '@/lib/api-error';
 
 // ─── Resume Generator (M2 Flow) ────────────────────────────────────────────
 
@@ -65,8 +66,8 @@ export function ResumeGenerator({
       setError(null);
       toast({ title: 'Resume generated successfully!' });
     },
-    onError: (err: any) => {
-      const detail = err.response?.data?.detail || 'Generation failed';
+    onError: (err: unknown) => {
+      const detail = apiErrorDetail(err, 'Generation failed');
       setError(detail);
       setResult(null);
     },

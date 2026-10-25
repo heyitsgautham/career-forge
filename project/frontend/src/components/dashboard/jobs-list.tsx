@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Briefcase, ExternalLink, Trash2, Sparkles, Building2, Plus, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { apiErrorDetail } from '@/lib/api-error';
 
 interface JobDescription {
   id: string;
@@ -55,10 +56,10 @@ export function JobsList() {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       toast({ title: 'Job description analyzed' });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Analysis failed',
-        description: error.response?.data?.detail || 'Unknown error',
+        description: apiErrorDetail(error, 'Unknown error'),
         variant: 'destructive',
       });
     },
@@ -332,10 +333,10 @@ function AddJobModal({ onClose }: { onClose: () => void }) {
       toast({ title: 'Job description added' });
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Failed to add job description',
-        description: error.response?.data?.detail || 'Unknown error',
+        description: apiErrorDetail(error, 'Unknown error'),
         variant: 'destructive',
       });
     },

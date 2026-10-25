@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DEFAULT_TEMPLATE } from './default-template';
+import { apiErrorDetail } from '@/lib/api-error';
 
 export function AddTemplateModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
@@ -30,10 +31,10 @@ export function AddTemplateModal({ onClose }: { onClose: () => void }) {
       toast({ title: 'Template created' });
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Failed to create template',
-        description: error.response?.data?.detail || 'Unknown error',
+        description: apiErrorDetail(error, 'Unknown error'),
         variant: 'destructive',
       });
     },

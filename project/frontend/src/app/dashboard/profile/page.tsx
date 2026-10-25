@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/api';
+import { apiErrorDetail } from '@/lib/api-error';
 
 interface ProfileData {
   id: string;
@@ -47,10 +48,10 @@ export default function ProfilePage() {
       setLoading(true);
       const response = await api.get('/api/auth/profile');
       setProfile(response.data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.response?.data?.detail || 'Failed to load profile',
+        description: apiErrorDetail(error, 'Failed to load profile'),
         variant: 'destructive',
       });
     } finally {
@@ -88,10 +89,10 @@ export default function ProfilePage() {
         title: 'Success',
         description: 'Profile updated successfully',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.response?.data?.detail || 'Failed to save profile',
+        description: apiErrorDetail(error, 'Failed to save profile'),
         variant: 'destructive',
       });
     } finally {

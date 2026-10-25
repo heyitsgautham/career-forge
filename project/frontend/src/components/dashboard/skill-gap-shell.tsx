@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ROLE_ICONS } from './skill-gap/helpers';
 import { GapResults } from './skill-gap/gap-results';
 import { LearningRoadmap } from './skill-gap/learning-roadmap';
+import { apiErrorDetail } from '@/lib/api-error';
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
 export function SkillGapShell() {
@@ -56,10 +57,10 @@ export function SkillGapShell() {
           variant: 'destructive',
         });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Analysis failed',
-        description: err?.response?.data?.detail || 'An error occurred.',
+        description: apiErrorDetail(err, 'An error occurred.'),
         variant: 'destructive',
       });
     } finally {
@@ -79,10 +80,10 @@ export function SkillGapShell() {
         setRoadmapOpen(true);
         toast({ title: 'Roadmap generated!' });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Roadmap generation failed',
-        description: err?.response?.data?.detail || 'An error occurred.',
+        description: apiErrorDetail(err, 'An error occurred.'),
         variant: 'destructive',
       });
     } finally {
