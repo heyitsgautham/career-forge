@@ -24,6 +24,8 @@ import { LatexEditorHandle } from '@/components/resume-editor/latex-editor';
 import { EditorLayout } from '@/components/resume-editor/editor-layout';
 import { AiChatDrawer } from '@/components/resume-editor/ai-chat-drawer';
 import { cn } from '@/lib/utils';
+import { useResumeCompile } from '@/components/resume-editor/use-resume-compile';
+import { useResumeSave } from '@/components/resume-editor/use-resume-save';
 
 // Monaco editor must be dynamically imported (no SSR)
 const LatexEditor = dynamic(
@@ -31,10 +33,6 @@ const LatexEditor = dynamic(
   { ssr: false, loading: () => <div className="flex-1 bg-[#1e1e1e]" /> }
 );
 
-type CompileStatus = 'idle' | 'compiling' | 'success' | 'error';
-type SaveStatus = 'saved' | 'dirty' | 'saving';
-
-const AUTO_SAVE_DELAY = 2000; // ms
 const AUTO_COMPILE_DELAY = 3000; // ms
 
 export default function ResumeEditorPage() {
@@ -46,15 +44,10 @@ export default function ResumeEditorPage() {
   const editorHandleRef = useRef<LatexEditorHandle | null>(null);
 
   // State
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [compileStatus, setCompileStatus] = useState<CompileStatus>('idle');
-  const [compileError, setCompileError] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [autoCompile, setAutoCompile] = useState(true); // on by default
   const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
 
-  // Debounce timers
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Debounce timer
   const autoCompileTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch resume
@@ -67,94 +60,27 @@ export default function ResumeEditorPage() {
     enabled: !!resumeId,
   });
 
-  // On resume load: try to get existing PDF URL
-  useEffect(() => {
-    if (!resume) return;
-    if (resume.status === 'compiled' || resume.pdf_path) {
-      resumesApi
-        .getPdfUrl(resumeId)
-        .then((res) => {
-          setPdfUrl(res.data.url);
-          setCompileStatus('success');
-        })
-        .catch(() => {
-          if (resume.pdf_path) {
-            const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-            setPdfUrl(`${apiBase}/uploads/pdfs/${resumeId.slice(0, 8)}.pdf`);
-            setCompileStatus('success');
-          }
-        });
-    }
-  }, [resume, resumeId]);
-
-  // ─── Save ───────────────────────────────────────────────────────────────────
-
-  const doSave = useCallback(
-    async (latex?: string) => {
-      const content = latex ?? editorHandleRef.current?.getValue() ?? '';
-      if (!content) return;
-      setSaveStatus('saving');
-      try {
-        await resumesApi.saveLaTeX(resumeId, content);
-        setSaveStatus('saved');
-      } catch {
-        setSaveStatus('dirty');
-        toast({ title: 'Save failed', variant: 'destructive' });
-      }
-    },
-    [resumeId, toast]
-  );
-
-  // ─── Compile ─────────────────────────────────────────────────────────────────
-
-  const doCompile = useCallback(async () => {
-    const content = editorHandleRef.current?.getValue();
-    if (!content) return;
-    setCompileStatus('compiling');
-    setCompileError(null);
-    editorHandleRef.current?.clearMarkers?.();
-    try {
-      const res = await resumesApi.compileWithContent(resumeId, content);
-      const { pdf_url, status, error_message } = res.data;
-      if (status === 'compiled' && pdf_url) {
-        let finalUrl = pdf_url;
-        try {
-          const urlRes = await resumesApi.getPdfUrl(resumeId);
-          finalUrl = urlRes.data.url;
-        } catch {
-          finalUrl = pdf_url;
-        }
-        setPdfUrl(finalUrl);
-        setCompileStatus('success');
-        toast({ title: 'Compiled successfully' });
-      } else {
-        setCompileStatus('error');
-        setCompileError(error_message ?? 'Compilation failed');
-        toast({ title: 'Compilation failed', variant: 'destructive' });
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Compilation failed';
-      setCompileStatus('error');
-      setCompileError(message);
-      toast({ title: 'Compile error', variant: 'destructive' });
-    }
-  }, [resumeId, toast]);
+  const getContent = useCallback(() => editorHandleRef.current?.getValue(), []);
+  const clearMarkers = useCallback(() => editorHandleRef.current?.clearMarkers?.(), []);
+  const { saveStatus, save: doSave, scheduleSave } = useResumeSave(resumeId, getContent);
+  const {
+    pdfUrl,
+    compileStatus,
+    compile: doCompile,
+  } = useResumeCompile(resumeId, resume, getContent, clearMarkers);
 
   // ─── Editor change handler ────────────────────────────────────────────────────
 
   const handleEditorChange = useCallback(
     (value: string) => {
-      setSaveStatus('dirty');
-
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = setTimeout(() => doSave(value), AUTO_SAVE_DELAY);
+      scheduleSave(value);
 
       if (autoCompile) {
         if (autoCompileTimerRef.current) clearTimeout(autoCompileTimerRef.current);
         autoCompileTimerRef.current = setTimeout(() => doCompile(), AUTO_COMPILE_DELAY);
       }
     },
-    [doSave, doCompile, autoCompile]
+    [scheduleSave, doCompile, autoCompile]
   );
 
   // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
@@ -202,12 +128,10 @@ export default function ResumeEditorPage() {
   const handleApplyLatex = useCallback(
     (latex: string) => {
       editorHandleRef.current?.setValue(latex);
-      setSaveStatus('dirty');
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = setTimeout(() => doSave(latex), AUTO_SAVE_DELAY);
+      scheduleSave(latex);
       toast({ title: 'AI changes applied to editor' });
     },
-    [doSave, toast]
+    [scheduleSave, toast]
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────────
