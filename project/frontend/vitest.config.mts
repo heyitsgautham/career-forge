@@ -13,10 +13,16 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**', 'src/hooks/**', 'src/components/**'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/__tests__/**',
+        'src/test/**',
+        // The root layout only wires fonts, metadata and providers, which Next renders.
+        'src/app/layout.tsx',
+      ],
       reporter: ['text-summary', 'lcov'],
-      // Floors sit just under current coverage, so they only stop regressions. Raise them as tests land.
-      thresholds: { lines: 10, statements: 10, functions: 7, branches: 6 },
+      // Floors sit a few points under current coverage, so they stop regressions.
+      thresholds: { lines: 85, statements: 85, functions: 80, branches: 80 },
     },
   },
 });
