@@ -1,7 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { DAY_COLORS, progressPercent } from '../constants';
+import { DAY_COLORS, dayState, progressPercent } from '../constants';
+import { MountainConnector } from '../mountain-connector';
 import { DayDetailModal } from '../day-detail-modal';
 import { DomainForm } from '../domain-form';
 import { DuolingoPath } from '../duolingo-path';
@@ -274,5 +275,30 @@ describe('progressPercent', () => {
     expect(progressPercent(2, 7)).toBe(29);
     expect(progressPercent(7, 7)).toBe(100);
     expect(progressPercent(0, 0)).toBe(0);
+  });
+});
+
+describe('dayState', () => {
+  const days = [{ completedAt: '2026-03-01' }, { completedAt: null }, { completedAt: null }];
+
+  it('marks done days, the next day and locked days', () => {
+    expect(dayState(days, 0, false)).toEqual({ isCompleted: true, isNext: false, isLocked: false });
+    expect(dayState(days, 1, false)).toEqual({ isCompleted: false, isNext: true, isLocked: false });
+    expect(dayState(days, 2, false)).toEqual({ isCompleted: false, isNext: false, isLocked: true });
+  });
+
+  it('unlocks every day once the roadmap is unlocked', () => {
+    expect(dayState(days, 2, true).isLocked).toBe(false);
+  });
+});
+
+describe('MountainConnector', () => {
+  it('draws a curve with terrain marks, dimmed until the day is done', () => {
+    const { container, rerender } = render(<MountainConnector fromLeft completed={false} />);
+    expect(container.querySelectorAll('line')).toHaveLength(6);
+    expect(container.firstElementChild).toHaveClass('text-muted-foreground/20');
+    rerender(<MountainConnector fromLeft={false} completed />);
+    expect(container.firstElementChild).toHaveClass('text-primary/30');
+    expect(container.querySelector('path')?.getAttribute('d')).toMatch(/^M 340/);
   });
 });

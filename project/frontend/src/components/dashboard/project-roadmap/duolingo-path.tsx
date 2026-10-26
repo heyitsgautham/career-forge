@@ -5,76 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Clock, CheckCircle2, ArrowLeft, Trophy, Star, Lock, Unlock } from 'lucide-react';
 import { type ProjectRoadmap, type RoadmapDay } from '@/lib/api';
-import { DAY_COLORS, progressPercent } from './constants';
-
-/* ─── Mountain-curve SVG connector between day cards ─────────────────────── */
-export function MountainConnector({
-  fromLeft,
-  completed,
-}: {
-  fromLeft: boolean;
-  completed: boolean;
-}) {
-  // Cubic bezier swooping from one side to the other
-  const d = fromLeft ? 'M 160,5 C 160,65 340,55 340,115' : 'M 340,5 C 340,65 160,55 160,115';
-
-  // Decorative terrain slash-marks scattered around the curve
-  const marks: [number, number, number][] = fromLeft
-    ? [
-        [210, 28, 35],
-        [185, 52, -25],
-        [240, 60, 42],
-        [275, 70, -20],
-        [310, 82, 30],
-        [330, 44, -35],
-      ]
-    : [
-        [290, 28, -35],
-        [315, 52, 25],
-        [260, 60, -42],
-        [225, 70, 20],
-        [190, 82, -30],
-        [170, 44, 35],
-      ];
-
-  return (
-    <div
-      className={`w-full select-none pointer-events-none ${
-        completed ? 'text-primary/30' : 'text-muted-foreground/20'
-      }`}
-    >
-      <svg viewBox="0 0 500 120" className="w-full h-[100px]" preserveAspectRatio="xMidYMid meet">
-        {/* Main curved dashed line */}
-        <path
-          d={d}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeDasharray="10 7"
-          strokeLinecap="round"
-        />
-        {/* Terrain hash marks */}
-        {marks.map(([mx, my, angle], idx) => {
-          const a = (angle * Math.PI) / 180;
-          const len = 9;
-          return (
-            <line
-              key={idx}
-              x1={mx - len * Math.cos(a)}
-              y1={my - len * Math.sin(a)}
-              x2={mx + len * Math.cos(a)}
-              y2={my + len * Math.sin(a)}
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              opacity="0.7"
-            />
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
+import { DAY_COLORS, dayState, progressPercent } from './constants';
+import { MountainConnector } from './mountain-connector';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    STEP 3 — Mountain-curve winding 7-day path
@@ -167,8 +99,7 @@ export function DuolingoPath({
         <div className="absolute -right-20 top-0 bottom-0 hidden xl:block">
           <div className="relative h-full w-px bg-border/40 mx-auto">
             {roadmap.days.map((day, i) => {
-              const isCompleted = !!day.completedAt;
-              const isNext = !isCompleted && roadmap.days.slice(0, i).every((d) => d.completedAt);
+              const { isCompleted, isNext } = dayState(roadmap.days, i, allUnlocked);
               const color = DAY_COLORS[i % DAY_COLORS.length];
               const topPct = roadmap.totalDays > 1 ? (i / (roadmap.totalDays - 1)) * 100 : 50;
               return (
@@ -204,9 +135,7 @@ export function DuolingoPath({
         <div className="space-y-0">
           {roadmap.days.map((day, i) => {
             const color = DAY_COLORS[i % DAY_COLORS.length];
-            const isCompleted = !!day.completedAt;
-            const isNext = !isCompleted && roadmap.days.slice(0, i).every((d) => d.completedAt);
-            const isLocked = !allUnlocked && !isCompleted && !isNext;
+            const { isCompleted, isNext, isLocked } = dayState(roadmap.days, i, allUnlocked);
             const isLeft = i % 2 === 0;
 
             return (

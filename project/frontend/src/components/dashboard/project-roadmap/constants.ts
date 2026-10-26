@@ -71,3 +71,17 @@ export const DAY_COLORS = [
 export function progressPercent(completed: number, total: number): number {
   return total > 0 ? Math.round((completed / total) * 100) : 0;
 }
+
+/**
+ * Where a day stands on the path: done, the next one to do (every earlier day
+ * is done), or locked until then unless every day has been unlocked.
+ */
+export function dayState(
+  days: { completedAt?: string | null }[],
+  index: number,
+  allUnlocked: boolean
+): { isCompleted: boolean; isNext: boolean; isLocked: boolean } {
+  const isCompleted = !!days[index]?.completedAt;
+  const isNext = !isCompleted && days.slice(0, index).every((d) => d.completedAt);
+  return { isCompleted, isNext, isLocked: !allUnlocked && !isCompleted && !isNext };
+}
