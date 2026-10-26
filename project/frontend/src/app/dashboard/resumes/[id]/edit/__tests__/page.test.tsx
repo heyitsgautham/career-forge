@@ -115,6 +115,18 @@ describe('ResumeEditorPage', () => {
     expect(api.resumesApi.compileWithContent).not.toHaveBeenCalled();
   });
 
+  it('cancels a pending auto-compile when auto-compile is switched off', async () => {
+    // Regression: the compile timer set by the last keystroke still fired after the toggle.
+    renderWithQuery(<ResumeEditorPage />);
+    await screen.findByLabelText('LaTeX source');
+    await act(async () => {});
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByLabelText('LaTeX source'), { target: { value: 'x' } });
+    fireEvent.click(screen.getByRole('button', { name: /Auto-compile ON/ }));
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(api.resumesApi.compileWithContent).not.toHaveBeenCalled();
+  });
+
   it('warns when the preview is opened before any PDF exists', async () => {
     const { user } = renderWithQuery(<ResumeEditorPage />);
     await screen.findByLabelText('LaTeX source');

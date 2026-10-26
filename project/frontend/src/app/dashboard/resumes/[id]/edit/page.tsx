@@ -74,6 +74,13 @@ export default function ResumeEditorPage() {
     [scheduleSave, doCompile, autoCompile]
   );
 
+  const toggleAutoCompile = useCallback(() => {
+    // Switching off also drops a compile the last keystroke already queued.
+    if (autoCompileTimerRef.current) clearTimeout(autoCompileTimerRef.current);
+    autoCompileTimerRef.current = null;
+    setAutoCompile((v) => !v);
+  }, []);
+
   // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -144,7 +151,7 @@ export default function ResumeEditorPage() {
         compileStatus={compileStatus}
         autoCompile={autoCompile}
         pdfUrl={pdfUrl}
-        onToggleAutoCompile={() => setAutoCompile((v) => !v)}
+        onToggleAutoCompile={toggleAutoCompile}
         onSave={() => doSave()}
         onCompile={doCompile}
         onDownloadPdf={handleDownload}
