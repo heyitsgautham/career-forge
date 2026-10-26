@@ -234,15 +234,6 @@ async def test_plain_encoded_readme_is_decoded(use_repo):
     assert data["readme_content"] == "plain text"
 
 
-async def test_fetch_repo_by_url_works_without_a_token(use_repo):
-    use_repo(FakeRepo({}))
-    data = await GitHubIngestionService().fetch_repo_by_url(
-        "https://github.com/asha-example/job-scout"
-    )
-    assert data["full_name"] == "asha-example/job-scout"
-    assert data["is_private"] is True
-
-
 async def test_create_project_uses_the_bedrock_summary(bedrock):
     bedrock.reply(
         {

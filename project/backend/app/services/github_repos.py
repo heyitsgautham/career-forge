@@ -21,7 +21,6 @@ from app.core.security import token_encryptor
 from app.services.github_tech import (
     parse_package_json,
     parse_pyproject_toml,
-    parse_repo_url,
     parse_requirements_txt,
 )
 
@@ -195,90 +194,6 @@ class GitHubRepoClient:
 
         logger.info(f"Fetched {len(all_repos)} total repositories via direct API")
         return all_repos
-
-    async def fetch_user_repos(
-        self,
-        encrypted_token: str,
-        include_forks: bool = False,
-        include_private: bool = True,
-        min_stars: int = 0,
-        page: int = 1,
-        per_page: int = 100,
-    ) -> List[Dict[str, Any]]:
-        """
-        Fetch repositories for the authenticated user with pagination.
-
-        Args:
-            encrypted_token: Encrypted GitHub access token
-            include_forks: Include forked repositories
-            include_private: Include private repositories
-            min_stars: Minimum star count filter
-            page: Page number (1-indexed)
-            per_page: Number of results per page (max 100)
-
-        Returns:
-            List of repository metadata dicts
-        """
-        gh = self._get_github_client(encrypted_token)
-        user = gh.get_user()
-        repos = []
-
-        # PyGithub uses 0-based indexing internally but we use 1-based for API consistency
-        # Get all repos first, then paginate (PyGithub handles this efficiently)
-        all_repos = user.get_repos(affiliation="owner", sort="updated", direction="desc")
-
-        # Calculate pagination
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-
-        count = 0
-        for repo in all_repos:
-            # Apply filters
-            if not include_forks and repo.fork:
-                continue
-            if not include_private and repo.private:
-                continue
-            if repo.stargazers_count < min_stars:
-                continue
-
-            # Apply pagination
-            if count >= start_idx and count < end_idx:
-                repos.append(self._repo_to_dict(repo))
-
-            count += 1
-
-            # Stop if we've collected enough for this page
-            if len(repos) >= per_page:
-                break
-
-        logger.info(f"Fetched {len(repos)} repositories (page {page}) for user {user.login}")
-        return repos
-
-    async def fetch_repo_by_url(
-        self,
-        repo_url: str,
-        encrypted_token: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """
-        Fetch a single repository by URL.
-
-        Args:
-            repo_url: GitHub repository URL
-            encrypted_token: Optional encrypted token for private repos
-
-        Returns:
-            Repository metadata dict
-        """
-        # Parse repo URL
-        full_name = parse_repo_url(repo_url)
-
-        if encrypted_token:
-            gh = self._get_github_client(encrypted_token)
-        else:
-            gh = Github()  # Unauthenticated for public repos
-
-        repo = gh.get_repo(full_name)
-        return self._repo_to_dict(repo)
 
     async def fetch_repo_details(
         self,
