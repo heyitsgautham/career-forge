@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, reload_user
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.errors import internal_error
 from app.core.security import (
     token_encryptor,
 )
@@ -258,13 +259,8 @@ async def scrape_linkedin_certifications_endpoint(
         }
 
     except Exception as e:
-        import traceback
-
-        error_details = traceback.format_exc()
-        logger.error(f"Error scraping LinkedIn certifications: {str(e)}\n{error_details}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to scrape certifications: {str(e)}"
-        ) from e
+        logger.error("linkedin_certifications_failed", exc_info=e)
+        raise internal_error("Failed to scrape certifications from LinkedIn.") from e
 
 
 @router.post("/linkedin/import-profile")
@@ -299,12 +295,8 @@ async def import_linkedin_profile(
         logger.info(f"Starting LinkedIn profile import for: {linkedin_url}")
         data = await scrape_linkedin_profile(linkedin_url)
     except Exception as e:
-        import traceback
-
-        logger.error(f"LinkedIn profile import failed: {e}\n{traceback.format_exc()}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to import LinkedIn profile: {str(e)}"
-        ) from e
+        logger.error("linkedin_profile_import_failed", exc_info=e)
+        raise internal_error("Failed to import the LinkedIn profile.") from e
 
     # ── Merge extracted data into user profile ───────────────────────────
     update_fields: dict = {}

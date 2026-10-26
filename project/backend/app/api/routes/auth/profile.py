@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, reload_user
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.errors import internal_error
 from app.models.user import User
 from app.schemas.auth import (
     UserProfileResponse,
@@ -51,7 +52,15 @@ async def upload_resume_for_profile(
 
         # Extract text from document
         parser = DocumentParserService()
-        text = await parser.extract_text(file.filename, content)
+        try:
+            text = await parser.extract_text(file.filename, content)
+        except Exception as e:
+            # A corrupt or mislabelled file is the client's problem, not a server fault.
+            logger.warning(f"Could not read uploaded resume {file.filename}: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail="Could not read the document. Upload a PDF, DOCX or TXT file that opens normally.",
+            ) from e
 
         if not text or len(text.strip()) < 50:
             raise HTTPException(
@@ -147,10 +156,7 @@ Extract only information clearly present. For experience and education, extract 
 
         except Exception as e:
             logger.error(f"All parsing attempts failed: {type(e).__name__}: {e}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to parse resume with AI. Error: {str(e)[:100]}. Please try again.",
-            ) from e
+            raise internal_error("Failed to parse the resume with AI. Please try again.") from e
 
         # Update user profile with extracted data (only non-null values)
         _FIELD_MAP = {
@@ -223,7 +229,7 @@ Extract only information clearly present. For experience and education, extract 
         raise
     except Exception as e:
         logger.error(f"Unexpected error processing resume: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}") from e
+        raise internal_error("Could not process the resume. Please try again.") from e
 
 
 @router.get("/profile", response_model=UserProfileResponse)

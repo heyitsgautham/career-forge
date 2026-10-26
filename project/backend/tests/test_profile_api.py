@@ -86,7 +86,8 @@ def test_upload_reports_parse_failures(client, auth, bedrock):
     bedrock.reply("nope", "still nope")
     r = upload(client, auth["headers"])
     assert r.status_code == 500
-    assert r.json()["detail"].startswith("Failed to parse resume with AI")
+    # The model's error text stays in the log.
+    assert r.json()["detail"] == "Failed to parse the resume with AI. Please try again."
 
 
 @pytest.mark.parametrize(
@@ -103,6 +104,7 @@ def test_upload_rejects_bad_files(client, auth, name, content, detail):
 
 
 def test_upload_reports_unreadable_files(client, auth):
+    # A corrupt file is a 400 the user can act on, not a 500.
     r = upload(client, auth["headers"], "resume.pdf", b"not really a pdf" * 10)
-    assert r.status_code == 500
-    assert r.json()["detail"].startswith("Error processing resume")
+    assert r.status_code == 400
+    assert r.json()["detail"].startswith("Could not read the document")

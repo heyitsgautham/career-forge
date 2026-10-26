@@ -33,10 +33,12 @@ from app.api.routes import (
 from app.core.cache_middleware import CacheControlMiddleware
 from app.core.config import settings
 from app.core.database import init_db
+from app.core.errors import install_error_handling
 
 # Configure structured logging
 structlog.configure(
     processors=[
+        structlog.contextvars.merge_contextvars,
         structlog.stdlib.filter_by_level,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
@@ -108,6 +110,10 @@ app.add_middleware(
 
 # Cache-Control headers for browser caching
 app.add_middleware(CacheControlMiddleware)
+
+# Request ids in logs and responses, and a generic 500 for unhandled errors.
+# Added last, so it wraps every other middleware.
+install_error_handling(app)
 
 # Mount static files for uploads
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")

@@ -17,6 +17,7 @@ from app.api.deps import get_current_user
 from app.api.routes.resumes.common import router
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.errors import internal_error
 from app.models.resume import Resume, ResumeStatus
 from app.models.user import User
 from app.schemas.resumes import (
@@ -131,7 +132,8 @@ async def compile_resume(
                 {"userId": str(current_user.id), "resumeId": resume_id},
                 {"status": "error", "errorMessage": str(e), "updatedAt": dynamo_service.now_iso()},
             )
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            logger.error("resume_compile_failed", resume_id=resume_id, error=str(e))
+            raise internal_error("Resume compilation failed. Please try again.") from e
 
     # Get resume
     result = await db.execute(
@@ -214,11 +216,8 @@ async def compile_resume(
         await db.commit()
         raise
     except Exception as e:
-        import traceback
-
-        logger.error(f"Resume compilation failed: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
+        logger.error("resume_compile_failed", resume_id=str(resume.id), exc_info=e)
         resume.status = ResumeStatus.ERROR
         resume.error_message = str(e)
         await db.commit()
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise internal_error("Resume compilation failed. Please try again.") from e

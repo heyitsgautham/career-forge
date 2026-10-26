@@ -17,6 +17,7 @@ from app.api.deps import get_current_user
 from app.api.routes.resumes.common import _rank_projects_by_relevance, _resume_from_dynamo, router
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.errors import internal_error
 from app.models.job_description import JobDescription
 from app.models.project import Project
 from app.models.resume import Resume, ResumeStatus
@@ -112,7 +113,7 @@ async def generate_resume_m2(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("M2 resume generation failed", error=str(e), user_id=user_id)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise internal_error("Resume generation failed. Please try again.") from e
 
 
 @router.post("/{resume_id}/generate", response_model=ResumeResponse)
@@ -236,7 +237,8 @@ async def generate_resume(
                 {"userId": str(current_user.id), "resumeId": resume_id},
                 {"status": "error", "errorMessage": str(e), "updatedAt": dynamo_service.now_iso()},
             )
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            logger.error("resume_generation_failed", resume_id=resume_id, error=str(e))
+            raise internal_error("Resume generation failed. Please try again.") from e
         return ResumeResponse(**_resume_from_dynamo(item))
 
     # Get resume
@@ -414,7 +416,8 @@ async def generate_resume(
         resume.status = ResumeStatus.ERROR
         resume.error_message = str(e)
         await db.commit()
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("resume_generation_failed", resume_id=str(resume.id), error=str(e))
+        raise internal_error("Resume generation failed. Please try again.") from e
 
     return ResumeResponse(
         id=str(resume.id),

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
+from app.core.errors import internal_error
 from app.schemas.limits import Identifier, Paragraph, ShortText, Url
 from app.services.dynamo_service import dynamo_service
 
@@ -160,16 +161,8 @@ async def tailor_resume(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        import traceback
-
-        logger.error(
-            "Resume tailoring failed",
-            error=str(e),
-            traceback=traceback.format_exc(),
-            user_id=user_id,
-            job_id=body.jobId,
-        )
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error("Resume tailoring failed", user_id=user_id, job_id=body.jobId, exc_info=e)
+        raise internal_error("Tailoring the resume failed. Please try again.") from e
 
 
 @router.get("/resumes/job/{job_id}", response_model=TailorResponse)
