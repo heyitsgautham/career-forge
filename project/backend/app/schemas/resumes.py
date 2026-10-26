@@ -8,7 +8,7 @@ from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, ConfigDict, StringConstraints
 
-from app.schemas.limits import LatexSource, LongText
+from app.schemas.limits import Identifier, LatexSource, LongText, Name, bounded_list
 
 
 class M2GenerateRequest(BaseModel):
@@ -29,10 +29,10 @@ class M2GenerateResponse(BaseModel):
 
 
 class ResumeCreate(BaseModel):
-    name: str
-    template_id: Optional[str] = None
-    job_description_id: Optional[str] = None
-    project_ids: Optional[List[str]] = None
+    name: Name
+    template_id: Optional[Identifier] = None
+    job_description_id: Optional[Identifier] = None
+    project_ids: Optional[bounded_list(Identifier)] = None
 
 
 class ResumeGenerateRequest(BaseModel):

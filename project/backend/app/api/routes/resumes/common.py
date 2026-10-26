@@ -6,6 +6,9 @@ their original order and the empty-path list and create routes still work.
 
 from fastapi import APIRouter
 
+from app.models.resume import Resume
+from app.schemas.resumes import ResumeResponse
+
 router = APIRouter()
 
 
@@ -53,3 +56,20 @@ def _resume_from_dynamo(r: dict) -> dict:
         "created_at": r.get("createdAt", ""),
         "updated_at": r.get("updatedAt", ""),
     }
+
+
+def _resume_response(resume: Resume) -> ResumeResponse:
+    """The API shape of a SQLite resume row."""
+    return ResumeResponse(
+        id=str(resume.id),
+        name=resume.name,
+        template_id=str(resume.template_id) if resume.template_id else None,
+        job_description_id=str(resume.job_description_id) if resume.job_description_id else None,
+        selected_project_ids=[str(pid) for pid in (resume.selected_project_ids or [])],
+        status=resume.status.value,
+        latex_content=resume.latex_content,
+        pdf_path=resume.pdf_path,
+        error_message=resume.error_message,
+        created_at=resume.created_at.isoformat(),
+        updated_at=resume.updated_at.isoformat(),
+    )

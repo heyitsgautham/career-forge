@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.api.ids import path_uuid
-from app.api.routes.resumes.common import _resume_from_dynamo, router
+from app.api.routes.resumes.common import _resume_from_dynamo, _resume_response, router
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.project import Project
@@ -45,22 +45,7 @@ async def list_resumes(
     )
     resumes = result.scalars().all()
 
-    return [
-        ResumeResponse(
-            id=str(r.id),
-            name=r.name,
-            template_id=str(r.template_id) if r.template_id else None,
-            job_description_id=str(r.job_description_id) if r.job_description_id else None,
-            selected_project_ids=[str(pid) for pid in (r.selected_project_ids or [])],
-            status=r.status.value,
-            latex_content=r.latex_content,
-            pdf_path=r.pdf_path,
-            error_message=r.error_message,
-            created_at=r.created_at.isoformat(),
-            updated_at=r.updated_at.isoformat(),
-        )
-        for r in resumes
-    ]
+    return [_resume_response(r) for r in resumes]
 
 
 @router.post("", response_model=ResumeResponse)
@@ -130,19 +115,7 @@ async def create_resume(
     await db.commit()
     await db.refresh(resume)
 
-    return ResumeResponse(
-        id=str(resume.id),
-        name=resume.name,
-        template_id=str(resume.template_id) if resume.template_id else None,
-        job_description_id=str(resume.job_description_id) if resume.job_description_id else None,
-        selected_project_ids=[str(pid) for pid in (resume.selected_project_ids or [])],
-        status=resume.status.value,
-        latex_content=resume.latex_content,
-        pdf_path=resume.pdf_path,
-        error_message=resume.error_message,
-        created_at=resume.created_at.isoformat(),
-        updated_at=resume.updated_at.isoformat(),
-    )
+    return _resume_response(resume)
 
 
 @router.get("/{resume_id}", response_model=ResumeResponse)
@@ -173,19 +146,7 @@ async def get_resume(
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
 
-    return ResumeResponse(
-        id=str(resume.id),
-        name=resume.name,
-        template_id=str(resume.template_id) if resume.template_id else None,
-        job_description_id=str(resume.job_description_id) if resume.job_description_id else None,
-        selected_project_ids=[str(pid) for pid in (resume.selected_project_ids or [])],
-        status=resume.status.value,
-        latex_content=resume.latex_content,
-        pdf_path=resume.pdf_path,
-        error_message=resume.error_message,
-        created_at=resume.created_at.isoformat(),
-        updated_at=resume.updated_at.isoformat(),
-    )
+    return _resume_response(resume)
 
 
 @router.delete("/{resume_id}")

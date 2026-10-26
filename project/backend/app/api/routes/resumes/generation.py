@@ -14,7 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.api.ids import path_uuid
-from app.api.routes.resumes.common import _rank_projects_by_relevance, _resume_from_dynamo, router
+from app.api.routes.resumes.common import (
+    _rank_projects_by_relevance,
+    _resume_from_dynamo,
+    _resume_response,
+    router,
+)
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.errors import internal_error
@@ -419,16 +424,4 @@ async def generate_resume(
         logger.error("resume_generation_failed", resume_id=str(resume.id), error=str(e))
         raise internal_error("Resume generation failed. Please try again.") from e
 
-    return ResumeResponse(
-        id=str(resume.id),
-        name=resume.name,
-        template_id=str(resume.template_id) if resume.template_id else None,
-        job_description_id=str(resume.job_description_id) if resume.job_description_id else None,
-        selected_project_ids=[str(pid) for pid in (resume.selected_project_ids or [])],
-        status=resume.status.value,
-        latex_content=resume.latex_content,
-        pdf_path=resume.pdf_path,
-        error_message=resume.error_message,
-        created_at=resume.created_at.isoformat(),
-        updated_at=resume.updated_at.isoformat(),
-    )
+    return _resume_response(resume)
