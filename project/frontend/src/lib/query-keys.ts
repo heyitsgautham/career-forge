@@ -47,7 +47,7 @@ export const QUERY_KEYS = {
 
   jobs: ['jobs'] as const,
 
-  jobScoutMatches: ['job-scout-matches'] as const,
+  jobScoutMatches: ['jobs', 'matches'] as const,
   jobScoutStats: ['job-scout-stats'] as const,
 
   userProfile: ['user-profile'] as const,

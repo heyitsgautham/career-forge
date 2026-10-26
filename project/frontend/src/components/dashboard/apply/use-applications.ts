@@ -36,7 +36,7 @@ export function useApplications(onCreated: () => void) {
 
   // Fetch jobs (for job selector in tailor panel + add modal)
   const { data: jobs = [] } = useQuery({
-    queryKey: ['job-scout-matches'],
+    queryKey: ['jobs', 'matches'],
     queryFn: async () => {
       const res = await jobMatchApi.list();
       return res.data;

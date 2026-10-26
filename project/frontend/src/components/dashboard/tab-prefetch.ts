@@ -26,7 +26,7 @@ export const TAB_QUERIES: Record<string, TabQuery> = {
     staleTime: 60 * 60 * 1000,
   },
   'job-scout': {
-    queryKey: ['job-scout-matches'],
+    queryKey: ['jobs', 'matches'],
     queryFn: () => jobMatchApi.list().then((r) => r.data),
     staleTime: 30_000,
   },

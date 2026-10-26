@@ -47,4 +47,14 @@ describe('usePrefetchTabs', () => {
     });
     await waitFor(() => expect(api.jobMatchApi.list).toHaveBeenCalledOnce());
   });
+
+  it('stores the Job Scout jobs under the key the Job Scout tab reads', async () => {
+    // Regression: hover stored them under ['job-scout-matches'] while the tab read
+    // ['jobs', 'matches'], so the tab fetched again and the prefetch was wasted.
+    const { result, client } = renderPrefetch();
+    act(() => result.current('job-scout'));
+    await waitFor(() =>
+      expect(client.getQueryData(['jobs', 'matches'])).toEqual([{ jobId: 'j1' }])
+    );
+  });
 });
