@@ -2,7 +2,7 @@
 
 import { useRef, useCallback } from 'react';
 import Editor, { OnMount, OnChange } from '@monaco-editor/react';
-import { editor as MonacoEditor } from 'monaco-editor';
+import type { editor as MonacoEditor } from 'monaco-editor';
 
 export interface LatexEditorHandle {
   getValue: () => string;
