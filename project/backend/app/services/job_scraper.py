@@ -50,6 +50,33 @@ def _text(value: Any) -> str:
     return str(present).strip() if present is not None else ""
 
 
+def _job_item(raw_job: Dict[str, Any], search_term: str, now: str) -> Dict[str, Any]:
+    """The shared Jobs table row for a scraped job, not yet analyzed."""
+    url = raw_job.get("url", "")
+    return {
+        "jobId": _generate_job_id(url) if url else dynamo_service.generate_id(),
+        "title": raw_job["title"],
+        "company": raw_job.get("company"),
+        "location": raw_job.get("location", ""),
+        "description": raw_job.get("description", ""),
+        "url": url,
+        "source": raw_job.get("source", "unknown"),
+        "datePosted": raw_job.get("date_posted", ""),
+        "salary": raw_job.get("salary"),
+        "jobType": raw_job.get("job_type", ""),
+        "category": None,
+        "requiredSkills": [],
+        "preferredSkills": [],
+        "experienceLevel": None,
+        "atsKeywords": [],
+        "isAnalyzed": False,
+        "isPaid": None,
+        "searchTerm": search_term,
+        "createdAt": now,
+        "updatedAt": now,
+    }
+
+
 class JobScraper:
     """
     Job scraper aggregating multiple sources:
@@ -315,29 +342,7 @@ class JobScraper:
             if url in self._existing_urls:
                 continue  # already in DB
 
-            job_id = _generate_job_id(url)
-            item = {
-                "jobId": job_id,
-                "title": raw_job["title"],
-                "company": raw_job["company"],
-                "location": raw_job.get("location", ""),
-                "description": raw_job.get("description", ""),
-                "url": url,
-                "source": raw_job.get("source", "unknown"),
-                "datePosted": raw_job.get("date_posted", ""),
-                "salary": raw_job.get("salary"),
-                "jobType": raw_job.get("job_type", ""),
-                "category": None,
-                "requiredSkills": [],
-                "preferredSkills": [],
-                "experienceLevel": None,
-                "atsKeywords": [],
-                "isAnalyzed": False,
-                "isPaid": None,
-                "searchTerm": raw_job.get("_query", ""),
-                "createdAt": now,
-                "updatedAt": now,
-            }
+            item = _job_item(raw_job, raw_job.get("_query", ""), now)
 
             try:
                 inserted = await dynamo_service.upsert_job(item)
@@ -390,29 +395,7 @@ class JobScraper:
             if url in self._existing_urls:
                 continue  # dedup
 
-            job_id = _generate_job_id(url) if url else dynamo_service.generate_id()
-            item = {
-                "jobId": job_id,
-                "title": raw_job["title"],
-                "company": raw_job["company"],
-                "location": raw_job.get("location", ""),
-                "description": raw_job.get("description", ""),
-                "url": url,
-                "source": raw_job.get("source", "unknown"),
-                "datePosted": raw_job.get("date_posted", ""),
-                "salary": raw_job.get("salary"),
-                "jobType": raw_job.get("job_type", ""),
-                "category": None,
-                "requiredSkills": [],
-                "preferredSkills": [],
-                "experienceLevel": None,
-                "atsKeywords": [],
-                "isAnalyzed": False,
-                "isPaid": None,
-                "searchTerm": search_term,
-                "createdAt": now,
-                "updatedAt": now,
-            }
+            item = _job_item(raw_job, search_term, now)
 
             try:
                 inserted = await dynamo_service.upsert_job(item)
