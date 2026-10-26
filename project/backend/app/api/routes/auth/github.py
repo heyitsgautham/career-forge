@@ -30,6 +30,20 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 
+def _verified_primary_email(emails) -> str | None:
+    """The primary address from GET /user/emails, if GitHub has verified it.
+
+    Accounts are matched by email, so an unverified address must never count.
+    Without the user:email scope GitHub answers with an error object, not a list.
+    """
+    if not isinstance(emails, list):
+        return None
+    for entry in emails:
+        if isinstance(entry, dict) and entry.get("primary") and entry.get("verified"):
+            return entry.get("email")
+    return None
+
+
 @router.get("/github/authorize")
 async def github_authorize():
     """Get GitHub OAuth authorization URL for login."""
@@ -106,7 +120,8 @@ async def github_callback(
             headers={"Authorization": f"token {github_token}"},
         )
         emails = emails_response.json()
-        primary_email = next((e["email"] for e in emails if e["primary"]), github_user.get("email"))
+        # The public profile email is the fallback: GitHub only lets a verified address be public.
+        primary_email = _verified_primary_email(emails) or github_user.get("email")
 
     if not primary_email:
         raise HTTPException(

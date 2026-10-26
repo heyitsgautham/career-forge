@@ -34,6 +34,24 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 
+class _OfflineKms:
+    """Stands in for the KMS client, so encrypting a token never leaves the machine."""
+
+    def encrypt(self, KeyId, Plaintext):  # noqa: N803 - boto3 argument names
+        return {"CiphertextBlob": b"offline:" + Plaintext}
+
+    def decrypt(self, CiphertextBlob, **_kwargs):  # noqa: N803
+        return {"Plaintext": CiphertextBlob.removeprefix(b"offline:")}
+
+
+@pytest.fixture(autouse=True)
+def offline_kms(monkeypatch):
+    """Every test gets a local KMS; the real client would call AWS."""
+    from app.core.security import token_encryptor
+
+    monkeypatch.setattr(token_encryptor, "_kms", _OfflineKms())
+
+
 @pytest.fixture
 def client():
     """A TestClient that runs the app lifespan, so SQLite tables exist."""
