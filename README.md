@@ -53,8 +53,10 @@ career-forge/
 
 ## Architecture
 
-The browser talks to the FastAPI backend through the axios client in `project/frontend/src/lib/api.ts`.
-The client sends the app JWT from `localStorage` as a bearer token, and a 401 response sends the user back to `/login`.
+The browser talks to the FastAPI backend through the axios client in `project/frontend/src/lib/api/`.
+The client sends the app JWT from `localStorage` as a bearer token, and a 401 response clears the cached data and sends the user back to `/login`.
+`src/lib/api/schemas.ts` checks the project, template, job and resume responses with zod, so a backend shape change fails at the API boundary instead of inside a component.
+Each dashboard tab keeps its data calls in a hook next to it, such as `useJobScoutData` or `useProjectRoadmap`, and its components only render.
 
 The backend picks its storage at startup from `USE_DYNAMO`.
 With `USE_DYNAMO=true` it reads and writes DynamoDB tables through `app/services/dynamo_service.py` and starts an APScheduler job that scrapes job portals every hour.
@@ -70,7 +72,13 @@ Settings live in `app/core/config.py`.
 When `USE_SECRETS_MANAGER=true`, secrets left at their defaults are fetched from AWS Secrets Manager at startup.
 GitHub and LinkedIn tokens are encrypted with KMS before they are stored.
 
+Request bodies use the bounded types in `app/schemas/limits.py`, so oversized text, LaTeX over 200 KB and unknown enum values get a 422 before a handler runs.
+LaTeX compiles with kpathsea's paranoid file access and `-no-shell-escape`, so a resume cannot read files outside its build directory.
+
 The backend logs JSON lines through structlog.
+`app/core/errors.py` gives every request an id, binds it into each log line and returns it in the `X-Request-ID` header.
+An unhandled error answers 500 with that id and a fixed message, and its traceback goes only to the log.
+`/health` reports liveness, and `/health/db` and `/health/services` answer 503 when the database or a dependency is down.
 
 ## Prerequisites
 
