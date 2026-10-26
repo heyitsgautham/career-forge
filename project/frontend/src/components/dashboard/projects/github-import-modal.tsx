@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { projectsApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Github, RefreshCw, X, Lock, Globe } from 'lucide-react';
+import { Github, RefreshCw, X } from 'lucide-react';
 import { apiErrorDetail } from '@/lib/api-error';
 import { Portal } from '@/components/ui/portal';
+import { RepoOption } from './repo-option';
+import { VisibilityFilter } from './visibility-filter';
 import { filterRepos, parseGithubRepoUrl, type GithubRepo, type Visibility } from './github-repos';
 
 export function GithubImportModal({
@@ -175,35 +176,11 @@ export function GithubImportModal({
                       </p>
                     </div>
 
-                    {/* Visibility Filter Toggle */}
-                    <div className="flex gap-1">
-                      <Button
-                        variant={visibilityFilter === 'all' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setVisibilityFilter('all')}
-                        className="text-xs h-8"
-                      >
-                        All ({userRepos.length})
-                      </Button>
-                      <Button
-                        variant={visibilityFilter === 'public' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setVisibilityFilter('public')}
-                        className="text-xs h-8 gap-1"
-                      >
-                        <Globe className="h-3 w-3" />
-                        Public ({publicCount})
-                      </Button>
-                      <Button
-                        variant={visibilityFilter === 'private' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setVisibilityFilter('private')}
-                        className="text-xs h-8 gap-1"
-                      >
-                        <Lock className="h-3 w-3" />
-                        Private ({privateCount})
-                      </Button>
-                    </div>
+                    <VisibilityFilter
+                      value={visibilityFilter}
+                      onChange={setVisibilityFilter}
+                      counts={{ all: userRepos.length, public: publicCount, private: privateCount }}
+                    />
 
                     {/* Projects loading warning banner (A2) */}
                     {projectsLoading && (
@@ -234,61 +211,14 @@ export function GithubImportModal({
                     <div className="border rounded-lg max-h-72 overflow-y-auto divide-y">
                       {filteredRepos?.map((repo) => {
                         const imported = isAlreadyImported(repo);
-                        const isSelected = !imported && selectedRepos.has(repo.full_name);
                         return (
-                          <label
+                          <RepoOption
                             key={repo.full_name}
-                            className={`flex items-start gap-3 px-3 py-2.5 transition-colors ${
-                              imported
-                                ? 'opacity-50 cursor-not-allowed bg-muted/30'
-                                : isSelected
-                                  ? 'bg-primary/5 cursor-pointer hover:bg-muted/50'
-                                  : 'cursor-pointer hover:bg-muted/50'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => !imported && toggleRepo(repo.full_name)}
-                              disabled={imported}
-                              className="mt-1 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500 disabled:opacity-50"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm truncate">
-                                  {repo.full_name}
-                                </span>
-                                {imported && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-[10px] px-1.5 py-0 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]"
-                                  >
-                                    Imported
-                                  </Badge>
-                                )}
-                                {repo.is_private && (
-                                  <Badge variant="outline" className="text-[10px] px-1 py-0">
-                                    Private
-                                  </Badge>
-                                )}
-                                {repo.is_fork && (
-                                  <Badge variant="outline" className="text-[10px] px-1 py-0">
-                                    Fork
-                                  </Badge>
-                                )}
-                              </div>
-                              {repo.description && (
-                                <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                  {repo.description}
-                                </p>
-                              )}
-                              <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                                {repo.language && <span>{repo.language}</span>}
-                                <span>⭐ {repo.stars}</span>
-                                <span>🍴 {repo.forks}</span>
-                              </div>
-                            </div>
-                          </label>
+                            repo={repo}
+                            imported={imported}
+                            isSelected={!imported && selectedRepos.has(repo.full_name)}
+                            onToggle={() => toggleRepo(repo.full_name)}
+                          />
                         );
                       })}
                     </div>
