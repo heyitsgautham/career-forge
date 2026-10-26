@@ -114,6 +114,10 @@ async def cognito_callback(callback_data: CognitoCallbackRequest):
 
     if not email:
         raise HTTPException(status_code=400, detail="No email in Cognito token")
+    # Accounts are matched by email, so only an address the provider verified may join one.
+    # Cognito sends this claim as a boolean or as the string "true" or "false".
+    if str(claims.get("email_verified", "true")).lower() != "true":
+        raise HTTPException(status_code=400, detail="Email not verified by the identity provider")
 
     # ── Find or create user in DynamoDB ──
     from boto3.dynamodb.conditions import Attr
