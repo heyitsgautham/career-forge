@@ -52,7 +52,7 @@ def check_logged_in(page):
     return not is_login_page(url) and any(k in url for k in ["feed","/in/","mynetwork"])
 
 # ── JS helpers for DOM extraction ──────────────────────────────────────────
-JS_PERSONAL = """
+JS_PERSONAL = r"""
 () => {{
     const r = {{}};
     // Name
@@ -82,7 +82,7 @@ JS_PERSONAL = """
 }}
 """
 
-JS_SUMMARY = """
+JS_SUMMARY = r"""
 () => {{
     const cards = document.querySelectorAll("section, div.artdeco-card");
     for (const card of cards) {{
@@ -100,7 +100,7 @@ JS_SUMMARY = """
 }}
 """
 
-JS_CONTACT = """
+JS_CONTACT = r"""
 () => {{
     const result = {{}};
     // Section titles map us to the following sibling value
@@ -136,7 +136,7 @@ JS_CONTACT = """
 }}
 """
 
-JS_LIST_ITEMS = """
+JS_LIST_ITEMS = r"""
 () => {{
     const selectors = [
         "li.pvs-list__paged-list-item",
@@ -162,7 +162,7 @@ JS_LIST_ITEMS = """
 }}
 """
 
-JS_EDUCATION = """
+JS_EDUCATION = r"""
 () => {{
     function tc(el) {{
         if (!el) return "";

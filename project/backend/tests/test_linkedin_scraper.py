@@ -111,3 +111,24 @@ def test_import_route_rejects_a_crafted_url_before_scraping(client, auth, monkey
     )
     assert response.status_code == 400
     assert called == []
+
+
+def test_profile_script_hands_regex_escapes_to_the_browser_untouched(captured_scripts):
+    """The JS helpers sit in Python strings inside the generated script.
+
+    In a plain string, Python turned \\b into a backspace, so the "to" and
+    "present" branches of the date-range regex could never match, and \\s was
+    an invalid escape that newer Pythons reject.
+    """
+    import warnings
+
+    linkedin_scraper._run_playwright_profile_script("https://www.linkedin.com/in/asha-example")
+    script = captured_scripts[0]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        compile(script, "linkedin_profile_script.py", "exec")
+
+    education_js = assigned_strings(script)["JS_EDUCATION"]
+    assert "\x08" not in education_js
+    assert r"\bto\b" in education_js
+    assert r"\s+" in education_js
