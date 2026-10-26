@@ -10,13 +10,19 @@ import re
 import shutil
 import tempfile
 import uuid
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 import structlog
 
 from app.core.config import settings
+from app.services.latex_results import (  # noqa: F401 - re-exported for callers
+    CompilationError,
+    CompilationResult,
+    failure,
+    parse_log,
+    timed_out,
+)
 
 logger = structlog.get_logger()
 
@@ -27,46 +33,11 @@ TEX_FILE_ACCESS_ENV = {"openin_any": "p", "openout_any": "p"}
 PDFLATEX_FLAGS = ["-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error"]
 
 
-@dataclass
-class CompilationError:
-    """Parsed LaTeX compilation error."""
-
-    line: int
-    column: int
-    message: str
-    severity: str  # "error" or "warning"
-    suggestion: Optional[str] = None
-
-
-@dataclass
-class CompilationResult:
-    """Result of LaTeX compilation."""
-
-    success: bool
-    pdf_path: Optional[str]
-    log: str
-    errors: List[CompilationError]
-    warnings: List[str]
-
-
 class LaTeXCompilationService:
     """
     Service for compiling LaTeX documents to PDF.
     Uses Docker for sandboxed compilation.
     """
-
-    # Common LaTeX errors and suggestions
-    ERROR_PATTERNS = [
-        (r"! LaTeX Error: (.+)", "LaTeX Error"),
-        (r"! Undefined control sequence\.\s*l\.(\d+)", "Undefined command"),
-        (r"! Missing \$ inserted", "Math mode error - missing $"),
-        (r"! Missing { inserted", "Missing opening brace"),
-        (r"! Missing } inserted", "Missing closing brace"),
-        (r"! Extra }, or forgotten \$", "Extra closing brace or missing $"),
-        (r"! Package (.+) Error: (.+)", "Package error"),
-        (r"Overfull \\hbox", "Overfull box - text too wide"),
-        (r"Underfull \\hbox", "Underfull box - text too sparse"),
-    ]
 
     def __init__(self):
         self.timeout = settings.LATEX_COMPILER_TIMEOUT
@@ -186,21 +157,7 @@ class LaTeXCompilationService:
                 stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
             except asyncio.TimeoutError:
                 process.kill()
-                return CompilationResult(
-                    success=False,
-                    pdf_path=None,
-                    log="Compilation timed out",
-                    errors=[
-                        CompilationError(
-                            line=0,
-                            column=0,
-                            message="Compilation exceeded time limit",
-                            severity="error",
-                            suggestion="Simplify the document or check for infinite loops",
-                        )
-                    ],
-                    warnings=[],
-                )
+                return timed_out(suggestion="Simplify the document or check for infinite loops")
 
             log_content = stdout.decode("utf-8", errors="replace")
 
@@ -223,13 +180,7 @@ class LaTeXCompilationService:
             return await self._compile_local(work_dir, filename)
         except Exception as e:
             logger.error(f"Docker compilation failed: {e}")
-            return CompilationResult(
-                success=False,
-                pdf_path=None,
-                log=str(e),
-                errors=[CompilationError(line=0, column=0, message=str(e), severity="error")],
-                warnings=[],
-            )
+            return failure(str(e), log=str(e))
 
     async def _compile_local(
         self,
@@ -260,20 +211,7 @@ class LaTeXCompilationService:
                 stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
             except asyncio.TimeoutError:
                 process.kill()
-                return CompilationResult(
-                    success=False,
-                    pdf_path=None,
-                    log="Compilation timed out",
-                    errors=[
-                        CompilationError(
-                            line=0,
-                            column=0,
-                            message="Compilation exceeded time limit",
-                            severity="error",
-                        )
-                    ],
-                    warnings=[],
-                )
+                return timed_out()
 
             log_content = stdout.decode("utf-8", errors="replace")
             pdf_exists = (work_dir / f"{filename}.pdf").exists()
@@ -388,81 +326,18 @@ class LaTeXCompilationService:
                         )
 
         except asyncio.TimeoutError:
-            return CompilationResult(
-                success=False,
-                pdf_path=None,
-                log="Online compilation timed out",
-                errors=[
-                    CompilationError(
-                        line=0,
-                        column=0,
-                        message="Compilation exceeded time limit",
-                        severity="error",
-                    )
-                ],
-                warnings=[],
-            )
+            return timed_out(log="Online compilation timed out")
         except Exception as e:
             logger.error(f"Online compilation failed: {e}")
-            return CompilationResult(
-                success=False,
-                pdf_path=None,
+            return failure(
+                str(e),
                 log=f"Online compilation error: {str(e)}",
-                errors=[
-                    CompilationError(
-                        line=0,
-                        column=0,
-                        message=str(e),
-                        severity="error",
-                        suggestion="pdflatex not found. Please install TeX Live or use Docker.",
-                    )
-                ],
-                warnings=[],
+                suggestion="pdflatex not found. Please install TeX Live or use Docker.",
             )
 
     def _parse_log(self, log: str) -> Tuple[List[CompilationError], List[str]]:
         """Parse TeX log file for errors and warnings."""
-        errors = []
-        warnings = []
-
-        lines = log.split("\n")
-
-        for line in lines:
-            # Check for error patterns
-            for pattern, error_type in self.ERROR_PATTERNS:
-                match = re.search(pattern, line)
-                if match:
-                    # Try to extract line number
-                    line_num = 0
-                    line_match = re.search(r"l\.(\d+)", line) or re.search(r"line (\d+)", line)
-                    if line_match:
-                        line_num = int(line_match.group(1))
-
-                    if "Overfull" in pattern or "Underfull" in pattern:
-                        warnings.append(f"{error_type}: {line.strip()}")
-                    else:
-                        errors.append(
-                            CompilationError(
-                                line=line_num,
-                                column=0,
-                                message=line.strip(),
-                                severity="error",
-                                suggestion=self._get_error_suggestion(error_type),
-                            )
-                        )
-
-        return errors, warnings
-
-    def _get_error_suggestion(self, error_type: str) -> Optional[str]:
-        """Get suggestion for common errors."""
-        suggestions = {
-            "Undefined command": "Check spelling of command or add required package",
-            "Math mode error - missing $": "Wrap mathematical expressions in $ symbols",
-            "Missing opening brace": "Add { before the content",
-            "Missing closing brace": "Add } after the content",
-            "Extra closing brace or missing $": "Remove extra } or add missing $",
-        }
-        return suggestions.get(error_type)
+        return parse_log(log)
 
     def validate_latex_safety(self, latex: str) -> Tuple[bool, List[str]]:
         """
