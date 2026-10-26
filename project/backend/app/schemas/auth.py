@@ -6,7 +6,7 @@ Request and response models for the /api/auth routes.
 
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -36,8 +36,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str]
     is_verified: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserProfileResponse(BaseModel):
@@ -68,8 +67,7 @@ class UserProfileResponse(BaseModel):
     certifications: Optional[list]
     achievements: Optional[list]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserProfileUpdate(BaseModel):

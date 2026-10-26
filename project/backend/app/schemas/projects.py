@@ -6,7 +6,7 @@ Request and response models for the /api/projects routes.
 
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ProjectCreate(BaseModel):
@@ -44,8 +44,7 @@ class ProjectResponse(BaseModel):
     start_date: Optional[str]
     end_date: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GitHubIngestRequest(BaseModel):

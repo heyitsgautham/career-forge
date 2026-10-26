@@ -6,7 +6,7 @@ Request and response models for the /api/jobs routes.
 
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class JobDescriptionCreate(BaseModel):
@@ -29,8 +29,7 @@ class JobDescriptionResponse(BaseModel):
     keywords: List[str]
     is_analyzed: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProjectMatch(BaseModel):
@@ -84,8 +83,7 @@ class ScoutJobResponse(BaseModel):
     isAnalyzed: bool
     description: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class JobStatsResponse(BaseModel):

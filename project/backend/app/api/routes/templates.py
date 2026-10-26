@@ -12,7 +12,7 @@ import os
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.api.deps import get_current_user, get_optional_user
 from app.core.config import settings
@@ -55,8 +55,7 @@ class TemplateResponse(BaseModel):
     use_count: int
     preview_image_path: Optional[str]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TemplateListItem(BaseModel):
