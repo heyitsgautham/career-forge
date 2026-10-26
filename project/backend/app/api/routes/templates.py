@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from app.api.deps import get_current_user, get_optional_user
+from app.api.ids import path_uuid
 from app.core.config import settings
 from app.core.database import get_db
 from app.schemas.limits import LatexSource, Name, Paragraph, ShortText
@@ -186,13 +187,13 @@ async def get_template(
                 return TemplateResponse(**tmpl)
         raise HTTPException(status_code=404, detail="Template not found")
     else:
-        import uuid
-
         from sqlalchemy import select
 
         from app.models.template import Template
 
-        result = await db.execute(select(Template).where(Template.id == uuid.UUID(template_id)))
+        result = await db.execute(
+            select(Template).where(Template.id == path_uuid(template_id, "Template"))
+        )
         template = result.scalar_one_or_none()
 
         if not template:
@@ -273,15 +274,13 @@ async def update_template(
             detail="Template editing not yet supported in DynamoDB mode",
         )
     else:
-        import uuid
-
         from sqlalchemy import select
 
         from app.models.template import Template
 
         result = await db.execute(
             select(Template).where(
-                Template.id == uuid.UUID(template_id),
+                Template.id == path_uuid(template_id, "Template"),
                 Template.user_id == current_user.id,
             )
         )
@@ -326,15 +325,13 @@ async def delete_template(
             detail="Template deletion not yet supported in DynamoDB mode",
         )
     else:
-        import uuid
-
         from sqlalchemy import select
 
         from app.models.template import Template
 
         result = await db.execute(
             select(Template).where(
-                Template.id == uuid.UUID(template_id),
+                Template.id == path_uuid(template_id, "Template"),
                 Template.user_id == current_user.id,
             )
         )

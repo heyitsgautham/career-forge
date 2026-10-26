@@ -4,8 +4,6 @@ Resume routes: files
 PDF and .tex downloads.
 """
 
-import uuid
-
 import structlog
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -13,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.api.ids import path_uuid
 from app.api.routes.resumes.common import router
 from app.core.config import settings
 from app.core.database import get_db
@@ -60,7 +59,7 @@ async def download_pdf(
 
     result = await db.execute(
         select(Resume).where(
-            Resume.id == uuid.UUID(resume_id),
+            Resume.id == path_uuid(resume_id, "Resume"),
             Resume.user_id == current_user.id,
         )
     )
@@ -155,7 +154,7 @@ async def download_tex(
 
     db_result = await db.execute(
         select(Resume).where(
-            Resume.id == uuid.UUID(resume_id),
+            Resume.id == path_uuid(resume_id, "Resume"),
             Resume.user_id == current_user.id,
         )
     )

@@ -4,7 +4,6 @@ Resume routes: crud
 List, create, fetch and delete resumes.
 """
 
-import uuid
 from typing import List
 
 import structlog
@@ -13,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.api.ids import path_uuid
 from app.api.routes.resumes.common import _resume_from_dynamo, router
 from app.core.config import settings
 from app.core.database import get_db
@@ -95,16 +95,16 @@ async def create_resume(
     # Validate template if provided
     if resume_data.template_id:
         result = await db.execute(
-            select(Template).where(Template.id == uuid.UUID(resume_data.template_id))
+            select(Template).where(Template.id == path_uuid(resume_data.template_id, "Template"))
         )
         template = result.scalar_one_or_none()
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
-        template_uuid = uuid.UUID(resume_data.template_id)
+        template_uuid = path_uuid(resume_data.template_id, "Template")
 
     # Validate projects if provided
     if resume_data.project_ids:
-        project_uuids = [uuid.UUID(pid) for pid in resume_data.project_ids]
+        project_uuids = [path_uuid(pid, "Project") for pid in resume_data.project_ids]
         result = await db.execute(
             select(Project).where(
                 Project.id.in_(project_uuids),
@@ -120,7 +120,7 @@ async def create_resume(
         user_id=current_user.id,
         name=resume_data.name,
         template_id=template_uuid,
-        job_description_id=uuid.UUID(resume_data.job_description_id)
+        job_description_id=path_uuid(resume_data.job_description_id, "Job description")
         if resume_data.job_description_id
         else None,
         selected_project_ids=project_uuids,
@@ -164,7 +164,7 @@ async def get_resume(
 
     result = await db.execute(
         select(Resume).where(
-            Resume.id == uuid.UUID(resume_id),
+            Resume.id == path_uuid(resume_id, "Resume"),
             Resume.user_id == current_user.id,
         )
     )
@@ -221,7 +221,7 @@ async def delete_resume(
 
     result = await db.execute(
         select(Resume).where(
-            Resume.id == uuid.UUID(resume_id),
+            Resume.id == path_uuid(resume_id, "Resume"),
             Resume.user_id == current_user.id,
         )
     )

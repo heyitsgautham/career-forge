@@ -4,7 +4,6 @@ Resume routes: generation
 Resume generation, from S3 project summaries (M2) and from a template.
 """
 
-import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -14,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.api.ids import path_uuid
 from app.api.routes.resumes.common import _rank_projects_by_relevance, _resume_from_dynamo, router
 from app.core.config import settings
 from app.core.database import get_db
@@ -244,7 +244,7 @@ async def generate_resume(
     # Get resume
     result = await db.execute(
         select(Resume).where(
-            Resume.id == uuid.UUID(resume_id),
+            Resume.id == path_uuid(resume_id, "Resume"),
             Resume.user_id == current_user.id,
         )
     )

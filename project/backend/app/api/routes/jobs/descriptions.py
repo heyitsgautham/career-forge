@@ -4,12 +4,12 @@ Job routes: descriptions
 Saved job descriptions: CRUD and project matching analysis.
 """
 
-import uuid
 from typing import List
 
 from fastapi import Depends, HTTPException
 
 from app.api.deps import get_current_user
+from app.api.ids import path_uuid
 from app.api.routes.jobs.common import _jd_response_from_dynamo, router
 from app.core.config import settings
 from app.core.database import get_db
@@ -148,7 +148,7 @@ async def get_job_description(
 
         result = await db.execute(
             select(JobDescription).where(
-                JobDescription.id == uuid.UUID(jd_id),
+                JobDescription.id == path_uuid(jd_id, "Job description"),
                 JobDescription.user_id == current_user.id,
             )
         )
@@ -293,7 +293,7 @@ async def analyze_job_description(
 
         result = await db.execute(
             select(JobDescription).where(
-                JobDescription.id == uuid.UUID(jd_id),
+                JobDescription.id == path_uuid(jd_id, "Job description"),
                 JobDescription.user_id == current_user.id,
             )
         )
@@ -432,7 +432,7 @@ async def delete_job_description(
 
         result = await db.execute(
             select(JobDescription).where(
-                JobDescription.id == uuid.UUID(jd_id),
+                JobDescription.id == path_uuid(jd_id, "Job description"),
                 JobDescription.user_id == current_user.id,
             )
         )
