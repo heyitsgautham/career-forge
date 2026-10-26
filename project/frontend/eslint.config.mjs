@@ -19,6 +19,10 @@ const config = [
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       eqeqeq: ['error', 'smart'],
       'prefer-const': 'error',
+      // Every <img> here is an SVG logo, a job-site favicon or a template preview
+      // from a user-supplied URL. next/image would need dangerouslyAllowSVG and an
+      // open remotePatterns list for those, so plain <img> is the deliberate choice.
+      '@next/next/no-img-element': 'off',
     },
   },
   {
