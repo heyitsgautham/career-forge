@@ -114,13 +114,15 @@ def _parse_naukri_job(raw: dict) -> Optional[Dict[str, Any]]:
     if not url.startswith("http"):
         url = "https://www.naukri.com" + url
 
-    company = (
-        raw.get("companyName") or (raw.get("company") or {}).get("name", "") or ""
-    ).strip() or "Unknown"
+    company_field = raw.get("company")
+    if isinstance(company_field, dict):
+        company_field = company_field.get("name")
+    company = str(raw.get("companyName") or company_field or "").strip() or "Unknown"
 
     # Location from placeholders array or direct field
+    placeholders = [ph for ph in raw.get("placeholders") or [] if isinstance(ph, dict)]
     loc_parts: List[str] = []
-    for ph in raw.get("placeholders") or []:
+    for ph in placeholders:
         if ph.get("type") == "location":
             loc_parts = [lo.strip() for lo in (ph.get("label") or "").split(",") if lo.strip()]
             break
@@ -143,7 +145,7 @@ def _parse_naukri_job(raw: dict) -> Optional[Dict[str, Any]]:
     description = jd_text if jd_text else tags_str
 
     date_posted = ""
-    for ph in raw.get("placeholders") or []:
+    for ph in placeholders:
         if ph.get("type") in ("date", "posted"):
             date_posted = ph.get("label") or ""
             break
@@ -322,7 +324,15 @@ class NaukriScraper:
         roles = _get_role_list()
         url = build_naukri_url(roles, locations, job_age=job_age or self._job_age, path=path)
         raw_jobs = await _fetch_jobs_via_browser(url)
-        parsed = [j for raw in raw_jobs if (j := _parse_naukri_job(raw))]
+        parsed = []
+        for raw in raw_jobs:
+            try:
+                job = _parse_naukri_job(raw)
+            except Exception as e:  # one odd result must not cost the whole batch
+                logger.warning("Naukri result skipped", error=str(e))
+                continue
+            if job:
+                parsed.append(job)
         logger.info(f"Naukri batch {locations} ({path}): {len(parsed)} jobs")
         return parsed
 
