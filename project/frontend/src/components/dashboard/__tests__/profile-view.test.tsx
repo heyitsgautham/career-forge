@@ -96,4 +96,57 @@ describe('ProfileView', () => {
       expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }))
     );
   });
+
+  it('imports from the stored LinkedIn URL and reloads the profile', async () => {
+    mocks.get.mockResolvedValue({
+      data: { ...PROFILE, linkedin_url: 'https://www.linkedin.com/in/asha-example' },
+    });
+    mocks.post.mockResolvedValue({ data: { success: true, imported: { headline: true } } });
+    const user = userEvent.setup();
+    render(<ProfileView />);
+    await user.click(await screen.findByRole('button', { name: /Import from LinkedIn/ }));
+
+    await waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith({
+        title: 'Import Complete!',
+        description: 'Imported: headline',
+      })
+    );
+    expect(mocks.post).toHaveBeenCalledWith('/api/auth/linkedin/import-profile', {
+      linkedin_url: 'https://www.linkedin.com/in/asha-example',
+    });
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks for a LinkedIn URL when none is stored', async () => {
+    mocks.post.mockRejectedValue({ response: { data: { detail: 'Login wall' } } });
+    const user = userEvent.setup();
+    render(<ProfileView />);
+    await user.click(await screen.findByRole('button', { name: /Import from LinkedIn/ }));
+
+    const box = screen.getByPlaceholderText('https://linkedin.com/in/your-profile');
+    expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled();
+    await user.type(box, 'https://linkedin.com/in/asha{Enter}');
+
+    await waitFor(() =>
+      expect(mocks.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Import Failed', description: 'Login wall' })
+      )
+    );
+    expect(screen.queryByPlaceholderText('https://linkedin.com/in/your-profile')).toBeNull();
+  });
+
+  it('closes the URL prompt on Cancel', async () => {
+    const user = userEvent.setup();
+    render(<ProfileView />);
+    await user.click(await screen.findByRole('button', { name: /Import from LinkedIn/ }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByPlaceholderText('https://linkedin.com/in/your-profile')).toBeNull();
+  });
+
+  it('tells the user when there is no profile yet', async () => {
+    mocks.get.mockResolvedValue({ data: null });
+    render(<ProfileView />);
+    expect(await screen.findByText('No profile data found')).toBeInTheDocument();
+  });
 });
