@@ -6,24 +6,15 @@ import { useQuery } from '@tanstack/react-query';
 import { resumesApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import {
-  ArrowLeft,
-  Save,
-  Play,
-  Download,
-  Loader2,
-  FileText,
-  Eye,
-  Cloud,
-  CheckCircle,
-  Code2,
-} from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { LatexEditorHandle } from '@/components/resume-editor/latex-editor';
+import type { LatexEditorHandle } from '@/components/resume-editor/latex-editor';
 import { EditorLayout } from '@/components/resume-editor/editor-layout';
 import { AiChatDrawer } from '@/components/resume-editor/ai-chat-drawer';
-import { cn } from '@/lib/utils';
+import { CodePreviewPanel } from '@/components/resume-editor/code-preview-panel';
+import { EditorToolbar } from '@/components/resume-editor/editor-toolbar';
+import { useResumeFiles } from '@/components/dashboard/resumes/use-resume-files';
 import { useResumeCompile } from '@/components/resume-editor/use-resume-compile';
 import { useResumeSave } from '@/components/resume-editor/use-resume-save';
 
@@ -45,7 +36,6 @@ export default function ResumeEditorPage() {
 
   // State
   const [autoCompile, setAutoCompile] = useState(true); // on by default
-  const [activeTab, setActiveTab] = useState<'code' | 'preview'>('code');
 
   // Debounce timer
   const autoCompileTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -63,6 +53,7 @@ export default function ResumeEditorPage() {
   const getContent = useCallback(() => editorHandleRef.current?.getValue(), []);
   const clearMarkers = useCallback(() => editorHandleRef.current?.clearMarkers?.(), []);
   const { saveStatus, save: doSave, scheduleSave } = useResumeSave(resumeId, getContent);
+  const { downloadTex } = useResumeFiles();
   const {
     pdfUrl,
     compileStatus,
@@ -107,22 +98,6 @@ export default function ResumeEditorPage() {
     if (pdfUrl) window.open(pdfUrl, '_blank');
   };
 
-  // ─── Download .tex ────────────────────────────────────────────────────────────
-
-  const handleDownloadTex = async () => {
-    try {
-      const response = await resumesApi.downloadTex(resumeId);
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/plain' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${resume?.name || 'resume'}.tex`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toast({ title: '.tex download failed', variant: 'destructive' });
-    }
-  };
-
   // ─── Apply AI latex ────────────────────────────────────────────────────────────
 
   const handleApplyLatex = useCallback(
@@ -161,175 +136,20 @@ export default function ResumeEditorPage() {
     );
   }
 
-  const saveIndicator =
-    saveStatus === 'saving' ? (
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Cloud className="h-3.5 w-3.5 animate-pulse" /> Saving…
-      </span>
-    ) : saveStatus === 'dirty' ? (
-      <span className="text-xs text-amber-500">● Unsaved</span>
-    ) : (
-      <span className="flex items-center gap-1 text-xs text-emerald-600">
-        <CheckCircle className="h-3.5 w-3.5" /> Saved
-      </span>
-    );
-
-  // ─── Left panel ───────────────────────────────────────────────────────────────
-
-  const leftPanel = (
-    <div className="h-full flex flex-col">
-      {/* Tab bar: Code / Preview toggle */}
-      <div className="flex items-center gap-0 px-2 py-1.5 border-b bg-card shrink-0">
-        <button
-          onClick={() => setActiveTab('code')}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
-            activeTab === 'code'
-              ? 'bg-violet-600 text-white'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-          )}
-        >
-          <Code2 className="h-3.5 w-3.5" />
-          Code
-        </button>
-        <button
-          onClick={() => {
-            if (!pdfUrl) {
-              toast({ title: 'No PDF yet — compile first', variant: 'destructive' });
-              return;
-            }
-            setActiveTab('preview');
-          }}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors',
-            activeTab === 'preview'
-              ? 'bg-violet-600 text-white'
-              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-          )}
-        >
-          <Eye className="h-3.5 w-3.5" />
-          Preview
-        </button>
-        <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground pr-1">
-          <FileText className="h-3.5 w-3.5" />
-          {resume.name}.tex
-        </span>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {/* Monaco editor — always mounted so state is preserved, hidden when previewing */}
-        <div className={cn('h-full', activeTab !== 'code' && 'hidden')}>
-          <LatexEditor
-            initialValue={resume.latex_content ?? ''}
-            onChange={handleEditorChange}
-            onEditorReady={(handle) => {
-              editorHandleRef.current = handle;
-            }}
-          />
-        </div>
-
-        {/* Inline PDF preview */}
-        {activeTab === 'preview' && (
-          <div className="h-full bg-[#525659]">
-            {pdfUrl ? (
-              <iframe src={pdfUrl} title="Resume PDF preview" className="w-full h-full border-0" />
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-sm text-muted-foreground">No PDF yet — compile first</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* ── Toolbar ─────────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between px-4 py-2 border-b bg-card shrink-0 h-14">
-        {/* Left */}
-        <div className="flex items-center gap-3 min-w-0">
-          <Link href="/dashboard?tab=resumes">
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div className="min-w-0">
-            <h1 className="font-semibold text-sm truncate">{resume.name}</h1>
-            <div className="flex items-center gap-2">{saveIndicator}</div>
-          </div>
-        </div>
-
-        {/* Right */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Auto-compile toggle */}
-          <Button
-            variant={autoCompile ? 'secondary' : 'ghost'}
-            size="sm"
-            className="h-8 gap-1.5 text-xs hidden sm:flex"
-            onClick={() => setAutoCompile((v) => !v)}
-          >
-            <Play className="h-3 w-3" />
-            Auto-compile {autoCompile ? 'ON' : 'OFF'}
-          </Button>
-
-          {/* Save */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            onClick={() => doSave()}
-            disabled={saveStatus === 'saving'}
-          >
-            {saveStatus === 'saving' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
-            Save
-          </Button>
-
-          {/* Compile */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            onClick={doCompile}
-            disabled={compileStatus === 'compiling'}
-          >
-            {compileStatus === 'compiling' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Play className="h-3.5 w-3.5" />
-            )}
-            Compile
-          </Button>
-
-          {/* Download PDF */}
-          <Button
-            size="sm"
-            className="h-8 gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white"
-            onClick={handleDownload}
-            disabled={!pdfUrl}
-          >
-            <Download className="h-3.5 w-3.5" />
-            PDF
-          </Button>
-
-          {/* Download .tex */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs hidden md:flex"
-            onClick={handleDownloadTex}
-          >
-            <FileText className="h-3.5 w-3.5" />
-            .tex
-          </Button>
-        </div>
-      </header>
+      <EditorToolbar
+        name={resume.name}
+        saveStatus={saveStatus}
+        compileStatus={compileStatus}
+        autoCompile={autoCompile}
+        pdfUrl={pdfUrl}
+        onToggleAutoCompile={() => setAutoCompile((v) => !v)}
+        onSave={() => doSave()}
+        onCompile={doCompile}
+        onDownloadPdf={handleDownload}
+        onDownloadTex={() => downloadTex(resumeId, `${resume.name || 'resume'}.tex`)}
+      />
 
       {/* ── Main: left (AI chat) + right (code/preview toggle) ───── */}
       <EditorLayout
@@ -341,7 +161,24 @@ export default function ResumeEditorPage() {
             onApplyLatex={handleApplyLatex}
           />
         }
-        right={leftPanel}
+        right={
+          <CodePreviewPanel
+            fileName={`${resume.name}.tex`}
+            pdfUrl={pdfUrl}
+            onPreviewWithoutPdf={() =>
+              toast({ title: 'No PDF yet — compile first', variant: 'destructive' })
+            }
+            editor={
+              <LatexEditor
+                initialValue={resume.latex_content ?? ''}
+                onChange={handleEditorChange}
+                onEditorReady={(handle) => {
+                  editorHandleRef.current = handle;
+                }}
+              />
+            }
+          />
+        }
       />
     </div>
   );
