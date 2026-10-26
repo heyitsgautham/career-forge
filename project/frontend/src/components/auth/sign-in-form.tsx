@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -9,11 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { apiErrorDetail } from '@/lib/api-error';
+import { clearCachedData } from '@/lib/query-cache';
 
 /** Email and password sign-in. Stores the token and opens the dashboard on success. */
 export function SignInForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
 
@@ -24,6 +27,8 @@ export function SignInForm() {
     try {
       const res = await authApi.login(loginData.email, loginData.password);
       localStorage.setItem('token', res.data.access_token);
+      // A new session must not see what the previous user left in the cache.
+      await clearCachedData(queryClient);
       toast({ title: 'Welcome back!' });
       router.push('/dashboard');
     } catch (error: unknown) {

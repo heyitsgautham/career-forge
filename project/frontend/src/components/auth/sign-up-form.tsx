@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -9,11 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { apiErrorDetail } from '@/lib/api-error';
+import { clearCachedData } from '@/lib/query-cache';
 
 /** Account creation. Checks the passwords match before calling the API. */
 export function SignUpForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [registerData, setRegisterData] = useState({
     email: '',
@@ -43,6 +46,8 @@ export function SignUpForm() {
         registerData.fullName
       );
       localStorage.setItem('token', res.data.access_token);
+      // A new session must not see what the previous user left in the cache.
+      await clearCachedData(queryClient);
       toast({ title: 'Account created!' });
       router.push('/dashboard');
     } catch (error: unknown) {

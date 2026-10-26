@@ -26,6 +26,7 @@ import {
 } from '@/components/dashboard/dashboard-tabs';
 import { SidebarItem } from '@/components/dashboard/sidebar-item';
 import { useToast } from '@/hooks/use-toast';
+import { clearCachedData } from '@/lib/query-cache';
 import { userApi, authApi, projectsApi, resumesApi, jobMatchApi, skillGapApi } from '@/lib/api';
 import type { User as UserType } from '@/lib/api';
 
@@ -98,7 +99,10 @@ function DashboardInner() {
     const error = searchParams.get('error');
 
     if (github === 'connected' || google === 'connected') {
-      if (token) localStorage.setItem('token', token);
+      if (token) {
+        localStorage.setItem('token', token);
+        void clearCachedData(queryClient);
+      }
       const provider = github ? 'GitHub' : 'Google';
       toast({ title: `${provider} connected!`, description: 'Your account is now linked.' });
       router.replace('/dashboard');
@@ -111,7 +115,7 @@ function DashboardInner() {
       });
       router.replace('/dashboard');
     }
-  }, [searchParams, router, toast]);
+  }, [searchParams, router, toast, queryClient]);
 
   /* Load user + github status */
   useEffect(() => {
@@ -142,6 +146,7 @@ function DashboardInner() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    void clearCachedData(queryClient);
     toast({ title: 'Logged out successfully' });
     router.push('/login');
   };

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearCachedData } from '@/lib/query-cache';
 
 // ─── Axios Instance ───────────────────────────────────────────────────────────
 
@@ -29,6 +30,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
+        // The full page load below drops the in-memory cache; this drops the persisted copy.
+        void clearCachedData();
         window.location.href = '/login';
       }
     }

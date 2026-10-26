@@ -49,6 +49,9 @@ vi.mock('@/components/dashboard/settings-modal', () => ({
   ),
 }));
 
+const cache = vi.hoisted(() => ({ clearCachedData: vi.fn() }));
+vi.mock('@/lib/query-cache', () => cache);
+
 import DashboardPage from '@/app/dashboard/page';
 
 const visibleTab = () =>
@@ -119,6 +122,7 @@ describe('DashboardPage', () => {
     await user.click(screen.getByRole('button', { name: 'Logout' }));
     expect(localStorage.getItem('token')).toBeNull();
     expect(nav.router.push).toHaveBeenCalledWith('/login');
+    expect(cache.clearCachedData).toHaveBeenCalledOnce();
   });
 
   it('sends a visitor without a token to the login page', () => {
@@ -131,6 +135,7 @@ describe('DashboardPage', () => {
     nav.params = new URLSearchParams('github=connected&token=fresh-jwt');
     renderWithQuery(<DashboardPage />);
     await waitFor(() => expect(localStorage.getItem('token')).toBe('fresh-jwt'));
+    expect(cache.clearCachedData).toHaveBeenCalled();
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'GitHub connected!' }));
     expect(nav.router.replace).toHaveBeenCalledWith('/dashboard');
   });

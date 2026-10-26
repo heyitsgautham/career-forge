@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithQuery } from '@/test/render-with-query';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,6 +10,9 @@ vi.mock('@/lib/api', () => api);
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }));
 
+const cache = vi.hoisted(() => ({ clearCachedData: vi.fn() }));
+vi.mock('@/lib/query-cache', () => cache);
+
 import { SignInForm } from '../sign-in-form';
 import { SignUpForm } from '../sign-up-form';
 
@@ -18,7 +22,7 @@ afterEach(() => localStorage.clear());
 describe('SignInForm', () => {
   it('signs in, stores the token and opens the dashboard', async () => {
     api.authApi.login.mockResolvedValue({ data: { access_token: 'jwt' } });
-    render(<SignInForm />);
+    renderWithQuery(<SignInForm />);
     await userEvent.type(screen.getByLabelText('Email'), 'asha@example.com');
     await userEvent.type(screen.getByLabelText('Password'), 'pw-1234');
     await userEvent.click(screen.getByRole('button', { name: 'Sign In' }));
@@ -26,13 +30,15 @@ describe('SignInForm', () => {
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/dashboard'));
     expect(api.authApi.login).toHaveBeenCalledWith('asha@example.com', 'pw-1234');
     expect(localStorage.getItem('token')).toBe('jwt');
+    // Regression: the next user saw the previous user's cached profile until it went stale.
+    expect(cache.clearCachedData).toHaveBeenCalledOnce();
   });
 
   it('shows the reason a sign-in failed', async () => {
     api.authApi.login.mockRejectedValue({
       response: { data: { detail: 'Incorrect email or password' } },
     });
-    render(<SignInForm />);
+    renderWithQuery(<SignInForm />);
     await userEvent.type(screen.getByLabelText('Email'), 'asha@example.com');
     await userEvent.type(screen.getByLabelText('Password'), 'wrong');
     await userEvent.click(screen.getByRole('button', { name: 'Sign In' }));
@@ -58,7 +64,7 @@ describe('SignUpForm', () => {
   }
 
   it('refuses mismatched passwords without calling the API', async () => {
-    render(<SignUpForm />);
+    renderWithQuery(<SignUpForm />);
     await fill('pw-1234', 'pw-9999');
     expect(api.authApi.register).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledWith(
@@ -68,7 +74,7 @@ describe('SignUpForm', () => {
 
   it('creates the account and opens the dashboard', async () => {
     api.authApi.register.mockResolvedValue({ data: { access_token: 'new-jwt' } });
-    render(<SignUpForm />);
+    renderWithQuery(<SignUpForm />);
     await fill('pw-1234', 'pw-1234');
     await waitFor(() => expect(router.push).toHaveBeenCalledWith('/dashboard'));
     expect(api.authApi.register).toHaveBeenCalledWith(
@@ -77,13 +83,14 @@ describe('SignUpForm', () => {
       'Asha Example'
     );
     expect(localStorage.getItem('token')).toBe('new-jwt');
+    expect(cache.clearCachedData).toHaveBeenCalledOnce();
   });
 
   it('explains a refused registration', async () => {
     api.authApi.register.mockRejectedValue({
       response: { data: { detail: 'Email already registered' } },
     });
-    render(<SignUpForm />);
+    renderWithQuery(<SignUpForm />);
     await fill('pw-1234', 'pw-1234');
     await waitFor(() =>
       expect(toast).toHaveBeenCalledWith(

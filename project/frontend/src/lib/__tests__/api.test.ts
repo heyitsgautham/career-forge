@@ -1,6 +1,10 @@
 import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { vi } from 'vitest';
 import api, { authApi } from '@/lib/api';
+
+const cache = vi.hoisted(() => ({ clearCachedData: vi.fn() }));
+vi.mock('@/lib/query-cache', () => cache);
 
 let sent: InternalAxiosRequestConfig[] = [];
 let nextStatus = 200;
@@ -70,6 +74,7 @@ describe('api client', () => {
     await expect(authApi.getProfile()).rejects.toThrow('HTTP 401');
     expect(localStorage.getItem('token')).toBeNull();
     expect(window.location.href).toBe('/login');
+    expect(cache.clearCachedData).toHaveBeenCalled();
   });
 
   it('keeps the session on other errors', async () => {

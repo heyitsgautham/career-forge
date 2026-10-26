@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithQuery } from '@/test/render-with-query';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,12 +19,12 @@ afterEach(() => localStorage.clear());
 describe('LoginPage', () => {
   it('sends a signed-in visitor straight to the dashboard', () => {
     localStorage.setItem('token', 'jwt');
-    render(<LoginPage />);
+    renderWithQuery(<LoginPage />);
     expect(router.replace).toHaveBeenCalledWith('/dashboard');
   });
 
   it('starts GitHub and Google sign-in from their buttons', async () => {
-    render(<LoginPage />);
+    renderWithQuery(<LoginPage />);
     await userEvent.click(screen.getByRole('button', { name: 'Continue with GitHub' }));
     await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
     expect(api.authApi.githubLogin).toHaveBeenCalledOnce();
@@ -32,7 +33,7 @@ describe('LoginPage', () => {
   });
 
   it('reveals the email forms on demand', async () => {
-    render(<LoginPage />);
+    renderWithQuery(<LoginPage />);
     expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Or use email/ }));
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
