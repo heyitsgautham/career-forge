@@ -21,6 +21,7 @@ from app.core.security import (
 )
 from app.models.user import LinkedInConnection, User
 from app.schemas.auth import (
+    LinkedInCallbackRequest,
     LinkedInImportRequest,
 )
 
@@ -92,7 +93,7 @@ async def linkedin_authorize():
 
 @router.post("/linkedin/callback")
 async def linkedin_callback(
-    code: str,
+    body: LinkedInCallbackRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -109,7 +110,7 @@ async def linkedin_callback(
             "https://www.linkedin.com/oauth/v2/accessToken",
             data={
                 "grant_type": "authorization_code",
-                "code": code,
+                "code": body.code,
                 "client_id": settings.LINKEDIN_CLIENT_ID,
                 "client_secret": settings.LINKEDIN_CLIENT_SECRET,
                 "redirect_uri": settings.LINKEDIN_CALLBACK_URL,

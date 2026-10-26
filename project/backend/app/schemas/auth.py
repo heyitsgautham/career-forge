@@ -4,9 +4,9 @@ Auth schemas
 Request and response models for the /api/auth routes.
 """
 
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, StringConstraints
 
 from app.schemas.limits import (
     Name,
@@ -116,6 +116,10 @@ class GitHubCallbackRequest(BaseModel):
 
 class CognitoCallbackRequest(BaseModel):
     code: str
+
+
+class LinkedInCallbackRequest(BaseModel):
+    code: Annotated[str, StringConstraints(min_length=1, max_length=2_048)]
 
 
 class LinkedInImportRequest(BaseModel):
