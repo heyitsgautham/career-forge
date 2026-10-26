@@ -203,7 +203,30 @@ def test_ingest_by_full_name_reports_each_repo(dynamo_client, github_user, fake_
     ).json()
     statuses = {x["full_name"]: x["status"] for x in r["results"]}
     assert statuses == {"asha-example/job-scout": "success", "asha-example/broken": "error"}
+    # Regression: the raw exception text went to the browser's toast.
+    broken = next(x for x in r["results"] if x["status"] == "error")
+    assert broken["error"] == "Could not import this repository. Try again in a few minutes."
     assert fake_github["details"][0] == ("asha-example/job-scout", "enc-token")
+
+
+def test_a_repo_github_will_not_show_gets_a_specific_message(
+    dynamo_client, github_user, fake_github, monkeypatch
+):
+    from github import UnknownObjectException
+
+    async def missing(full_name, encrypted_token):
+        raise UnknownObjectException(404, {"message": "Not Found"}, None)
+
+    monkeypatch.setattr(github_module.github_service, "fetch_repo_details", missing)
+    r = dynamo_client.post(
+        "/api/projects/ingest/github",
+        json={"full_names": ["asha-example/private"]},
+        headers=github_user["headers"],
+    ).json()
+    assert r["results"][0]["error"] == (
+        "GitHub did not return this repository. Check it exists and that the "
+        "CareerForge GitHub App can see it."
+    )
 
 
 def test_reingesting_a_repo_reuses_its_project_id(dynamo_client, github_user, fake_github):
