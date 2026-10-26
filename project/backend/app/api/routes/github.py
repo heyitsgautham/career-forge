@@ -8,7 +8,7 @@ Replaces the old SQLAlchemy-based /api/projects/ingest/github.
 import asyncio
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
@@ -179,7 +179,7 @@ async def run_ingestion(
 @router.post("/ingest")
 async def ingest_github_repos(
     include_forks: bool = True,
-    mode: str = "sync",
+    mode: Literal["sync", "import_new"] = "sync",
     current_user: dict = Depends(get_current_user_dynamo),
 ):
     """
@@ -204,7 +204,9 @@ async def ingest_github_repos(
         )
         return {"status": "done", **summary}
     except Exception as e:
-        raise HTTPException(500, f"Ingestion failed: {e}") from e
+        # The cause can carry tokens or hostnames, so it goes to the log, not the client.
+        logger.error("github_ingestion_failed", user_id=user_id, mode=mode, error=str(e))
+        raise HTTPException(502, "Ingestion failed while talking to GitHub or Bedrock.") from e
 
 
 @router.get("/ingest-status")
