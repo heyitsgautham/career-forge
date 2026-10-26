@@ -66,6 +66,15 @@ def _job_id(url: str) -> str:
     return hashlib.md5(url.encode()).hexdigest()
 
 
+def _whole_amount(value: Any) -> Optional[int]:
+    """A positive salary figure as an int, or None for blanks and text such as "not disclosed"."""
+    try:
+        amount = int(float(str(value).replace(",", "")))
+    except (TypeError, ValueError):
+        return None
+    return amount if amount > 0 else None
+
+
 def _parse_unstop_opportunity(item: dict, opp_type: str) -> Optional[Dict[str, Any]]:
     """
     Parse a single Unstop search-result item.
@@ -90,7 +99,7 @@ def _parse_unstop_opportunity(item: dict, opp_type: str) -> Optional[Dict[str, A
 
     # Organisation / company name
     org = item.get("organisation") or {}
-    company = (org.get("name") if isinstance(org, dict) else str(org)).strip() if org else ""
+    company = str((org.get("name") if isinstance(org, dict) else org) or "").strip()
 
     # Location — may be a list of strings or a single string
     raw_loc = item.get("location") or item.get("city") or ""
@@ -100,13 +109,13 @@ def _parse_unstop_opportunity(item: dict, opp_type: str) -> Optional[Dict[str, A
         location = str(raw_loc).strip() or "India / Remote"
 
     # Salary / stipend
-    salary_min = item.get("salary_min") or item.get("min_stipend")
-    salary_max = item.get("salary_max") or item.get("max_stipend")
+    salary_min = _whole_amount(item.get("salary_min") or item.get("min_stipend"))
+    salary_max = _whole_amount(item.get("salary_max") or item.get("max_stipend"))
     currency = item.get("currency") or "₹"
     if salary_min and salary_max:
-        salary = f"{currency}{int(salary_min):,}–{currency}{int(salary_max):,}"
+        salary = f"{currency}{salary_min:,}–{currency}{salary_max:,}"
     elif salary_min:
-        salary = f"{currency}{int(salary_min):,}+"
+        salary = f"{currency}{salary_min:,}+"
     else:
         salary = None
 
@@ -182,7 +191,11 @@ class UnstopScraper:
                 items = (data.get("data") or {}).get("data") or []
                 results: List[Dict[str, Any]] = []
                 for item in items:
-                    parsed = _parse_unstop_opportunity(item, opp_type)
+                    try:
+                        parsed = _parse_unstop_opportunity(item, opp_type)
+                    except Exception as e:  # one odd item must not cost the whole page
+                        logger.warning("Unstop item skipped", error=str(e), item_id=item.get("id"))
+                        continue
                     if parsed:
                         results.append(parsed)
 
