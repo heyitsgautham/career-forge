@@ -6,6 +6,8 @@ const nextConfig = {
     return [
       // The profile editor lives in the dashboard's profile tab.
       { source: '/dashboard/profile', destination: '/dashboard?tab=profile', permanent: false },
+      // Resumes are generated from the dialog on the resumes tab.
+      { source: '/dashboard/resumes/new', destination: '/dashboard?tab=resumes', permanent: false },
     ];
   },
   async rewrites() {

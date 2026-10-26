@@ -11,6 +11,14 @@ describe('next.config.js', () => {
     });
   });
 
+  it('sends the old step-by-step resume wizard to the resumes tab', async () => {
+    expect(await nextConfig.redirects()).toContainEqual({
+      source: '/dashboard/resumes/new',
+      destination: '/dashboard?tab=resumes',
+      permanent: false,
+    });
+  });
+
   it('proxies /api to the backend', async () => {
     const [rule] = await nextConfig.rewrites();
     expect(rule.source).toBe('/api/:path*');

@@ -22,13 +22,6 @@ export const resumesApi = {
 
   get: (id: string) => api.get(`/api/resumes/${id}`),
 
-  create: (data: {
-    name: string;
-    template_id?: string;
-    job_description_id?: string;
-    project_ids?: string[];
-  }) => api.post('/api/resumes', data),
-
   /** M2: Generate resume from S3 project summaries + optional JD */
   generateFromSummaries: (jd?: string) =>
     api.post<{
@@ -38,38 +31,6 @@ export const resumesApi = {
       analysis: string;
       status: string;
     }>('/api/resumes/generate', { jd: jd || null }),
-
-  generate: (
-    id: string,
-    data?: {
-      personal?: {
-        name: string;
-        email: string;
-        phone?: string;
-        location?: string;
-        linkedin?: string;
-        github?: string;
-        website?: string;
-      };
-      skills?: string[];
-      experience?: Array<{
-        title: string;
-        company: string;
-        location?: string;
-        start_date: string;
-        end_date?: string;
-        highlights: string[];
-      }>;
-      education?: Array<{
-        degree: string;
-        school: string;
-        location?: string;
-        graduation_date: string;
-        gpa?: string;
-      }>;
-      tailor_to_jd?: boolean;
-    }
-  ) => api.post(`/api/resumes/${id}/generate`, data || {}),
 
   compile: (id: string) => api.post(`/api/resumes/${id}/compile`),
 
