@@ -25,6 +25,7 @@ from app.schemas.auth import (
     LinkedInCallbackRequest,
     LinkedInImportRequest,
 )
+from app.services.linkedin_merge import ProfileSnapshot, append_new, merge_linkedin_profile
 
 logger = structlog.get_logger()
 
@@ -217,12 +218,8 @@ async def scrape_linkedin_certifications_endpoint(
             }
 
         # Merge with existing certifications (avoid duplicates)
-        existing_certs = current_user.certifications or []
-        existing_names = {cert.get("name", "").lower() for cert in existing_certs}
-
-        new_certs = [
-            cert for cert in certifications if cert.get("name", "").lower() not in existing_names
-        ]
+        existing_certs = list(current_user.certifications or [])
+        new_certs = append_new(existing_certs, certifications, "name")
 
         logger.info(
             f"Adding {len(new_certs)} new certifications (filtered from {len(certifications)})"
@@ -298,65 +295,20 @@ async def import_linkedin_profile(
         logger.error("linkedin_profile_import_failed", exc_info=e)
         raise internal_error("Failed to import the LinkedIn profile.") from e
 
-    # ── Merge extracted data into user profile ───────────────────────────
-    update_fields: dict = {}
-
-    # Always persist the (possibly new) LinkedIn URL
-    update_fields["linkedin_url"] = linkedin_url
-
-    # Personal details — only fill if not already set
-    if data.get("name") and not current_user.name:
-        update_fields["name"] = data["name"]
-    if data.get("headline"):
-        update_fields["headline"] = data["headline"]
-    if data.get("location") and not current_user.location:
-        update_fields["location"] = data["location"]
-
-    if data.get("summary"):
-        update_fields["summary"] = data["summary"]
-
-    if data.get("website") and not current_user.website:
-        update_fields["website"] = data["website"]
-
-    if data.get("phone") and not current_user.phone:
-        update_fields["phone"] = data["phone"]
-
-    if data.get("email") and not current_user.email:
-        update_fields["email"] = data["email"]
-
-    # Merge education — avoid duplicates by school name
-    if data.get("education"):
-        existing_edu: list = current_user.education or []
-        existing_schools = {e.get("school", "").lower() for e in existing_edu}
-        new_edu = [
-            e
-            for e in data["education"]
-            if e.get("school") and e["school"].lower() not in existing_schools
-        ]
-        update_fields["education"] = existing_edu + new_edu
-
-    # Merge certifications — avoid duplicates by name
-    if data.get("certifications"):
-        existing_certs: list = current_user.certifications or []
-        existing_names = {c.get("name", "").lower() for c in existing_certs}
-        new_certs = [
-            c
-            for c in data["certifications"]
-            if c.get("name") and c["name"].lower() not in existing_names
-        ]
-        update_fields["certifications"] = existing_certs + new_certs
-
-    # Compute counts BEFORE writing to DB (current_user may be refreshed after)
-    new_edu_count = (
-        len(update_fields.get("education", [])) - len(current_user.education or [])
-        if "education" in update_fields
-        else 0
+    merge = merge_linkedin_profile(
+        linkedin_url,
+        ProfileSnapshot(
+            name=current_user.name,
+            location=current_user.location,
+            website=current_user.website,
+            phone=current_user.phone,
+            email=current_user.email,
+            education=list(current_user.education or []),
+            certifications=list(current_user.certifications or []),
+        ),
+        data,
     )
-    new_certs_count = (
-        len(update_fields.get("certifications", [])) - len(current_user.certifications or [])
-        if "certifications" in update_fields
-        else 0
-    )
+    update_fields = merge.updates
 
     # Write to DB (DynamoDB or SQL)
     _FIELD_MAP = {
@@ -390,11 +342,9 @@ async def import_linkedin_profile(
             "website": data.get("website"),
             "phone": data.get("phone"),
             "email": data.get("email"),
-            "education_added": new_edu_count,
-            "education": (update_fields.get("education") or [])[-new_edu_count:]
-            if new_edu_count > 0
-            else [],
-            "certifications_added": new_certs_count,
+            "education_added": len(merge.new_education),
+            "education": merge.new_education,
+            "certifications_added": len(merge.new_certifications),
         },
         "data": data,
     }
