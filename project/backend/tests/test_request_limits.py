@@ -39,8 +39,12 @@ def test_sign_in_still_accepts_short_passwords_from_older_accounts(client):
 
 def test_profile_update_bounds_text_and_lists(client, auth):
     h = auth["headers"]
-    assert client.put("/api/auth/profile", json={"summary": "s" * 5_001}, headers=h).status_code == 422
-    assert client.put("/api/auth/profile", json={"skills": ["x"] * 101}, headers=h).status_code == 422
+    assert (
+        client.put("/api/auth/profile", json={"summary": "s" * 5_001}, headers=h).status_code == 422
+    )
+    assert (
+        client.put("/api/auth/profile", json={"skills": ["x"] * 101}, headers=h).status_code == 422
+    )
     ok = client.put("/api/auth/profile", json={"summary": "Builds APIs"}, headers=h)
     assert ok.status_code == 200
 
@@ -81,11 +85,15 @@ def test_latex_bodies_are_capped_at_200_kb(client, auth):
     template = {"name": "Huge", "latex_content": BIG_LATEX}
     assert client.post("/api/templates", json=template, headers=h).status_code == 422
     assert (
-        client.put("/api/resumes/r1/latex", json={"latex_content": BIG_LATEX}, headers=h).status_code
+        client.put(
+            "/api/resumes/r1/latex", json={"latex_content": BIG_LATEX}, headers=h
+        ).status_code
         == 422
     )
     assert (
-        client.post("/api/resumes/r1/compile", json={"latex_content": BIG_LATEX}, headers=h).status_code
+        client.post(
+            "/api/resumes/r1/compile", json={"latex_content": BIG_LATEX}, headers=h
+        ).status_code
         == 422
     )
 
