@@ -8,7 +8,7 @@ from datetime import timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -32,6 +32,15 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 
+def _email_spellings(email: str) -> list[str]:
+    """The address as typed and in lower case.
+
+    New accounts store lower case. Accounts created before that may hold any
+    case, and DynamoDB cannot compare case-insensitively, so lookups try both.
+    """
+    return sorted({email, email.lower()})
+
+
 @router.post("/register", response_model=TokenResponse)
 async def register(
     user_data: UserCreate,
@@ -44,7 +53,7 @@ async def register(
         from app.services.dynamo_service import dynamo_service
 
         existing = await dynamo_service.scan(
-            "Users", filter_expression=Attr("email").eq(user_data.email)
+            "Users", filter_expression=Attr("email").is_in(_email_spellings(user_data.email))
         )
         if existing:
             raise HTTPException(
@@ -57,7 +66,7 @@ async def register(
             "Users",
             {
                 "userId": user_id,
-                "email": user_data.email,
+                "email": user_data.email.lower(),
                 "name": user_data.get_name(),
                 "hashedPassword": get_password_hash(user_data.password),
                 "isActive": True,
@@ -73,7 +82,7 @@ async def register(
         return TokenResponse(access_token=access_token)
 
     # SQLite path
-    result = await db.execute(select(User).where(User.email == user_data.email))
+    result = await db.execute(select(User).where(func.lower(User.email) == user_data.email.lower()))
     if result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -81,7 +90,7 @@ async def register(
         )
 
     user = User(
-        email=user_data.email,
+        email=user_data.email.lower(),
         name=user_data.get_name(),
         hashed_password=get_password_hash(user_data.password),
     )
@@ -109,7 +118,7 @@ async def login(
         from app.services.dynamo_service import dynamo_service
 
         results = await dynamo_service.scan(
-            "Users", filter_expression=Attr("email").eq(credentials.email)
+            "Users", filter_expression=Attr("email").is_in(_email_spellings(credentials.email))
         )
         if not results:
             raise HTTPException(
@@ -134,7 +143,9 @@ async def login(
         return TokenResponse(access_token=access_token)
 
     # SQLite path
-    result = await db.execute(select(User).where(User.email == credentials.email))
+    result = await db.execute(
+        select(User).where(func.lower(User.email) == credentials.email.lower())
+    )
     user = result.scalar_one_or_none()
 
     if not user or not user.hashed_password:
