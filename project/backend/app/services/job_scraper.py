@@ -28,6 +28,28 @@ from app.services.unstop_scraper import unstop_scraper
 logger = structlog.get_logger()
 
 
+def _present(value: Any) -> Any:
+    """`value`, or None when jobspy left the cell empty (None, NaN, NaT or "nan")."""
+    if value is None:
+        return None
+    try:
+        import pandas as pd
+
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass  # lists and other non-scalars are present
+    if isinstance(value, str) and value.strip().lower() in ("", "nan", "nat", "none", "null"):
+        return None
+    return value
+
+
+def _text(value: Any) -> str:
+    """A jobspy cell as stripped text, with empty cells as ""."""
+    present = _present(value)
+    return str(present).strip() if present is not None else ""
+
+
 class JobScraper:
     """
     Job scraper aggregating multiple sources:
@@ -126,29 +148,28 @@ class JobScraper:
         for _, row in df.iterrows():
             # ── Salary: built from real scraped fields, fallback to regex ─────
             salary = None
-            min_a = row.get("min_amount")
-            max_a = row.get("max_amount")
-            currency = str(row.get("currency") or "").strip()
-            interval = str(row.get("interval") or "").strip()
+            min_a = _present(row.get("min_amount"))
+            max_a = _present(row.get("max_amount"))
+            currency = _text(row.get("currency"))
+            interval = _text(row.get("interval"))
             if min_a and max_a:
                 salary = f"{currency}{int(min_a):,}–{currency}{int(max_a):,}"
-                if interval:
-                    salary += f" / {interval}"
             elif min_a:
                 salary = f"{currency}{int(min_a):,}+"
-                if interval:
-                    salary += f" / {interval}"
+            if salary and interval:
+                salary += f" / {interval}"
 
+            description = _text(row.get("description"))
             # Regex fallback for salary
             if not salary:
-                salary = _extract_salary_from_description(str(row.get("description") or ""))
+                salary = _extract_salary_from_description(description)
 
             # ── Job type: normalise casing ───────────────────────────────────
-            raw_type = str(row.get("job_type") or "").lower().strip()
+            raw_type = _text(row.get("job_type")).lower()
             job_type = JOB_TYPE_MAP.get(raw_type, raw_type.capitalize())
 
-            title = str(row.get("title") or "").strip() or None
-            url = str(row.get("job_url") or "")
+            title = _text(row.get("title")) or None
+            url = _text(row.get("job_url"))
 
             # Skip incomplete rows
             if not title or not url:
@@ -158,25 +179,18 @@ class JobScraper:
             if _is_management_role(title):
                 continue
 
-            # Safely convert date_posted — pd.NaT is falsy so "or" short-circuits
-            raw_date = row.get("date_posted")
-            try:
-                import pandas as pd
-
-                date_posted_str = (
-                    raw_date.strftime("%Y-%m-%d") if raw_date and raw_date is not pd.NaT else ""
-                )
-            except Exception:
-                s = str(raw_date) if raw_date else ""
-                date_posted_str = "" if s.lower() in ("nan", "nat", "none", "null") else s
+            raw_date = _present(row.get("date_posted"))
+            date_posted_str = (
+                raw_date.strftime("%Y-%m-%d") if hasattr(raw_date, "strftime") else _text(raw_date)
+            )
 
             job = {
                 "title": title,
-                "company": str(row.get("company") or "").strip() or None,
-                "location": str(row.get("location") or location).strip(),
-                "description": str(row.get("description") or ""),
+                "company": _text(row.get("company")) or None,
+                "location": _text(row.get("location")) or location,
+                "description": description,
                 "url": url,
-                "source": str(row.get("site") or "unknown"),
+                "source": _text(row.get("site")) or "unknown",
                 "date_posted": date_posted_str,
                 "salary": salary,
                 "job_type": job_type,
