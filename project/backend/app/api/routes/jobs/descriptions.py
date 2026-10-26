@@ -17,10 +17,13 @@ from app.schemas.jobs import (
     AnalyzeResponse,
     JobDescriptionCreate,
     JobDescriptionResponse,
-    ProjectMatch,
 )
-from app.services.embedding_service import embedding_service
-from app.services.matching_engine import matching_engine
+from app.services.jd_matching import (
+    fallback_required_skills,
+    match_projects,
+    parse_requirements,
+    store_embedding,
+)
 from app.services.vector_store import VectorStoreService, vector_store
 
 
@@ -178,17 +181,18 @@ async def analyze_job_description(
     top_n: int = 10,
 ):
     """Analyze job description and match with user's projects."""
+    user_id = str(current_user.id)
+
     if settings.USE_DYNAMO:
         from app.services.dynamo_service import dynamo_service
 
         jd = await dynamo_service.get_item("Jobs", {"jobId": jd_id})
-        if not jd or jd.get("userId") != str(current_user.id):
+        if not jd or jd.get("userId") != user_id:
             raise HTTPException(status_code=404, detail="Job description not found")
 
-        # ---- Analyze if not yet done ----
         if not jd.get("isAnalyzed"):
-            try:
-                parsed = await matching_engine.analyze_job_description(jd["rawText"])
+            parsed = await parse_requirements(jd["rawText"])
+            if parsed is not None:
                 updates = {
                     "requiredSkills": parsed.get("required_skills", []),
                     "preferredSkills": parsed.get("preferred_skills", []),
@@ -197,210 +201,74 @@ async def analyze_job_description(
                     "isAnalyzed": True,
                     "updatedAt": dynamo_service.now_iso(),
                 }
-
-                # Generate embedding
-                try:
-                    embedding = await embedding_service.embed_text(jd["rawText"])
-                    emb_id = vector_store.generate_embedding_id()
-                    await vector_store.add_embedding(
-                        collection_name=VectorStoreService.COLLECTION_JOB_DESCRIPTIONS,
-                        embedding_id=emb_id,
-                        embedding=embedding,
-                        metadata={
-                            "user_id": str(current_user.id),
-                            "title": jd.get("title", ""),
-                            "company": jd.get("company", ""),
-                        },
-                        document=jd["rawText"],
-                    )
-                    updates["embeddingId"] = emb_id
-                except (ValueError, Exception):
-                    pass
-
-                await dynamo_service.update_item("Jobs", {"jobId": jd_id}, updates)
-                jd.update(updates)
-            except Exception:
-                # Fallback: basic keyword extraction
-                common_skills = [
-                    "python",
-                    "java",
-                    "javascript",
-                    "react",
-                    "node",
-                    "sql",
-                    "aws",
-                    "docker",
-                    "kubernetes",
-                    "git",
-                    "api",
-                    "rest",
-                    "graphql",
-                    "typescript",
-                ]
-                text_lower = jd["rawText"].lower()
-                found = [s for s in common_skills if s in text_lower][:10]
-                await dynamo_service.update_item(
-                    "Jobs",
-                    {"jobId": jd_id},
-                    {"requiredSkills": found, "isAnalyzed": True},
+                embedding_id = await store_embedding(
+                    user_id, jd.get("title", ""), jd.get("company", ""), jd["rawText"]
                 )
-                jd["requiredSkills"] = found
-                jd["isAnalyzed"] = True
-
-        # ---- Match projects ----
-        matches: list = []
-        try:
-            jd_embedding = None
-            if jd.get("embeddingId"):
-                stored = await vector_store.get_by_id(
-                    VectorStoreService.COLLECTION_JOB_DESCRIPTIONS,
-                    jd["embeddingId"],
-                )
-                if stored:
-                    jd_embedding = stored.get("embedding")
-            if not jd_embedding:
-                jd_embedding = await embedding_service.embed_text(jd["rawText"])
-
-            matches = await matching_engine.match_projects(
-                user_id=str(current_user.id),
-                jd_text=jd["rawText"],
-                jd_embedding=jd_embedding,
-                parsed_jd=jd.get("parsedRequirements"),
-                top_n=top_n,
-            )
-        except (ValueError, Exception):
-            pass
+                if embedding_id:
+                    updates["embeddingId"] = embedding_id
+            else:
+                updates = {
+                    "requiredSkills": fallback_required_skills(jd["rawText"]),
+                    "isAnalyzed": True,
+                }
+            await dynamo_service.update_item("Jobs", {"jobId": jd_id}, updates)
+            jd.update(updates)
 
         return AnalyzeResponse(
             job_description=_jd_response_from_dynamo(jd),
-            matched_projects=[
-                ProjectMatch(
-                    project_id=m.project_id,
-                    total_score=m.total_score,
-                    semantic_score=m.semantic_score,
-                    tech_overlap_score=m.tech_overlap_score,
-                    keyword_score=m.keyword_score,
-                    match_explanation=m.match_explanation,
-                )
-                for m in matches
-            ],
-        )
-    else:
-        # ---- SQLAlchemy path ----
-        from sqlalchemy import select
-
-        from app.models.job_description import JobDescription
-
-        result = await db.execute(
-            select(JobDescription).where(
-                JobDescription.id == path_uuid(jd_id, "Job description"),
-                JobDescription.user_id == current_user.id,
-            )
-        )
-        jd = result.scalar_one_or_none()
-        if not jd:
-            raise HTTPException(status_code=404, detail="Job description not found")
-
-        if not jd.is_analyzed:
-            try:
-                parsed = await matching_engine.analyze_job_description(jd.raw_text)
-                jd.required_skills = parsed.get("required_skills", [])
-                jd.preferred_skills = parsed.get("preferred_skills", [])
-                jd.keywords = parsed.get("keywords", [])
-                jd.parsed_requirements = parsed
-
-                try:
-                    embedding = await embedding_service.embed_text(jd.raw_text)
-                    emb_id = vector_store.generate_embedding_id()
-                    await vector_store.add_embedding(
-                        collection_name=VectorStoreService.COLLECTION_JOB_DESCRIPTIONS,
-                        embedding_id=emb_id,
-                        embedding=embedding,
-                        metadata={
-                            "user_id": str(current_user.id),
-                            "title": jd.title,
-                            "company": jd.company or "",
-                        },
-                        document=jd.raw_text,
-                    )
-                    jd.embedding_id = emb_id
-                except ValueError:
-                    pass
-
-                jd.is_analyzed = True
-                await db.commit()
-                await db.refresh(jd)
-            except Exception:
-                common_skills = [
-                    "python",
-                    "java",
-                    "javascript",
-                    "react",
-                    "node",
-                    "sql",
-                    "aws",
-                    "docker",
-                    "kubernetes",
-                    "git",
-                    "api",
-                    "rest",
-                    "graphql",
-                    "typescript",
-                ]
-                text_lower = jd.raw_text.lower()
-                jd.required_skills = [s for s in common_skills if s in text_lower][:10]
-                jd.is_analyzed = True
-                await db.commit()
-                await db.refresh(jd)
-
-        matches = []
-        try:
-            jd_embedding = None
-            if jd.embedding_id:
-                stored = await vector_store.get_by_id(
-                    VectorStoreService.COLLECTION_JOB_DESCRIPTIONS,
-                    jd.embedding_id,
-                )
-                if stored:
-                    jd_embedding = stored.get("embedding")
-            if not jd_embedding:
-                jd_embedding = await embedding_service.embed_text(jd.raw_text)
-
-            matches = await matching_engine.match_projects(
-                user_id=str(current_user.id),
-                jd_text=jd.raw_text,
-                jd_embedding=jd_embedding,
-                parsed_jd=jd.parsed_requirements,
-                top_n=top_n,
-            )
-        except (ValueError, Exception):
-            pass
-
-        return AnalyzeResponse(
-            job_description=JobDescriptionResponse(
-                id=str(jd.id),
-                title=jd.title,
-                company=jd.company,
-                location=jd.location,
-                raw_text=jd.raw_text,
-                source_url=jd.source_url,
-                required_skills=jd.required_skills or [],
-                preferred_skills=jd.preferred_skills or [],
-                keywords=jd.keywords or [],
-                is_analyzed=jd.is_analyzed,
+            matched_projects=await match_projects(
+                user_id, jd["rawText"], jd.get("embeddingId"), jd.get("parsedRequirements"), top_n
             ),
-            matched_projects=[
-                ProjectMatch(
-                    project_id=m.project_id,
-                    total_score=m.total_score,
-                    semantic_score=m.semantic_score,
-                    tech_overlap_score=m.tech_overlap_score,
-                    keyword_score=m.keyword_score,
-                    match_explanation=m.match_explanation,
-                )
-                for m in matches
-            ],
         )
+
+    # ---- SQLAlchemy path ----
+    from sqlalchemy import select
+
+    from app.models.job_description import JobDescription
+
+    result = await db.execute(
+        select(JobDescription).where(
+            JobDescription.id == path_uuid(jd_id, "Job description"),
+            JobDescription.user_id == current_user.id,
+        )
+    )
+    jd = result.scalar_one_or_none()
+    if not jd:
+        raise HTTPException(status_code=404, detail="Job description not found")
+
+    if not jd.is_analyzed:
+        parsed = await parse_requirements(jd.raw_text)
+        if parsed is not None:
+            jd.required_skills = parsed.get("required_skills", [])
+            jd.preferred_skills = parsed.get("preferred_skills", [])
+            jd.keywords = parsed.get("keywords", [])
+            jd.parsed_requirements = parsed
+            jd.embedding_id = await store_embedding(
+                user_id, jd.title, jd.company or "", jd.raw_text
+            )
+        else:
+            jd.required_skills = fallback_required_skills(jd.raw_text)
+        jd.is_analyzed = True
+        await db.commit()
+        await db.refresh(jd)
+
+    return AnalyzeResponse(
+        job_description=JobDescriptionResponse(
+            id=str(jd.id),
+            title=jd.title,
+            company=jd.company,
+            location=jd.location,
+            raw_text=jd.raw_text,
+            source_url=jd.source_url,
+            required_skills=jd.required_skills or [],
+            preferred_skills=jd.preferred_skills or [],
+            keywords=jd.keywords or [],
+            is_analyzed=jd.is_analyzed,
+        ),
+        matched_projects=await match_projects(
+            user_id, jd.raw_text, jd.embedding_id, jd.parsed_requirements, top_n
+        ),
+    )
 
 
 @router.delete("/{jd_id}")
