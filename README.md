@@ -139,19 +139,19 @@ Backend, from `project/backend`:
 
 ```bash
 uv run pytest                    # offline, uses a throwaway SQLite database
-uv run pytest --cov              # with coverage, fails under 70 percent
+uv run pytest --cov              # with coverage, fails under 80 percent
 uv run ruff check .              # lint
 uv run ruff format --check .     # formatting
 ```
 
 `tests/conftest.py` turns off Secrets Manager and DynamoDB and sets dummy AWS credentials, so the suite never calls AWS.
-Tests that touch Bedrock or embeddings replace those clients with stubs.
+DynamoDB and S3 tests run against moto, KMS against an in-memory stand-in, Chroma in memory, and Bedrock, GitHub, LinkedIn and the job sites through fakes.
 
 Frontend, from `project/frontend`:
 
 ```bash
 npm test                 # Vitest in jsdom
-npm run test:coverage    # with v8 coverage
+npm run test:coverage    # with v8 coverage, fails under 85 percent of lines
 npm run lint             # ESLint 9 with eslint.config.mjs
 npm run typecheck        # tsc --noEmit
 npm run build            # production build
