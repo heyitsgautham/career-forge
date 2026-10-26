@@ -27,7 +27,8 @@ import {
 import { SidebarItem } from '@/components/dashboard/sidebar-item';
 import { useToast } from '@/hooks/use-toast';
 import { clearCachedData } from '@/lib/query-cache';
-import { userApi, authApi, projectsApi, resumesApi, jobMatchApi, skillGapApi } from '@/lib/api';
+import { userApi, authApi } from '@/lib/api';
+import { usePrefetchTabs } from '@/components/dashboard/tab-prefetch';
 import type { User as UserType } from '@/lib/api';
 
 /* ─── Dashboard inner (needs Suspense for useSearchParams) ───────────────── */
@@ -125,24 +126,7 @@ function DashboardInner() {
     }
   }, [router]);
 
-  /* ── Prefetch all tab data on mount ─────────────────────────────────── */
-  useEffect(() => {
-    queryClient.prefetchQuery({
-      queryKey: ['resumes'],
-      queryFn: () => resumesApi.list().then((r) => r.data),
-      staleTime: 2 * 60 * 1000,
-    });
-    queryClient.prefetchQuery({
-      queryKey: ['projects'],
-      queryFn: () => projectsApi.list().then((r) => r.data),
-      staleTime: 5 * 60 * 1000,
-    });
-    queryClient.prefetchQuery({
-      queryKey: ['skill-gap-roles'],
-      queryFn: () => skillGapApi.getRoles().then((r) => r.data.roles || []),
-      staleTime: 60 * 60 * 1000,
-    });
-  }, [queryClient]);
+  const prefetchTab = usePrefetchTabs();
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -150,43 +134,6 @@ function DashboardInner() {
     toast({ title: 'Logged out successfully' });
     router.push('/login');
   };
-
-  /* ── Hover-prefetch map: tab key → prefetch function ────────────────── */
-  const prefetchTab = useCallback(
-    (tab: string) => {
-      switch (tab) {
-        case 'resumes':
-          queryClient.prefetchQuery({
-            queryKey: ['resumes'],
-            queryFn: () => resumesApi.list().then((r) => r.data),
-            staleTime: 2 * 60 * 1000,
-          });
-          break;
-        case 'projects':
-          queryClient.prefetchQuery({
-            queryKey: ['projects'],
-            queryFn: () => projectsApi.list().then((r) => r.data),
-            staleTime: 5 * 60 * 1000,
-          });
-          break;
-        case 'skill-gap':
-          queryClient.prefetchQuery({
-            queryKey: ['skill-gap-roles'],
-            queryFn: () => skillGapApi.getRoles().then((r) => r.data.roles || []),
-            staleTime: 60 * 60 * 1000,
-          });
-          break;
-        case 'job-scout':
-          queryClient.prefetchQuery({
-            queryKey: ['job-scout-matches'],
-            queryFn: () => jobMatchApi.list().then((r) => r.data),
-            staleTime: 30_000,
-          });
-          break;
-      }
-    },
-    [queryClient]
-  );
 
   return (
     <div className="flex h-screen overflow-hidden">
