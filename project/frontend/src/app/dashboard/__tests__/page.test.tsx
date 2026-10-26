@@ -132,7 +132,8 @@ describe('DashboardPage', () => {
   });
 
   it('stores the token from a GitHub OAuth callback', async () => {
-    nav.params = new URLSearchParams('github=connected&token=fresh-jwt');
+    nav.params = new URLSearchParams('github=connected');
+    window.history.replaceState(null, '', '/dashboard?github=connected#token=fresh-jwt');
     renderWithQuery(<DashboardPage />);
     await waitFor(() => expect(localStorage.getItem('token')).toBe('fresh-jwt'));
     expect(cache.clearCachedData).toHaveBeenCalled();

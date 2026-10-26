@@ -44,12 +44,11 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    // Redirect to dashboard with token in URL (it will be stored in localStorage)
-    const response = NextResponse.redirect(
-      new URL(`/dashboard?github=connected&token=${accessToken}`, request.url)
+    // The dashboard stores the token in localStorage. It travels in the fragment,
+    // which stays out of server logs, proxies and Referer headers.
+    return NextResponse.redirect(
+      new URL(`/dashboard?github=connected#token=${encodeURIComponent(accessToken)}`, request.url)
     );
-
-    return response;
   } catch (err) {
     console.error('GitHub OAuth callback error:', err);
     return NextResponse.redirect(new URL('/dashboard?error=callback_failed', request.url));

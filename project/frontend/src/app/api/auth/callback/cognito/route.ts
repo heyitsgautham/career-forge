@@ -32,9 +32,10 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    // Store token via redirect — dashboard's useEffect picks it up from query params
+    // The dashboard stores the token in localStorage. It travels in the fragment,
+    // which stays out of server logs, proxies and Referer headers.
     return NextResponse.redirect(
-      new URL(`/dashboard?google=connected&token=${accessToken}`, request.url)
+      new URL(`/dashboard?google=connected#token=${encodeURIComponent(accessToken)}`, request.url)
     );
   } catch (err) {
     console.error('Cognito callback error:', err);

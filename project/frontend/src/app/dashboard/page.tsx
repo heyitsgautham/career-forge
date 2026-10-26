@@ -95,7 +95,7 @@ function DashboardInner() {
   useEffect(() => {
     const github = searchParams.get('github');
     const google = searchParams.get('google');
-    const token = searchParams.get('token');
+    const token = new URLSearchParams(window.location.hash.slice(1)).get('token');
     const error = searchParams.get('error');
 
     if (github === 'connected' || google === 'connected') {

@@ -31,8 +31,8 @@ describe('GitHub OAuth callback', () => {
       installation_id: 42,
       link_token: 'old-jwt',
     });
-    expect(location(res)).toContain('/dashboard?github=connected');
-    expect(location(res)).toContain('jwt');
+    // The token rides in the fragment, which browsers never send to a server or in a Referer.
+    expect(location(res)).toBe('https://app.example.com/dashboard?github=connected#token=jwt');
   });
 
   it.each([
@@ -61,7 +61,7 @@ describe('Cognito callback', () => {
     fetchMock.mockResolvedValue(ok({ access_token: 'jwt' }));
     const res = await cognito(req('/api/auth/callback/cognito?code=c2'));
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ code: 'c2' });
-    expect(location(res)).toContain('/dashboard?google=connected');
+    expect(location(res)).toBe('https://app.example.com/dashboard?google=connected#token=jwt');
   });
 
   it.each([
