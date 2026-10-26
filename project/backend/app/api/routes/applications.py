@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
+from app.schemas.limits import Identifier, Paragraph, ShortText, Url
 from app.services.dynamo_service import dynamo_service
 
 router = APIRouter()
@@ -23,7 +24,7 @@ logger = structlog.get_logger()
 class TailorRequest(BaseModel):
     """Request to generate a tailored resume for a job."""
 
-    jobId: str
+    jobId: Identifier
 
 
 class TailorResponse(BaseModel):
@@ -41,21 +42,21 @@ class TailorResponse(BaseModel):
 class ApplicationCreate(BaseModel):
     """Request to create an application record."""
 
-    jobId: str
-    resumeId: Optional[str] = None
-    companyName: Optional[str] = None
-    roleTitle: Optional[str] = None
-    notes: Optional[str] = ""
-    url: Optional[str] = None
-    status: Optional[str] = "applied"
+    jobId: Identifier
+    resumeId: Optional[Identifier] = None
+    companyName: Optional[ShortText] = None
+    roleTitle: Optional[ShortText] = None
+    notes: Optional[Paragraph] = ""
+    url: Optional[Url] = None
+    status: Optional[ShortText] = "applied"
 
 
 class ApplicationUpdate(BaseModel):
     """Request to update an application."""
 
-    status: Optional[str] = None
-    notes: Optional[str] = None
-    resumeId: Optional[str] = None
+    status: Optional[ShortText] = None
+    notes: Optional[Paragraph] = None
+    resumeId: Optional[Identifier] = None
 
 
 class ApplicationResponse(BaseModel):

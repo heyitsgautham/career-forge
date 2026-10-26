@@ -4,17 +4,19 @@ Job schemas
 Request and response models for the /api/jobs routes.
 """
 
-from typing import List, Optional
+from typing import Annotated, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
+
+from app.schemas.limits import Name, Paragraph, ShortText, Url
 
 
 class JobDescriptionCreate(BaseModel):
-    title: str
-    company: Optional[str] = None
-    location: Optional[str] = None
-    raw_text: str
-    source_url: Optional[str] = None
+    title: Name
+    company: Optional[ShortText] = None
+    location: Optional[ShortText] = None
+    raw_text: Annotated[str, StringConstraints(min_length=1, max_length=50_000)]
+    source_url: Optional[Url] = None
 
 
 class JobDescriptionResponse(BaseModel):
@@ -96,13 +98,18 @@ class JobStatsResponse(BaseModel):
     lastScrape: Optional[dict] = None
 
 
+TrackingStatus = Literal[
+    "pending", "saved", "applied", "interviewing", "offered", "rejected", "ignored"
+]
+
+
 class TrackingStatusUpdate(BaseModel):
-    status: str  # "saved", "applied", "interviewing", "offered", "rejected", "ignored"
-    notes: Optional[str] = None
+    status: TrackingStatus
+    notes: Optional[Paragraph] = None
 
 
 class BlacklistRequest(BaseModel):
-    companyName: str
+    companyName: Name
 
 
 class SchedulerStatusResponse(BaseModel):

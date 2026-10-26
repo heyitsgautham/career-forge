@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict
 from app.api.deps import get_current_user, get_optional_user
 from app.core.config import settings
 from app.core.database import get_db
+from app.schemas.limits import LatexSource, Name, Paragraph, ShortText
 
 router = APIRouter()
 
@@ -28,18 +29,18 @@ _BASE_TEMPLATE_ID = "system-base-template"
 
 # Pydantic models
 class TemplateCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    latex_content: str
-    category: Optional[str] = None
+    name: Name
+    description: Optional[Paragraph] = None
+    latex_content: LatexSource
+    category: Optional[ShortText] = None
     is_public: bool = False
 
 
 class TemplateUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    latex_content: Optional[str] = None
-    category: Optional[str] = None
+    name: Optional[Name] = None
+    description: Optional[Paragraph] = None
+    latex_content: Optional[LatexSource] = None
+    category: Optional[ShortText] = None
     is_public: Optional[bool] = None
 
 

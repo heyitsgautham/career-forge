@@ -9,13 +9,12 @@ Two-step flow:
   PATCH /{id}/day/{n}/complete → mark a day done
 """
 
-from typing import List
-
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user
+from app.schemas.limits import TagList
 from app.services.project_roadmap_service import (
     delete_project_roadmap,
     generate_day_plan,
@@ -41,7 +40,7 @@ class PlanRequest(BaseModel):
     domain: str = Field(..., min_length=2, max_length=100)
     projectTitle: str = Field(..., min_length=2, max_length=200)
     projectDescription: str = Field(..., min_length=2, max_length=2000)
-    techStack: List[str] = Field(default_factory=list)
+    techStack: TagList = Field(default_factory=list)
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────

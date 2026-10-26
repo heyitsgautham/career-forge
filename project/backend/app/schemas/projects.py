@@ -8,25 +8,27 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.limits import Name, Paragraph, ShortText, TagList, Url, bounded_list
+
 
 class ProjectCreate(BaseModel):
-    title: str
-    description: str
-    technologies: List[str]
-    highlights: Optional[List[str]] = None
-    url: Optional[str] = None
-    demo_url: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    title: Name
+    description: Paragraph
+    technologies: TagList
+    highlights: Optional[bounded_list(Paragraph, 20)] = None
+    url: Optional[Url] = None
+    demo_url: Optional[Url] = None
+    start_date: Optional[ShortText] = None
+    end_date: Optional[ShortText] = None
 
 
 class ProjectUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    technologies: Optional[List[str]] = None
-    highlights: Optional[List[str]] = None
-    url: Optional[str] = None
-    demo_url: Optional[str] = None
+    title: Optional[Name] = None
+    description: Optional[Paragraph] = None
+    technologies: Optional[TagList] = None
+    highlights: Optional[bounded_list(Paragraph, 20)] = None
+    url: Optional[Url] = None
+    demo_url: Optional[Url] = None
     is_featured: Optional[bool] = None
 
 
@@ -48,8 +50,8 @@ class ProjectResponse(BaseModel):
 
 
 class GitHubIngestRequest(BaseModel):
-    repo_urls: Optional[List[str]] = None
-    full_names: Optional[List[str]] = None  # preferred: skip URL parsing entirely
+    repo_urls: Optional[bounded_list(Url)] = None
+    full_names: Optional[bounded_list(ShortText)] = None  # preferred: skip URL parsing entirely
     include_forks: bool = False
     include_private: bool = True
     sync_all: bool = False

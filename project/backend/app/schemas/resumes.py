@@ -4,15 +4,17 @@ Resume schemas
 Request and response models for the /api/resumes routes.
 """
 
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
+
+from app.schemas.limits import LatexSource, LongText
 
 
 class M2GenerateRequest(BaseModel):
     """Request body for M2 resume generation (S3-summary-based)."""
 
-    jd: Optional[str] = None
+    jd: Optional[LongText] = None
 
 
 class M2GenerateResponse(BaseModel):
@@ -71,7 +73,7 @@ class CompilationResponse(BaseModel):
 class LatexUpdateRequest(BaseModel):
     """Body for PUT /api/resumes/{id}/latex"""
 
-    latex_content: str
+    latex_content: LatexSource
 
 
 class LatexUpdateResponse(BaseModel):
@@ -82,7 +84,7 @@ class LatexUpdateResponse(BaseModel):
 class CompileOnDemandRequest(BaseModel):
     """Optional body for POST /api/resumes/{id}/compile"""
 
-    latex_content: Optional[str] = None
+    latex_content: Optional[LatexSource] = None
 
 
 class CompileOnDemandResponse(BaseModel):
@@ -94,5 +96,7 @@ class CompileOnDemandResponse(BaseModel):
 class AiEditRequest(BaseModel):
     """Body for POST /api/resumes/{id}/ai-edit"""
 
-    message: str
-    latex_content: str
+    message: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4_000)
+    ]
+    latex_content: LatexSource

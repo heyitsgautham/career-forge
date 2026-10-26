@@ -8,9 +8,10 @@ from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user
+from app.schemas.limits import Identifier
 from app.services.gap_analysis import (
     get_all_roles,
     get_cached_report,
@@ -31,16 +32,16 @@ logger = structlog.get_logger()
 
 
 class GapAnalysisRequest(BaseModel):
-    roleId: str
+    roleId: Identifier
 
 
 class RoadmapGenerateRequest(BaseModel):
-    roleId: str
-    reportId: Optional[str] = None
+    roleId: Identifier
+    reportId: Optional[Identifier] = None
 
 
 class MilestoneCompleteRequest(BaseModel):
-    weekNumber: int
+    weekNumber: int = Field(ge=1, le=52)
 
 
 # ─── Skill Gap Endpoints ─────────────────────────────────────────────────────
