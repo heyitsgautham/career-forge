@@ -63,6 +63,14 @@ describe('SignUpForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create Account' }));
   }
 
+  it('asks the browser for the 8 to 72 character passwords the API accepts', () => {
+    renderWithQuery(<SignUpForm />);
+    for (const label of ['Password', 'Confirm Password']) {
+      expect(screen.getByLabelText(label)).toHaveAttribute('minlength', '8');
+      expect(screen.getByLabelText(label)).toHaveAttribute('maxlength', '72');
+    }
+  });
+
   it('refuses mismatched passwords without calling the API', async () => {
     renderWithQuery(<SignUpForm />);
     await fill('pw-1234', 'pw-9999');

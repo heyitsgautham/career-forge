@@ -92,6 +92,8 @@ export function SignUpForm() {
           onChange={(e) => setRegisterData((d) => ({ ...d, password: e.target.value }))}
           placeholder="••••••••"
           autoComplete="new-password"
+          minLength={8}
+          maxLength={72}
           required
         />
       </div>
@@ -104,6 +106,8 @@ export function SignUpForm() {
           onChange={(e) => setRegisterData((d) => ({ ...d, confirmPassword: e.target.value }))}
           placeholder="••••••••"
           autoComplete="new-password"
+          minLength={8}
+          maxLength={72}
           required
         />
       </div>
