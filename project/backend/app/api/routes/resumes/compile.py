@@ -53,15 +53,16 @@ async def compile_resume(
             raise HTTPException(
                 status_code=400, detail="No LaTeX content to compile. Generate first."
             )
+        # Check before marking the resume as compiling, so a refusal leaves it editable.
+        is_safe, issues = latex_service.validate_latex_safety(latex_to_compile)
+        if not is_safe:
+            raise HTTPException(status_code=400, detail=f"Unsafe LaTeX: {', '.join(issues)}")
         await dynamo_service.update_item(
             "Resumes",
             {"userId": str(current_user.id), "resumeId": resume_id},
             {"status": "compiling", "updatedAt": dynamo_service.now_iso()},
         )
         try:
-            is_safe, issues = latex_service.validate_latex_safety(latex_to_compile)
-            if not is_safe:
-                raise HTTPException(status_code=400, detail=f"Unsafe LaTeX: {', '.join(issues)}")
             output_filename = f"resume_{resume_id[:8]}"
             try:
                 compilation_result = await latex_service.compile_latex(

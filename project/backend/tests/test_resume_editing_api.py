@@ -322,3 +322,16 @@ def test_sqlite_unsafe_latex_leaves_the_resume_editable(client, auth, compiler):
     assert (
         client.get(f"/api/resumes/{rid}", headers=auth["headers"]).json()["status"] == "generated"
     )
+
+
+def test_dynamo_unsafe_latex_leaves_the_resume_editable(dynamo_client, dynamo_auth, compiler):
+    # Regression: the status was set to "compiling" before the safety check, so a
+    # refused compile left the resume showing a spinner in the list for good.
+    uid = dynamo_auth["user_id"]
+    dynamo_resume(uid, latexContent=DOC)
+    dynamo_client.post(
+        "/api/resumes/r1/compile",
+        json={"latex_content": DOC + "\\write18{ls}"},
+        headers=dynamo_auth["headers"],
+    )
+    assert stored(uid)["status"] == "generated"
