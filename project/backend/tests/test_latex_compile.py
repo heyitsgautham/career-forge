@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import shutil
 from pathlib import Path
 
 import aiohttp
@@ -36,8 +37,9 @@ def subprocess_exec(monkeypatch):
     """Fake create_subprocess_exec. Set state['missing'] to a program name to raise FileNotFoundError."""
     state = {"calls": [], "missing": set(), "process": FakeProcess(), "write_pdf": True}
 
-    async def fake_exec(*cmd, cwd=None, **kwargs):
+    async def fake_exec(*cmd, cwd=None, env=None, **kwargs):
         state["calls"].append((cmd, cwd))
+        state["env"] = env
         if cmd[0] in state["missing"]:
             raise FileNotFoundError(cmd[0])
         work_dir = Path(cwd) if cwd else Path(cmd[cmd.index("-v") + 1].split(":")[0])
@@ -89,6 +91,38 @@ async def test_local_compile_runs_pdflatex_in_the_work_dir(service, subprocess_e
     assert cwd is not None
     assert result.success
     assert result.pdf_path.endswith(".pdf")
+
+
+async def test_tex_may_only_open_files_inside_the_build_dir(service, subprocess_exec):
+    # Regression: \input /path, without braces, slipped past the safety check and
+    # pdflatex read any file on the server into the PDF.
+    await service.compile_latex(DOC, use_docker=False)
+    cmd, _ = subprocess_exec["calls"][0]
+    assert "-no-shell-escape" in cmd
+    assert subprocess_exec["env"]["openin_any"] == "p"
+    assert subprocess_exec["env"]["openout_any"] == "p"
+
+    await service.compile_latex(DOC, use_docker=True)
+    docker_cmd, _ = subprocess_exec["calls"][1]
+    assert ("-e", "openin_any=p") == docker_cmd[
+        docker_cmd.index("openin_any=p") - 1 : docker_cmd.index("openin_any=p") + 1
+    ]
+    assert "-no-shell-escape" in docker_cmd
+
+
+@pytest.mark.skipif(shutil.which("pdflatex") is None, reason="needs a local TeX installation")
+async def test_a_real_pdflatex_cannot_read_a_file_outside_the_build_dir(tmp_path):
+    secret = tmp_path / "secret.txt"
+    secret.write_text("TOPSECRET")
+    work = tmp_path / "build"
+    work.mkdir()
+    (work / "r.tex").write_text(
+        "\\documentclass{article}\\begin{document}\\input " + str(secret) + "\n\\end{document}\n"
+    )
+    result = await LaTeXCompilationService()._compile_local(work, "r")
+    assert not result.success
+    assert "TOPSECRET" not in (work / "r.log").read_text(errors="replace")
+    assert not (work / "r.pdf").exists()
 
 
 async def test_errors_in_the_log_fail_the_compile(service, subprocess_exec):

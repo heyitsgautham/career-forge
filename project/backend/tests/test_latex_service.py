@@ -63,6 +63,12 @@ def test_clean_log_has_no_findings():
         r"\include{../../.env}",
         r"\input {~/.aws/credentials}",
         r"\InputIfFileExists{/etc/hosts}{}{}",
+        # TeX also takes a bare path after \input, without braces
+        r"\input /etc/passwd",
+        r"\input ../../.env",
+        r"\verbatiminput{/etc/passwd}",
+        r"\lstinputlisting[language=bash]{~/.aws/credentials}",
+        r"\includegraphics{/var/secret.png}",
     ],
 )
 def test_reading_files_outside_the_build_dir_is_flagged(snippet):

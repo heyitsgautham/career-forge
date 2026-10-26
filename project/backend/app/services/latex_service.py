@@ -5,6 +5,7 @@ Compiles LaTeX to PDF using Docker-sandboxed TeX Live.
 """
 
 import asyncio
+import os
 import re
 import shutil
 import tempfile
@@ -18,6 +19,12 @@ import structlog
 from app.core.config import settings
 
 logger = structlog.get_logger()
+
+# kpathsea's "paranoid" mode: TeX may only open files under the build directory,
+# so neither \input /path nor a package that reads files can reach the rest of
+# the disk, and \openout cannot write outside it either.
+TEX_FILE_ACCESS_ENV = {"openin_any": "p", "openout_any": "p"}
+PDFLATEX_FLAGS = ["-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error"]
 
 
 @dataclass
@@ -158,10 +165,13 @@ class LaTeXCompilationService:
             f"{work_dir}:/data:rw",
             "-w",
             "/data",
+            "-e",
+            "openin_any=p",
+            "-e",
+            "openout_any=p",
             "texlive/texlive:latest",
             "pdflatex",
-            "-interaction=nonstopmode",
-            "-halt-on-error",
+            *PDFLATEX_FLAGS,
             f"{filename}.tex",
         ]
 
@@ -228,7 +238,7 @@ class LaTeXCompilationService:
     ) -> CompilationResult:
         """Compile using local pdflatex installation."""
 
-        cmd = ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", f"{filename}.tex"]
+        cmd = ["pdflatex", *PDFLATEX_FLAGS, f"{filename}.tex"]
 
         try:
             # On Windows, asyncio subprocess doesn't work well, use online compiler directly
@@ -241,6 +251,7 @@ class LaTeXCompilationService:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 cwd=work_dir,
+                env={**os.environ, **TEX_FILE_ACCESS_ENV},
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -478,6 +489,16 @@ class LaTeXCompilationService:
             # leave the temporary build directory (server files, ~/.aws, .env)
             (
                 r"\\(input|include|InputIfFileExists)\s*\{\s*(/|~|\.\.)",
+                "Input from an absolute or parent path detected",
+            ),
+            # TeX also reads a bare path after \input, and packages read files too
+            (
+                r"\\(input|include)\s+(/|~|\.\.)",
+                "Input from an absolute or parent path detected",
+            ),
+            (
+                r"\\(verbatiminput|VerbatimInput|lstinputlisting|includegraphics|includepdf)"
+                r"\s*(\[[^\]]*\])?\s*\{\s*(/|~|\.\.)",
                 "Input from an absolute or parent path detected",
             ),
         ]
