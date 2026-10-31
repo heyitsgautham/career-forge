@@ -41,7 +41,7 @@ dependencies = [
     "pyvirtualdisplay>=3.0",
     "python-jobspy==1.1.82",
     # Utilities
-    "tenacity==8.2.3",
+    "tenacity==9.2.1",
     "structlog==23.2.0",
 ]
 
