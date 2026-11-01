@@ -1,5 +1,5 @@
 # CareerForge backend: FastAPI served by uvicorn, dependencies from uv.lock
-FROM python:3.11-slim
+FROM python:3.15-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.14 /uv /usr/local/bin/uv
 
